@@ -1,0 +1,21 @@
+diff --git a/node_modules/react-native-tab-view/src/TabView.tsx b/node_modules/react-native-tab-view/src/TabView.tsx
+index bb1f531..5b131d4 100644
+--- a/node_modules/react-native-tab-view/src/TabView.tsx
++++ b/node_modules/react-native-tab-view/src/TabView.tsx
+@@ -54,6 +54,8 @@ export function TabView<T extends Route>({
+   tabBarPosition = 'top',
+   animationEnabled = true,
+   overScrollMode,
++  // @ts-expect-error: forwarded to react-native-pager-view (Instagram-style page gap)
++  pageMargin = 0,
+ }: Props<T>) {
+   const [layout, setLayout] = React.useState({
+     width: 0,
+@@ -91,6 +93,7 @@ export function TabView<T extends Route>({
+         onIndexChange={jumpToIndex}
+         animationEnabled={animationEnabled}
+         overScrollMode={overScrollMode}
++        pageMargin={pageMargin}
+         style={pagerStyle}
+       >
+         {({ position, render, addEnterListener, jumpTo }) => {

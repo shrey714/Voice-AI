@@ -1,25 +1,58 @@
 {
   "expo": {
-    "name": "shopkeeper-app",
+    "name": "Shopkeeper AI",
     "slug": "shopkeeper-app",
     "version": "1.0.0",
+    "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Camera is used to scan barcodes of products",
+        "NSMicrophoneUsageDescription": "Microphone is used for voice-based billing",
+        "NSSpeechRecognitionUsageDescription": "Speech recognition is used to convert voice to product orders"
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#6C63FF",
+        "foregroundImage": "./assets/adaptive-icon.png"
       },
-      "predictiveBackGestureEnabled": false
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.VIBRATE",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "package": "com.shopkeeperai.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Shopkeeper AI to use the camera for barcode scanning"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Shopkeeper AI to access photos for product images"
+        }
+      ],
+      "expo-audio",
+      "expo-asset"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "e725c1ba-c15e-437c-b5f7-189f3122cff1"
+      }
     }
   }
 }
