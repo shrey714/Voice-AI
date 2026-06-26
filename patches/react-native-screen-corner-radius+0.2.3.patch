@@ -1,0 +1,25 @@
+diff --git a/node_modules/react-native-screen-corner-radius/android/src/main/java/com/reactnativescreencornerradius/ScreenCornerRadiusModule.kt b/node_modules/react-native-screen-corner-radius/android/src/main/java/com/reactnativescreencornerradius/ScreenCornerRadiusModule.kt
+index ff11af7..7669a9b 100644
+--- a/node_modules/react-native-screen-corner-radius/android/src/main/java/com/reactnativescreencornerradius/ScreenCornerRadiusModule.kt
++++ b/node_modules/react-native-screen-corner-radius/android/src/main/java/com/reactnativescreencornerradius/ScreenCornerRadiusModule.kt
+@@ -26,6 +26,20 @@ class ScreenCornerRadiusModule(reactContext: ReactApplicationContext) :
+     )
+   }
+ 
++  // Async read: runs on the UI thread *after* the window exists, so the rounded
++  // corner insets are actually available (getConstants runs too early and returns 0).
++  // Returns raw pixels — JS converts to dp via PixelRatio.
++  @ReactMethod
++  fun getCornerRadiusAsync(promise: Promise) {
++    UiThreadUtil.runOnUiThread {
++      try {
++        promise.resolve(getCornerRadius())
++      } catch (e: Exception) {
++        promise.resolve(0)
++      }
++    }
++  }
++
+   fun getCornerRadius(): Int {
+     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+       rootView = reactApplicationContext.currentActivity?.window?.decorView?.findViewById(android.R.id.content)

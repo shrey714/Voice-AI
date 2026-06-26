@@ -168,8 +168,11 @@ export default function BillingScreen({ navigation }: any) {
     );
   }, [settings.shopName, settings.currency]);
 
+  // Bluetooth HID scanner support — toggleable in Settings → Preferences.
+  const btEnabled = settings.btScannerEnabled !== false;
+
   const refocusBtInput = useCallback(() => {
-    if (!isBillingFocused.current) return;
+    if (!btEnabled || !isBillingFocused.current) return;
     // PagerView (under react-navigation material-top-tabs) runs its page transition
     // on the native thread — InteractionManager only tracks JS Animated, so it fires
     // almost immediately and we'd call .focus() mid-transition.
@@ -181,7 +184,7 @@ export default function BillingScreen({ navigation }: any) {
     setTimeout(() => {
       if (isBillingFocused.current) btInputRef.current?.focus();
     }, delay);
-  }, []);
+  }, [btEnabled]);
 
   const handleBtScan = useCallback(() => {
     if (scanTimer.current) { clearTimeout(scanTimer.current); scanTimer.current = null; }
@@ -228,9 +231,9 @@ export default function BillingScreen({ navigation }: any) {
 
   useEffect(() => {
     navigation.setOptions({
-      headerRight: () => <BtStatusIcon active={btActive} />,
+      headerRight: btEnabled ? () => <BtStatusIcon active={btActive} /> : undefined,
     });
-  }, [btActive, navigation]);
+  }, [btActive, navigation, btEnabled]);
 
   useEffect(() => {
     const sub = Keyboard.addListener('keyboardDidHide', refocusBtInput);
@@ -897,7 +900,9 @@ export default function BillingScreen({ navigation }: any) {
       </BottomSheet>
 
       {/* Hidden input — always focused, captures BT HID scanner keystrokes silently.
-          Must be 1×1 (not 0×0) so Android's IMF routes keyboard events to it. */}
+          Must be 1×1 (not 0×0) so Android's IMF routes keyboard events to it.
+          Only mounted when the Bluetooth scanner feature is enabled in settings. */}
+      {btEnabled && (
       <TextInput
         ref={btInputRef}
         value={btBuffer}
@@ -936,6 +941,7 @@ export default function BillingScreen({ navigation }: any) {
         autoFocus
         style={{ position: 'absolute', opacity: 0, width: 1, height: 1, bottom: 0, left: 0 }}
       />
+      )}
 
       <BarcodeScannerModal visible={showScanner} onClose={() => { setShowScanner(false); refocusBtInput(); }} onScanned={handleBarcodeScanned} />
 

@@ -7,15 +7,14 @@ import { useAppStore } from '../stores/useAppStore';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
 
-const CATEGORIES = ['All', 'Food', 'Stationery', 'Books', 'Electronics', 'Clothing', 'General', 'Other'];
-
 function formatDate(ts: number) {
   return new Date(ts).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 export default function StockTakeScreen({ navigation }: any) {
   const { colors } = useAppTheme();
-  const { activeStockTake, stockTakeItems, products, startStockTake, cancelStockTake } = useAppStore();
+  const { activeStockTake, stockTakeItems, products, startStockTake, cancelStockTake, settings } = useAppStore();
+  const CATEGORIES = ['All', ...(settings.productCategories ?? [])];
   const [scope, setScope] = useState('all');
   const [starting, setStarting] = useState(false);
 

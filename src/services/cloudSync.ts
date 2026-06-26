@@ -1,78 +1,126 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { supabase } from './supabase';
 import * as db from '../db/database';
-import { Product, Bill, Expense } from '../types';
+import { uploadProductImages, downloadProductImages, ImgProgress } from './imageBackup';
 
-let supabase: SupabaseClient | null = null;
+// One shared table holds a single full-snapshot row per user (see SQL in docs):
+//   backups ( user_id uuid primary key, data jsonb, updated_at timestamptz )
+// RLS restricts every row to user_id = auth.uid().
+const BACKUP_TABLE = 'backups';
 
-export async function initSupabase(): Promise<boolean> {
-  const url = await db.getSetting('supabase_url') || process.env.EXPO_PUBLIC_SUPABASE_URL;
-  const key = await db.getSetting('supabase_key') || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return false;
-  supabase = createClient(url, key);
+function requireClient() {
+  if (!supabase) {
+    throw new Error('Backup is not available in this build (Supabase not configured).');
+  }
+  return supabase;
+}
+
+// ── Auth (phone OTP) ─────────────────────────────────────────────────────────
+
+export interface AuthUser {
+  id: string;
+  phone: string | null;
+}
+
+// Normalize an Indian number to E.164 (+91XXXXXXXXXX) which Supabase/Twilio expect.
+export function toE164(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  if (raw.trim().startsWith('+')) return '+' + digits;
+  if (digits.length === 10) return '+91' + digits;       // bare 10-digit Indian mobile
+  if (digits.length === 12 && digits.startsWith('91')) return '+' + digits;
+  return '+' + digits;
+}
+
+// Send an SMS OTP to the phone number.
+export async function sendOtp(phoneRaw: string): Promise<void> {
+  const client = requireClient();
+  const phone = toE164(phoneRaw);
+  const { error } = await client.auth.signInWithOtp({ phone });
+  if (error) throw new Error(error.message);
+}
+
+// Verify the 6-digit code; on success the session is persisted automatically.
+export async function verifyOtp(phoneRaw: string, token: string): Promise<AuthUser> {
+  const client = requireClient();
+  const phone = toE164(phoneRaw);
+  const { data, error } = await client.auth.verifyOtp({ phone, token, type: 'sms' });
+  if (error) throw new Error(error.message);
+  const user = data.user;
+  if (!user) throw new Error('Verification failed. Please try again.');
+  return { id: user.id, phone: user.phone ?? phone };
+}
+
+// Currently logged-in user, or null. Resolves from the persisted session.
+export async function getCurrentUser(): Promise<AuthUser | null> {
+  if (!supabase) return null;
+  const { data } = await supabase.auth.getSession();
+  const user = data.session?.user;
+  return user ? { id: user.id, phone: user.phone ?? null } : null;
+}
+
+export async function signOut(): Promise<void> {
+  if (!supabase) return;
+  await supabase.auth.signOut();
+}
+
+// ── Backup / restore (full snapshot) ─────────────────────────────────────────
+
+export interface BackupMeta {
+  updatedAt: string | null; // ISO timestamp of the cloud snapshot, or null if none
+}
+
+// Upload a full snapshot of every local table, then any new/changed product
+// images. `onImageProgress` fires per-image during the (optional) image phase.
+export async function backupNow(onImageProgress?: ImgProgress): Promise<{ updatedAt: string }> {
+  const client = requireClient();
+  const user = await getCurrentUser();
+  if (!user) throw new Error('Please log in to back up.');
+
+  const data = await db.exportAllTables();
+  const updatedAt = new Date().toISOString();
+  const { error } = await client
+    .from(BACKUP_TABLE)
+    .upsert({ user_id: user.id, data, updated_at: updatedAt }, { onConflict: 'user_id' });
+  if (error) throw new Error(`Backup failed: ${error.message}`);
+
+  // Images are best-effort: a Storage hiccup must not fail the data backup.
+  try { await uploadProductImages(user.id, onImageProgress); } catch { /* ignore */ }
+  return { updatedAt };
+}
+
+// Fetch metadata about the user's existing cloud backup (for "last backed up …").
+export async function getBackupMeta(): Promise<BackupMeta> {
+  const client = requireClient();
+  const user = await getCurrentUser();
+  if (!user) return { updatedAt: null };
+
+  const { data, error } = await client
+    .from(BACKUP_TABLE)
+    .select('updated_at')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return { updatedAt: data?.updated_at ?? null };
+}
+
+// Download the user's cloud snapshot and overwrite local data. Returns false if
+// there is no backup yet. Caller should reload the in-memory store afterwards.
+export async function restoreNow(onImageProgress?: ImgProgress): Promise<boolean> {
+  const client = requireClient();
+  const user = await getCurrentUser();
+  if (!user) throw new Error('Please log in to restore.');
+
+  const { data, error } = await client
+    .from(BACKUP_TABLE)
+    .select('data')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (error) throw new Error(`Restore failed: ${error.message}`);
+  if (!data?.data) return false;
+
+  const snapshot = data.data as Record<string, any[]>;
+  await db.importAllTables(snapshot);
+
+  // Pull product images and rewrite local paths — best-effort.
+  try { await downloadProductImages(user.id, snapshot.products || [], onImageProgress); } catch { /* ignore */ }
   return true;
-}
-
-export async function setSupabaseCredentials(url: string, anonKey: string): Promise<void> {
-  await db.setSetting('supabase_url', url);
-  await db.setSetting('supabase_key', anonKey);
-  supabase = createClient(url, anonKey);
-}
-
-export async function getSupabaseCredentials(): Promise<{ url: string; key: string } | null> {
-  const url = await db.getSetting('supabase_url');
-  const key = await db.getSetting('supabase_key');
-  if (!url || !key) return null;
-  return { url, key };
-}
-
-export async function syncToCloud(): Promise<{ products: number; bills: number; expenses: number }> {
-  if (!supabase) {
-    const ok = await initSupabase();
-    if (!ok) throw new Error('Supabase not configured. Add URL and key in Settings → Cloud Sync.');
-  }
-
-  const [products, bills, expenses] = await Promise.all([
-    db.getAllProducts(), db.getAllBills(), db.getAllExpenses(),
-  ]);
-
-  const upsert = async (table: string, rows: any[]) => {
-    if (rows.length === 0) return 0;
-    const { error } = await supabase!.from(table).upsert(rows, { onConflict: 'id' });
-    if (error) throw new Error(`Sync error (${table}): ${error.message}`);
-    return rows.length;
-  };
-
-  const [pc, bc, ec] = await Promise.all([
-    upsert('products', products),
-    upsert('bills', bills.map(b => ({ ...b, items: JSON.stringify(b.items) }))),
-    upsert('expenses', expenses),
-  ]);
-
-  return { products: pc, bills: bc, expenses: ec };
-}
-
-export async function syncFromCloud(): Promise<{ products: number; bills: number; expenses: number }> {
-  if (!supabase) {
-    const ok = await initSupabase();
-    if (!ok) throw new Error('Supabase not configured.');
-  }
-
-  const fetchAll = async (table: string) => {
-    const { data, error } = await supabase!.from(table).select('*');
-    if (error) throw new Error(`Fetch error (${table}): ${error.message}`);
-    return data || [];
-  };
-
-  const [products, billRows, expenses] = await Promise.all([
-    fetchAll('products'), fetchAll('bills'), fetchAll('expenses'),
-  ]);
-
-  let pc = 0, bc = 0, ec = 0;
-  for (const p of products) { try { await db.insertProduct(p); pc++; } catch { /* skip dup */ } }
-  for (const b of billRows) {
-    try { await db.insertBill({ ...b, items: typeof b.items === 'string' ? JSON.parse(b.items) : b.items }); bc++; } catch { /* skip dup */ }
-  }
-  for (const e of expenses) { try { await db.insertExpense(e); ec++; } catch { /* skip dup */ } }
-
-  return { products: pc, bills: bc, expenses: ec };
 }

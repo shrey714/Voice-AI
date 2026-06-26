@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity, Linking, Alert, RefreshControl, Dimensions, Platform } from 'react-native';
 import { Text } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
+import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing, SharedValue } from 'react-native-reanimated';
 import { useAppStore } from '../stores/useAppStore';
 import { formatCurrency, startOfDay, endOfDay } from '../utils/helpers';
 import { useAppTheme } from '../theme';
@@ -11,7 +12,56 @@ import { fonts } from '../theme/typography';
 import AnimatedNumber from '../components/common/AnimatedNumber';
 import PressableScale from '../components/common/PressableScale';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SCREEN_CORNER_RADIUS } from '../utils/screenRadius';
+
+// A single letter whose brightness peaks as the shimmer sweep passes its position.
+function ShimmerLetter({ char, t, progress, base, peakAdd, color, textStyle }: {
+  char: string; t: number; progress: SharedValue<number>;
+  base: number; peakAdd: number; color: string; textStyle: any;
+}) {
+  const style = useAnimatedStyle(() => {
+    const d = progress.value - t;
+    const peak = Math.exp(-(d * d) * 55); // tight gaussian → a focused band of light
+    return { opacity: base + peak * peakAdd };
+  });
+  return <Animated.Text style={[textStyle, { color }, style]}>{char}</Animated.Text>;
+}
+
+// Big faded wordmark with a light that glides left→right through the letters.
+function ShimmerBrand({ colors }: { colors: any }) {
+  const brand = 'shopkeeper.ai';
+  const chars = brand.split('');
+  const n = chars.length;
+  const { width } = Dimensions.get('window');
+  const size = Math.min(60, Math.round((width - 36) / 7.2));
+  const textStyle = { fontFamily: fonts.extraBold, fontSize: size, lineHeight: size * 1.04, includeFontPadding: false };
+
+  const progress = useSharedValue(-0.3);
+  useEffect(() => {
+    // Sweep from before the first letter to past the last, then loop seamlessly
+    // (everything is back at base brightness at the wrap point, so no flicker).
+    progress.value = withRepeat(withTiming(1.3, { duration: 3000, easing: Easing.inOut(Easing.ease) }), -1, false);
+  }, []);
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+      {chars.map((c, i) => {
+        const isDot = c === '.';
+        return (
+          <ShimmerLetter
+            key={i}
+            char={c}
+            t={i / (n - 1)}
+            progress={progress}
+            base={isDot ? 0.85 : 0.07}
+            peakAdd={isDot ? 0.15 : 0.6}
+            color={isDot ? colors.primary : colors.text}
+            textStyle={textStyle}
+          />
+        );
+      })}
+    </View>
+  );
+}
 
 export default function DashboardScreen({ navigation }: any) {
   const { colors } = useAppTheme();
@@ -39,7 +89,9 @@ export default function DashboardScreen({ navigation }: any) {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([loadProducts(), loadBills(), loadExpenses()]);
+      setTimeout(async() => {
+        await Promise.all([loadProducts(), loadBills(), loadExpenses()]);
+      }, 1000);
     } catch (e) {
       // ignore — still stop the spinner below
     } finally {
@@ -64,8 +116,9 @@ export default function DashboardScreen({ navigation }: any) {
 
   const insets = useSafeAreaInsets();
 
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={[]}>
+    <SafeAreaView style={{ flex: 1 }} edges={[]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         scrollIndicatorInsets={{ top: 0, bottom: 0, left: 0, right: 0 }}
@@ -76,16 +129,16 @@ export default function DashboardScreen({ navigation }: any) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#fff"
+            tintColor={colors.primary}
             colors={[colors.primary]}
             progressBackgroundColor={colors.surface}
           />
         }
       >
         {/* Hero gradient header — extends under status bar for colored status bar effect */}
-        <LinearGradient colors={[colors.primary, colors.primaryDark, '#35423A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[s.hero, { paddingTop: insets.top + 20, marginTop: Platform.OS === 'ios' ? -(insets.top + 8) : 0 }]}>
+        <LinearGradient colors={[colors.primary, colors.primaryDark, '#35423A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[s.hero, { paddingTop: insets.top + 20, marginTop: Platform.OS === 'ios' ? -(insets.top + 8) : 0, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 }]}>
           <MotiView from={{ opacity: 0, translateY: -8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 500 }}>
-            <Text style={s.shopName}>{settings.shopName} {SCREEN_CORNER_RADIUS}</Text>
+            <Text style={s.shopName}>{settings.shopName}</Text>
             <Text style={s.heroDate}>{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</Text>
           </MotiView>
 
@@ -155,7 +208,7 @@ export default function DashboardScreen({ navigation }: any) {
         )}
 
         {/* Quick Actions — bigger, better spaced */}
-        <Text style={[s.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
+        <Text style={[s.sectionTitle]}>Quick Actions</Text>
         <View style={s.actionsGrid}>
           {[
             { label: 'New Bill',    icon: 'cart-outline' as const,        color: colors.primary, onPress: () => navigation.navigate('Billing') },
@@ -178,7 +231,7 @@ export default function DashboardScreen({ navigation }: any) {
         </View>
 
         {/* Today's performance */}
-        <Text style={[s.sectionTitle, { color: colors.text }]}>Today's Performance</Text>
+        <Text style={[s.sectionTitle]}>Today's Performance</Text>
         <View style={s.perfRow}>
           {[
             { label: 'Revenue', num: todayRevenue, color: colors.primary, bg: colors.primaryLight },
@@ -247,6 +300,12 @@ export default function DashboardScreen({ navigation }: any) {
           </View>
         )}
 
+        {/* Brand watermark footer — shimmer sweeps through the letters */}
+        <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ type: 'timing', duration: 600 }} style={s.brandWrap}>
+          <Text style={[s.brandTagline, { color: colors.textMuted }]}>RUN YOUR SHOP, BY VOICE</Text>
+          <ShimmerBrand colors={colors} />
+        </MotiView>
+
         <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaView>
@@ -254,15 +313,19 @@ export default function DashboardScreen({ navigation }: any) {
 }
 
 const makeStyles = (c: any) => StyleSheet.create({
+  // Brand watermark footer
+  brandWrap: { marginTop: 24, paddingTop: 28, paddingBottom: 6, alignItems: 'center', justifyContent: 'flex-end' },
+  brandTagline: { fontFamily: fonts.bold, fontSize: 10.5, letterSpacing: 2.5, marginBottom: 10 },
+
   // Hero section — generous padding & spacing
-  hero: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 28 },
+  hero: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 20 },
   shopName: { fontFamily: fonts.display, fontSize: 28, color: '#fff', letterSpacing: -0.5 },
   heroDate: { fontFamily: fonts.medium, fontSize: 13, color: 'rgba(255,255,255,0.65)', marginTop: 4 },
   waBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16, backgroundColor: 'rgba(255,255,255,0.18)', alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
   waBtnText: { color: '#fff', fontFamily: fonts.bold, fontSize: 12 },
 
   // Stat cards
-  heroStats: { flexDirection: 'row', marginTop: 24, gap: 12 },
+  heroStats: { flexDirection: 'row', marginTop: 20, gap: 12 },
   heroStatCard: { flex: 1, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 16, padding: 16, alignItems: 'center', gap: 8 },
   heroStatVal: { fontFamily: fonts.display, fontSize: 20, textAlign: 'center' },
   heroStatLbl: { fontFamily: fonts.semiBold, fontSize: 11, color: 'rgba(255,255,255,0.7)' },
@@ -273,7 +336,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   alertSub: { fontFamily: fonts.regular, fontSize: 12, marginTop: 3 },
 
   // Section titles
-  sectionTitle: { fontFamily: fonts.extraBold, fontSize: 16, paddingHorizontal: 16, marginTop: 24, marginBottom: 14, letterSpacing: -0.3 },
+  sectionTitle: { fontFamily: fonts.extraBold, color: '#fff', fontSize: 16, paddingHorizontal: 16, marginTop: 24, marginBottom: 14, letterSpacing: -0.3 },
 
   // Quick action cards
   actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 12 },

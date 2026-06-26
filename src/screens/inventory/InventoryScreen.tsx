@@ -12,12 +12,12 @@ import EmptyState from '../../components/common/EmptyState';
 import CollapsibleFab, { useFabScroll } from '../../components/common/CollapsibleFab';
 import ProductCard from '../../components/inventory/ProductCard';
 
-const CATEGORIES = ['All', 'Stationery', 'Books', 'Electronics', 'Food', 'Clothing', 'General', 'Other'];
 
 
 export default function InventoryScreen({ route, navigation }: any) {
   const { colors } = useAppTheme();
   const { products, deleteProduct, updateProduct, settings } = useAppStore();
+  const CATEGORIES = ['All', ...(settings.productCategories ?? [])];
 
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');

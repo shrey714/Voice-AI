@@ -36,16 +36,20 @@ import StockTakeCountScreen from '../screens/StockTakeCountScreen';
 import StockTakeReviewScreen from '../screens/StockTakeReviewScreen';
 import StockTakeHistoryScreen from '../screens/StockTakeHistoryScreen';
 import ExportsScreen from '../screens/ExportsScreen';
+import ManageOptionsScreen from '../screens/ManageOptionsScreen';
+import ShopInfoScreen from '../screens/ShopInfoScreen';
+import BackupRestoreScreen from '../screens/BackupRestoreScreen';
 import MenuScreen from '../screens/MenuScreen';
 import AppHeader from '../components/common/AppHeader';
 import { Toaster } from 'sonner-native';
 import { useAppTheme } from '../theme';
-import { SCREEN_CORNER_RADIUS } from '../utils/screenRadius';
+import { useScreenRadius } from '../utils/screenRadius';
 
 const TopTab = createMaterialTopTabNavigator();
 const BillingStack = createNativeStackNavigator();
 const InventoryStack = createNativeStackNavigator();
 const RecordsStack = createNativeStackNavigator();
+const MenuStack = createNativeStackNavigator();
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -76,9 +80,11 @@ function RecordsStackNav({ colors }: { colors: any }) {
 }
 
 function MenuStackNav({ colors }: { colors: any }) {
-  const MenuStack = createNativeStackNavigator();
   return (
-    <MenuStack.Navigator screenOptions={headerOpts(colors)}>
+    <MenuStack.Navigator screenOptions={{...headerOpts(colors), 
+      // animation: 'slide_from_right', 
+      // presentation: 'card'
+    }}>
       <MenuStack.Screen name="MenuMain" component={MenuScreen} options={{ title: 'More' }} />
       <MenuStack.Screen name="Analytics" component={AnalyticsScreen} options={{ title: 'Analytics' }} />
       <MenuStack.Screen name="Exports" component={ExportsScreen} options={{ title: 'Export Reports' }} />
@@ -92,6 +98,9 @@ function MenuStackNav({ colors }: { colors: any }) {
       <MenuStack.Screen name="StockTakeCount" component={StockTakeCountScreen} options={{ title: 'Count Stock' }} />
       <MenuStack.Screen name="StockTakeReview" component={StockTakeReviewScreen} options={{ title: 'Review & Commit' }} />
       <MenuStack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
+      <MenuStack.Screen name="ShopInfo" component={ShopInfoScreen} options={{ title: 'Shop Information' }} />
+      <MenuStack.Screen name="ManageOptions" component={ManageOptionsScreen} options={{ title: 'Preferences' }} />
+      <MenuStack.Screen name="BackupRestore" component={BackupRestoreScreen} options={{ title: 'Backup & Restore' }} />
     </MenuStack.Navigator>
   );
 }
@@ -104,17 +113,14 @@ const headerOpts = (_colors?: any) => ({
 
 const FULLSCREEN_SCREENS = new Set(['StockTake', 'StockTakeCount', 'StockTakeReview', 'StockTakeHistory']);
 
-// Corner radius of each swipeable page — read from the device's actual screen
-// corner radius (native module), so pages sit flush at rest and read as rounded
-// "cards" mid-swipe. Falls back to a tuned constant before the native build exists.
-const SCREEN_RADIUS = SCREEN_CORNER_RADIUS;
-
-// Wraps a tab page in an opaque, corner-clipped card. The black pager backdrop
-// (see TopTab.Navigator style) shows through the pageMargin gap and around these
-// rounded corners, giving the Instagram-style card transition while swiping.
+// Wraps a tab page in an opaque, corner-clipped card. The corner radius is the
+// device's *actual* screen radius (resolved async from the native module, with a
+// tuned fallback), so pages sit flush at rest and read as rounded "cards"
+// mid-swipe. The black pager backdrop shows through the pageMargin gap + corners.
 function RoundedScene({ colors, children }: { colors: any; children: React.ReactNode }) {
+  const radius = useScreenRadius();
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg, borderRadius: SCREEN_RADIUS, overflow: 'hidden' }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg, borderRadius: radius, overflow: 'hidden' }}>
       {children}
     </View>
   );
@@ -337,6 +343,9 @@ function MainTabs({ colors, isDark }: { colors: any; isDark: boolean }) {
       screenOptions={{ swipeEnabled, lazy: false }}
       pageMargin={10}
       style={{ backgroundColor: '#000' }}
+      sceneContainerStyle={{
+        backgroundColor: 'transparent'
+      }}
     >
       <TopTab.Screen name="Home">
         {(props) => <RoundedScene colors={colors}><DashboardScreen {...props} /></RoundedScene>}

@@ -18,8 +18,9 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#6C63FF",
-        "foregroundImage": "./assets/adaptive-icon.png"
+        "backgroundColor": "#5B7567",
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "permissions": [
         "android.permission.CAMERA",
@@ -31,6 +32,11 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#5B7567"
     },
     "plugins": [
       "expo-sqlite",

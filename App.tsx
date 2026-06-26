@@ -18,12 +18,14 @@ import {
 } from '@expo-google-fonts/nunito-sans';
 import { LibreBaskerville_400Regular } from '@expo-google-fonts/libre-baskerville';
 import AppNavigator from './src/navigation/AppNavigator';
+import OnboardingScreen from './src/screens/OnboardingScreen';
 import { useAppStore } from './src/stores/useAppStore';
 import { ThemeProvider, useAppTheme } from './src/theme';
 import { fonts } from './src/theme/typography';
 
 function AppLoader() {
   const { loadProducts, loadBills, loadExpenses, loadSettings, loadSuppliers, loadReturns, loadTemplates, loadPurchases, loadSupplierLedger, loadActiveStockTake } = useAppStore();
+  const onboardingDone = useAppStore(state => state.settings.onboardingDone);
   const { colors, paperTheme, isDark } = useAppTheme();
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +53,7 @@ function AppLoader() {
           <MotiView
             from={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', damping: 15 }}
+            transition={{ type: 'timing', duration: 300 }}
             style={styles.splashCard}
           >
             <Text style={{ fontSize: 56, textAlign: 'center' }}>🏪</Text>
@@ -60,6 +62,8 @@ function AppLoader() {
             <ActivityIndicator color={colors.primary} size="small" style={{ marginTop: 16 }} />
           </MotiView>
         </View>
+      ) : !onboardingDone ? (
+        <OnboardingScreen />
       ) : (
         <AppNavigator />
       )}

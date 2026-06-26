@@ -13,20 +13,19 @@ import { fonts } from '../theme/typography';
 import EmptyState from '../components/common/EmptyState';
 import CollapsibleFab, { useFabScroll } from '../components/common/CollapsibleFab';
 import FadeSlideIn from '../components/common/FadeSlideIn';
+import { BUILTIN_EXPENSE_CATEGORIES, CUSTOM_EXPENSE_ICON } from '../constants/options';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
-const CATEGORIES: { key: Expense['category']; label: string; icon: IoniconsName }[] = [
-  { key: 'rent',        label: 'Rent',        icon: 'home-outline' },
-  { key: 'electricity', label: 'Electricity', icon: 'flash-outline' },
-  { key: 'supplier',    label: 'Supplier',    icon: 'cube-outline' },
-  { key: 'salary',      label: 'Salary',      icon: 'person-outline' },
-  { key: 'other',       label: 'Other',       icon: 'ellipsis-horizontal' },
-];
 
 export default function ExpensesScreen() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { expenses, addExpense, deleteExpense, settings, suppliers } = useAppStore();
+  // Built-in categories + the user's custom ones (managed in Manage Lists).
+  const CATEGORIES = useMemo<{ key: string; label: string; icon: IoniconsName }[]>(() => [
+    ...BUILTIN_EXPENSE_CATEGORIES,
+    ...(settings.expenseCategories ?? []).map(label => ({ key: label, label, icon: CUSTOM_EXPENSE_ICON })),
+  ], [settings.expenseCategories]);
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<Expense['category']>('other');

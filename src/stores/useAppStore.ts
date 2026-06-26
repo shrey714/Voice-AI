@@ -3,6 +3,7 @@ import { Product, CartItem, Bill, BillItem, GstSlab, BillReturn, ReturnItem, Exp
 import * as db from '../db/database';
 import { generateId } from '../utils/helpers';
 import { sendLowStockAlerts } from '../services/notifications';
+import { DEFAULT_PRODUCT_CATEGORIES, DEFAULT_UNITS } from '../constants/options';
 
 interface AppState {
   products: Product[];
@@ -59,6 +60,7 @@ interface AppState {
   updateSettings: (settings: Partial<AppSettings>) => Promise<void>;
   loadSettings: () => Promise<void>;
   setLanguage: (lang: Language) => void;
+  resetApp: () => Promise<void>;
 
   loadActiveStockTake: () => Promise<void>;
   startStockTake: (scope: string) => Promise<void>;
@@ -78,7 +80,15 @@ const defaultSettings: AppSettings = {
   upiId: '',
   gstin: '',
   gstRegistered: false,
+  productCategories: DEFAULT_PRODUCT_CATEGORIES,
+  units: DEFAULT_UNITS,
+  expenseCategories: [],
+  btScannerEnabled: true,
+  onboardingDone: false,
 };
+
+// Settings keys whose values are arrays — stored as JSON, not String().
+const JSON_SETTING_KEYS = new Set<string>(['productCategories', 'units', 'expenseCategories']);
 
 export const useAppStore = create<AppState>((set, get) => ({
   products: [],
@@ -526,7 +536,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   updateSettings: async (partial) => {
     const updated = { ...get().settings, ...partial };
     for (const [key, value] of Object.entries(partial)) {
-      await db.setSetting(key, String(value));
+      await db.setSetting(key, JSON_SETTING_KEYS.has(key) ? JSON.stringify(value) : String(value));
     }
     set({ settings: updated });
   },
@@ -538,11 +548,25 @@ export const useAppStore = create<AppState>((set, get) => ({
       const val = await db.getSetting(key);
       if (val !== null) {
         if (key === 'lowStockThreshold') (loaded as any)[key] = parseInt(val);
-        else if (key === 'gstRegistered') (loaded as any)[key] = val === 'true';
+        else if (key === 'gstRegistered' || key === 'btScannerEnabled' || key === 'onboardingDone') (loaded as any)[key] = val === 'true';
+        else if (JSON_SETTING_KEYS.has(key)) {
+          try { (loaded as any)[key] = JSON.parse(val); } catch { /* keep default */ }
+        }
         else (loaded as any)[key] = val;
       }
     }
     set({ settings: { ...defaultSettings, ...loaded } });
+  },
+
+  resetApp: async () => {
+    await db.resetAllData();
+    const st = get();
+    await Promise.all([
+      st.loadProducts(), st.loadBills(), st.loadExpenses(), st.loadReturns(),
+      st.loadTemplates(), st.loadSuppliers(), st.loadPurchases(),
+      st.loadSupplierLedger(), st.loadActiveStockTake(), st.loadSettings(),
+    ]);
+    set({ cart: [] });
   },
 
   setLanguage: (lang) => {

@@ -5,7 +5,7 @@ export function generateId(): string {
 }
 
 export function formatCurrency(amount: number, currency = '₹'): string {
-  return `${currency}${amount.toFixed(2)}`;
+  return `${currency}${amount.toFixed(0)}`;
 }
 
 export function formatDate(timestamp: number): string {

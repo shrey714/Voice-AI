@@ -61,7 +61,8 @@ export interface Expense {
   id: string;
   title: string;
   amount: number;
-  category: 'rent' | 'electricity' | 'supplier' | 'salary' | 'other';
+  // Built-in keys (rent/electricity/supplier/salary/other) or a user-defined category.
+  category: string;
   note?: string;
   supplierId?: string;
   createdAt: number;
@@ -200,4 +201,10 @@ export interface AppSettings {
   upiId?: string;
   gstin: string;
   gstRegistered: boolean;
+  // User-customizable option lists (managed in Manage Lists).
+  productCategories: string[];
+  units: string[];
+  expenseCategories: string[]; // custom extras beyond the built-in expense categories
+  btScannerEnabled: boolean;   // Bluetooth HID barcode scanner support on the billing screen
+  onboardingDone: boolean;     // first-run setup completed
 }

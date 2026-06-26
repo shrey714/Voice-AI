@@ -208,6 +208,14 @@ export async function deleteProduct(id: string): Promise<void> {
   await database.runAsync('DELETE FROM products WHERE id = ?', [id]);
 }
 
+export async function updateProductImageUri(id: string, imageUri: string): Promise<void> {
+  const database = await getDatabase();
+  await database.runAsync(
+    'UPDATE products SET imageUri = ?, updatedAt = ? WHERE id = ?',
+    [imageUri || null, Date.now(), id]
+  );
+}
+
 export async function updateProductQuantity(id: string, newQuantity: number): Promise<void> {
   const database = await getDatabase();
   await database.runAsync(
@@ -487,6 +495,79 @@ export async function insertLedgerEntry(entry: SupplierLedgerEntry): Promise<voi
     [entry.id, entry.supplierId, entry.type, entry.amount,
      entry.description, entry.purchaseId ?? null, entry.createdAt]
   );
+}
+
+// ── Full backup / restore ────────────────────────────────────────────────────
+// Every local table that should travel with the user's backup snapshot.
+// Order matters for restore (parents before children where FKs are implied).
+export const BACKUP_TABLES = [
+  'products', 'bills', 'expenses', 'customers', 'udhaar', 'suppliers',
+  'returns', 'cart_templates', 'purchases', 'supplier_ledger',
+  'stock_takes', 'stock_take_items', 'settings',
+] as const;
+
+// Device-local settings keys that must never be backed up or restored.
+const LOCAL_ONLY_SETTING_KEYS = new Set(['supabase_url', 'supabase_key']);
+
+// Read every backed-up table verbatim (SELECT * keeps all columns, including
+// migrated ones and JSON-as-TEXT blobs) into a plain snapshot object.
+export async function exportAllTables(): Promise<Record<string, any[]>> {
+  const database = await getDatabase();
+  const snapshot: Record<string, any[]> = {};
+  for (const table of BACKUP_TABLES) {
+    let rows = await database.getAllAsync<any>(`SELECT * FROM ${table}`);
+    if (table === 'settings') {
+      rows = rows.filter((r) => !LOCAL_ONLY_SETTING_KEYS.has(r.key));
+    }
+    snapshot[table] = rows;
+  }
+  return snapshot;
+}
+
+// Replace local data with a restored snapshot, in a single transaction so a
+// failure can't leave the DB half-written. Settings are merged (we never wipe
+// the device's own Supabase creds); all other tables are replaced wholesale.
+export async function importAllTables(snapshot: Record<string, any[]>): Promise<void> {
+  const database = await getDatabase();
+  await database.withTransactionAsync(async () => {
+    for (const table of BACKUP_TABLES) {
+      const rows = snapshot[table];
+      if (!Array.isArray(rows)) continue;
+
+      if (table === 'settings') {
+        for (const row of rows) {
+          if (LOCAL_ONLY_SETTING_KEYS.has(row.key)) continue;
+          await database.runAsync(
+            'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+            [row.key, row.value]
+          );
+        }
+        continue;
+      }
+
+      await database.runAsync(`DELETE FROM ${table}`);
+      for (const row of rows) {
+        const cols = Object.keys(row);
+        if (cols.length === 0) continue;
+        const placeholders = cols.map(() => '?').join(', ');
+        const values = cols.map((c) => row[c]);
+        await database.runAsync(
+          `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders})`,
+          values
+        );
+      }
+    }
+  });
+}
+
+// Factory reset — wipe every table (including settings). Used by "Reset App".
+export async function resetAllData(): Promise<void> {
+  const database = await getDatabase();
+  await database.withTransactionAsync(async () => {
+    for (const table of BACKUP_TABLES) {
+      await database.runAsync(`DELETE FROM ${table}`);
+    }
+  });
 }
 
 // Settings

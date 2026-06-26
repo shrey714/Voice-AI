@@ -13,9 +13,7 @@ import { identifyProductFromImage, getVisionApiKey } from '../../services/vision
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
 
-const CATEGORIES = ['Stationery', 'Books', 'Electronics', 'Food', 'Clothing', 'General', 'Other'];
-const UNITS = ['pcs', 'kg', 'g', 'L', 'mL', 'box', 'pack', 'dozen'];
-const GST_RATES = [0, 5, 12, 18, 28];
+const GST_RATES = [0, 5, 12, 18, 28]; // government-fixed slabs — not user-editable
 const emptyForm = { name: '', category: 'General', costPrice: '', sellingPrice: '', quantity: '', barcode: '', unit: 'pcs', lowStockThreshold: '5', imageUri: '', supplierId: '', gstRate: 0, hsnCode: '', expiryDay: '', expiryMonth: '', expiryYear: '' };
 
 export default function ProductFormScreen({ route, navigation }: any) {
@@ -251,7 +249,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
         {/* Category */}
         <Field label="Category" colors={colors}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-            {CATEGORIES.map(cat => {
+            {(settings.productCategories ?? []).map(cat => {
               const active = form.category === cat;
               return (
                 <TouchableOpacity key={cat}
@@ -296,7 +294,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
           </Field>
           <Field label="Unit" colors={colors} flex>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-              {UNITS.map(u => {
+              {(settings.units ?? []).map(u => {
                 const active = form.unit === u;
                 return (
                   <TouchableOpacity key={u}
