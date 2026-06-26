@@ -1,5 +1,5 @@
 import 'react-native-url-polyfill/auto';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { PaperProvider, ActivityIndicator } from 'react-native-paper';
 import { Text } from 'react-native-paper';
@@ -19,6 +19,8 @@ import {
 import { LibreBaskerville_400Regular } from '@expo-google-fonts/libre-baskerville';
 import AppNavigator from './src/navigation/AppNavigator';
 import OnboardingScreen from './src/screens/OnboardingScreen';
+import SplashScreen from './src/screens/SplashScreen';
+import ErrorScreen from './src/screens/ErrorScreen';
 import { useAppStore } from './src/stores/useAppStore';
 import { ThemeProvider, useAppTheme } from './src/theme';
 import { fonts } from './src/theme/typography';
@@ -30,38 +32,27 @@ function AppLoader() {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        await loadSettings();
-        await Promise.all([loadProducts(), loadBills(), loadExpenses(), loadSuppliers(), loadReturns(), loadTemplates(), loadPurchases(), loadSupplierLedger(), loadActiveStockTake()]);
-        setReady(true);
-      } catch (e: any) {
-        setError(e.message);
-      }
-    })();
+  const loadAll = useCallback(async () => {
+    try {
+      setError(null);
+      await loadSettings();
+      await Promise.all([loadProducts(), loadBills(), loadExpenses(), loadSuppliers(), loadReturns(), loadTemplates(), loadPurchases(), loadSupplierLedger(), loadActiveStockTake()]);
+      setReady(true);
+    } catch (e: any) {
+      setError(e?.message || 'Unknown error');
+    }
   }, []);
+
+  useEffect(() => { loadAll(); }, []);
+
+  const handleRetry = () => { setReady(false); loadAll(); };
 
   return (
     <PaperProvider theme={paperTheme}>
       {error ? (
-        <View style={[styles.center, { backgroundColor: colors.bg }]}>
-          <Text style={{ color: colors.danger, textAlign: 'center', padding: 24 }}>Error: {error}</Text>
-        </View>
+        <ErrorScreen message={error} onRetry={handleRetry} />
       ) : !ready ? (
-        <View style={[styles.center, { backgroundColor: colors.bg }]}>
-          <MotiView
-            from={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'timing', duration: 300 }}
-            style={styles.splashCard}
-          >
-            <Text style={{ fontSize: 56, textAlign: 'center' }}>🏪</Text>
-            <Text style={[styles.splashTitle, { color: colors.primary }]}>Shopkeeper AI</Text>
-            <Text style={[styles.splashSub, { color: colors.textMuted }]}>Loading your shop...</Text>
-            <ActivityIndicator color={colors.primary} size="small" style={{ marginTop: 16 }} />
-          </MotiView>
-        </View>
+        <SplashScreen />
       ) : !onboardingDone ? (
         <OnboardingScreen />
       ) : (

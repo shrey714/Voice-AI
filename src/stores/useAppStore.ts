@@ -85,6 +85,7 @@ const defaultSettings: AppSettings = {
   expenseCategories: [],
   btScannerEnabled: true,
   onboardingDone: false,
+  dailyGoal: 0,
 };
 
 // Settings keys whose values are arrays — stored as JSON, not String().
@@ -547,7 +548,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     for (const key of keys) {
       const val = await db.getSetting(key);
       if (val !== null) {
-        if (key === 'lowStockThreshold') (loaded as any)[key] = parseInt(val);
+        if (key === 'lowStockThreshold' || key === 'dailyGoal') (loaded as any)[key] = parseInt(val) || 0;
         else if (key === 'gstRegistered' || key === 'btScannerEnabled' || key === 'onboardingDone') (loaded as any)[key] = val === 'true';
         else if (JSON_SETTING_KEYS.has(key)) {
           try { (loaded as any)[key] = JSON.parse(val); } catch { /* keep default */ }

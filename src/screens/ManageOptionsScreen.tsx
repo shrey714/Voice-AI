@@ -93,8 +93,10 @@ export default function ManageOptionsScreen() {
   const [gstRegistered, setGstRegistered] = useState(settings.gstRegistered || false);
   const [gstin, setGstin] = useState(settings.gstin || '');
   const [lowStock, setLowStock] = useState(String(settings.lowStockThreshold));
+  const [dailyGoal, setDailyGoal] = useState(settings.dailyGoal ? String(settings.dailyGoal) : '');
   const [btEnabled, setBtEnabled] = useState(settings.btScannerEnabled !== false);
   const toggleBt = (val: boolean) => { setBtEnabled(val); updateSettings({ btScannerEnabled: val }); };
+  const saveDailyGoal = () => updateSettings({ dailyGoal: parseInt(dailyGoal) || 0 });
 
   const toggleGst = (val: boolean) => { setGstRegistered(val); updateSettings({ gstRegistered: val }); };
   const saveGstin = () => {
@@ -140,6 +142,16 @@ export default function ManageOptionsScreen() {
           </View>
           <SettingInput label="Low Stock Alert Threshold" value={lowStock} onChangeText={setLowStock} onBlur={saveLowStock} keyboardType="numeric" placeholder="5" colors={colors} />
           <Text style={[s.hint, { color: colors.textMuted }]}>Get notified when a product's stock falls to or below this number.</Text>
+        </View>
+
+        {/* Goals */}
+        <View style={[s.section, { backgroundColor: colors.surface }]}>
+          <View style={s.sectionHead}>
+            <Ionicons name="flag-outline" size={18} color={colors.primary} />
+            <Text style={[s.sectionTitle, { color: colors.text }]}>Daily Goal</Text>
+          </View>
+          <SettingInput label="Daily Sales Target (₹)" value={dailyGoal} onChangeText={setDailyGoal} onBlur={saveDailyGoal} keyboardType="numeric" placeholder="e.g. 10000" colors={colors} />
+          <Text style={[s.hint, { color: colors.textMuted }]}>Shows a progress ring on the home screen. Leave empty to hide it.</Text>
         </View>
 
         {/* Billing */}

@@ -51,8 +51,8 @@ function BrandBadge() {
   );
 }
 
-type StepKey = 'welcome' | 'shop' | 'contact' | 'upi' | 'gst';
-const ORDER: StepKey[] = ['welcome', 'shop', 'contact', 'upi', 'gst'];
+type StepKey = 'welcome' | 'shop' | 'contact' | 'upi' | 'gst' | 'goal';
+const ORDER: StepKey[] = ['welcome', 'shop', 'contact', 'upi', 'gst', 'goal'];
 
 const COPY: Record<StepKey, { tag?: string; icon?: string; title: string; sub: string }> = {
   welcome: { title: "Let's set up your shop", sub: 'A minute now, and every bill, report, and payment is ready to roll.' },
@@ -60,6 +60,7 @@ const COPY: Record<StepKey, { tag?: string; icon?: string; title: string; sub: s
   contact: { tag: 'STEP 2', icon: 'call-outline', title: 'How can people reach you?', sub: 'Printed on bills so customers can contact you. All optional.' },
   upi:     { tag: 'STEP 3', icon: 'qr-code-outline', title: 'Get paid in seconds', sub: 'Add your UPI ID to show a scan-and-pay QR at checkout.' },
   gst:     { tag: 'STEP 4', icon: 'document-text-outline', title: 'Do you bill with GST?', sub: 'Turn it on to print proper tax invoices with CGST + SGST.' },
+  goal:    { tag: 'STEP 5', icon: 'flag-outline', title: 'Set a daily goal', sub: 'Track your progress with a goal ring on the home screen. You can change it anytime.' },
 };
 
 export default function OnboardingScreen() {
@@ -75,6 +76,7 @@ export default function OnboardingScreen() {
   const [upiId, setUpiId] = useState(settings.upiId || '');
   const [gstRegistered, setGstRegistered] = useState(settings.gstRegistered || false);
   const [gstin, setGstin] = useState(settings.gstin || '');
+  const [dailyGoal, setDailyGoal] = useState(settings.dailyGoal ? String(settings.dailyGoal) : '');
 
   const key = ORDER[step];
   const copy = COPY[key];
@@ -101,6 +103,7 @@ export default function OnboardingScreen() {
       upiId: upiId.trim(),
       gstRegistered,
       gstin: gstRegistered ? g : '',
+      dailyGoal: parseInt(dailyGoal) || 0,
       onboardingDone: done,
     });
     return true;
@@ -183,6 +186,11 @@ export default function OnboardingScreen() {
                       <Field label="GSTIN"><TextInput style={s.input} value={gstin} onChangeText={(v) => setGstin(v.toUpperCase())} placeholder="22AAAAA0000A1Z5" placeholderTextColor="rgba(255,255,255,0.5)" autoCapitalize="characters" maxLength={15} /></Field>
                     </View>
                   )}
+                </View>
+              )}
+              {key === 'goal' && (
+                <View style={{ marginTop: 22 }}>
+                  <Field label="Daily sales target (₹)"><TextInput style={s.input} value={dailyGoal} onChangeText={setDailyGoal} placeholder="e.g. 10000" placeholderTextColor="rgba(255,255,255,0.5)" keyboardType="number-pad" /></Field>
                 </View>
               )}
             </MotiView>

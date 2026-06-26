@@ -207,4 +207,5 @@ export interface AppSettings {
   expenseCategories: string[]; // custom extras beyond the built-in expense categories
   btScannerEnabled: boolean;   // Bluetooth HID barcode scanner support on the billing screen
   onboardingDone: boolean;     // first-run setup completed
+  dailyGoal: number;           // daily revenue target (0 = not set)
 }
