@@ -7,6 +7,7 @@ import { MotiView } from 'moti';
 import { useAppStore } from '../stores/useAppStore';
 import { useTranslation } from '../hooks/useTranslation';
 import { formatCurrency, startOfDay, startOfWeek, startOfMonth } from '../utils/helpers';
+import { computeSalesStats, makeCostOf, returnGstImpact } from '../utils/stats';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
 
@@ -23,34 +24,30 @@ export default function AnalyticsScreen() {
   const periodBills = bills.filter(b => b.createdAt >= rangeStart);
   const periodExpenses = expenses.filter(e => e.createdAt >= rangeStart);
 
-  const revenue = periodBills.reduce((s, b) => s + b.total, 0);
-  const profit = periodBills.reduce((s, b) => s + b.profit, 0);
+  // All sales metrics come from the shared helper (returns netted consistently).
+  const costOf = makeCostOf(products);
+  const stats = computeSalesStats({ bills, returns, from: rangeStart, to: Date.now(), costOf });
+  const revenue = stats.revenue;
+  const profit = stats.profit;
   const totalExpenses = periodExpenses.reduce((s, e) => s + e.amount, 0);
   const netProfit = profit - totalExpenses;
 
-  const itemSales: Record<string, { qty: number; revenue: number }> = {};
-  periodBills.forEach(b => b.items.forEach(i => {
-    if (!itemSales[i.productName]) itemSales[i.productName] = { qty: 0, revenue: 0 };
-    itemSales[i.productName].qty += i.quantity;
-    itemSales[i.productName].revenue += i.sellingPrice * i.quantity;
-  }));
-  const topItems = Object.entries(itemSales).sort((a, b) => b[1].qty - a[1].qty).slice(0, 5);
+  const topItems = stats.topItems.slice(0, 5).map(it => [it.name, { qty: it.qty, revenue: it.revenue }] as [string, { qty: number; revenue: number }]);
 
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(); d.setDate(d.getDate() - (6 - i)); d.setHours(0, 0, 0, 0); return d;
   });
   const chartData = last7Days.map(d => {
     const s = d.getTime(), e = s + 86400000;
-    return bills.filter(b => b.createdAt >= s && b.createdAt < e).reduce((sum, b) => sum + b.total, 0);
+    return computeSalesStats({ bills, returns, from: s, to: e - 1, costOf }).revenue;
   });
   const chartLabels = last7Days.map(d => d.toLocaleDateString('en', { weekday: 'short' }));
 
-  const payBreakdown = { cash: 0, upi: 0, credit: 0 };
-  periodBills.forEach(b => { payBreakdown[b.paymentMode] += b.total; });
+  const payBreakdown = stats.paymentSplit;
 
   const lowStock = products.filter(p => p.quantity <= p.lowStockThreshold);
 
-  // GST Summary — aggregate output tax from bills in the selected period
+  // GST Summary — output tax from bills, net of GST reversed on returns in the period.
   const gstSlabMap: Record<number, { taxableValue: number; cgst: number; sgst: number }> = {};
   let totalOutputCgst = 0, totalOutputSgst = 0, totalOutputTaxable = 0;
   periodBills.forEach(b => {
@@ -64,7 +61,23 @@ export default function AnalyticsScreen() {
       totalOutputTaxable += slab.taxableValue;
     });
   });
-  const gstSlabs = Object.entries(gstSlabMap).map(([rate, v]) => ({ rate: Number(rate), ...v })).sort((a, b) => a.rate - b.rate);
+  // Reverse GST for items returned in the period (rate from the product).
+  const rateOf = (id: string) => products.find(p => p.id === id)?.gstRate ?? 0;
+  const gstReversal = returnGstImpact(returns, rangeStart, Date.now(), rateOf);
+  for (const [rateStr, v] of Object.entries(gstReversal.bySlab)) {
+    const rate = Number(rateStr);
+    if (!gstSlabMap[rate]) gstSlabMap[rate] = { taxableValue: 0, cgst: 0, sgst: 0 };
+    gstSlabMap[rate].taxableValue -= v.taxableValue;
+    gstSlabMap[rate].cgst -= v.cgst;
+    gstSlabMap[rate].sgst -= v.sgst;
+  }
+  totalOutputCgst -= gstReversal.totalCgst;
+  totalOutputSgst -= gstReversal.totalSgst;
+  totalOutputTaxable -= gstReversal.totalTaxable;
+  const gstSlabs = Object.entries(gstSlabMap)
+    .map(([rate, v]) => ({ rate: Number(rate), ...v }))
+    .filter(s => s.taxableValue > 0.01 || s.cgst > 0.01 || s.sgst > 0.01)
+    .sort((a, b) => a.rate - b.rate);
   const totalOutputGst = totalOutputCgst + totalOutputSgst;
   const hasGstData = gstSlabs.length > 0;
 
@@ -186,6 +199,27 @@ export default function AnalyticsScreen() {
         {periodBills.length === 0 && <Text style={[s.noDataText, { color: colors.textMuted }]}>No transactions</Text>}
       </View>
 
+      {/* Returns */}
+      {stats.returnCount > 0 && (
+        <View style={[s.section, { backgroundColor: colors.surface }]}>
+          <Text style={[s.sectionTitle, { color: colors.text }]}>Returns</Text>
+          <View style={[s.payRow, { borderBottomColor: colors.border }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Ionicons name="arrow-undo-outline" size={16} color={colors.danger} />
+              <Text style={[s.payMode, { color: colors.text }]}>{stats.returnCount} return{stats.returnCount > 1 ? 's' : ''} · {stats.returnedUnits} unit{stats.returnedUnits > 1 ? 's' : ''}</Text>
+            </View>
+            <Text style={[s.payAmt, { color: colors.danger }]}>−{formatCurrency(stats.refunds, settings.currency)}</Text>
+          </View>
+          <View style={[s.payRow, { borderBottomColor: colors.border, borderBottomWidth: 0 }]}>
+            <Text style={[s.payMode, { color: colors.textSub }]}>Profit impact</Text>
+            <Text style={[s.payAmt, { color: colors.danger }]}>−{formatCurrency(stats.profitCut, settings.currency)}</Text>
+          </View>
+          <Text style={{ fontFamily: fonts.regular, fontSize: 11, color: colors.textMuted, marginTop: 8 }}>
+            Revenue & profit above are already net of these returns.
+          </Text>
+        </View>
+      )}
+
       {/* GST Summary */}
       {settings.gstRegistered && (
         <View style={[s.section, { backgroundColor: colors.surface }]}>
@@ -272,8 +306,8 @@ export default function AnalyticsScreen() {
       <View style={[s.section, { backgroundColor: colors.surface }]}>
         <Text style={[s.sectionTitle, { color: colors.text }]}>Summary</Text>
         {[
-          ['Total Bills', String(periodBills.length)],
-          ['Avg Bill', periodBills.length > 0 ? formatCurrency(revenue / periodBills.length, settings.currency) : '—'],
+          ['Total Bills', stats.fullyReturnedCount > 0 ? `${stats.billCount}  (${stats.fullyReturnedCount} returned)` : String(stats.billCount)],
+          ['Avg Bill', stats.netBillCount > 0 ? formatCurrency(revenue / stats.netBillCount, settings.currency) : '—'],
           ['Total Products', String(products.length)],
           ['Profit Margin', revenue > 0 ? `${((profit / revenue) * 100).toFixed(1)}%` : '—'],
         ].map(([label, value]) => (

@@ -27,10 +27,22 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
   const { products, suppliers, createPurchase, settings } = useAppStore();
 
   const prefillSupplierId: string | undefined = route?.params?.supplierId;
+  // Optional reorder prefill: [{ productId, quantity }] (e.g. from the Reorder screen).
+  const prefillItems: { productId: string; quantity: number }[] | undefined = route?.params?.items;
 
   const [supplierId, setSupplierId] = useState<string | null>(prefillSupplierId ?? null);
   const [invoiceNumber, setInvoiceNumber] = useState('');
-  const [items, setItems] = useState<FormItem[]>([]);
+  const [items, setItems] = useState<FormItem[]>(() => {
+    if (!prefillItems?.length) return [];
+    return prefillItems
+      .map((pi) => {
+        const p = products.find((pp) => pp.id === pi.productId);
+        if (!p) return null;
+        const qty = Math.max(1, pi.quantity);
+        return { productId: p.id, productName: p.name, quantity: qty, costPrice: p.costPrice, originalCostPrice: p.costPrice, totalCost: qty * p.costPrice };
+      })
+      .filter(Boolean) as FormItem[];
+  });
   const [paidAmount, setPaidAmount] = useState('');
   const [paymentMode, setPaymentMode] = useState<'cash' | 'upi' | 'bank'>('cash');
   const [notes, setNotes] = useState('');

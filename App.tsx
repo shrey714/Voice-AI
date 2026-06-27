@@ -18,6 +18,7 @@ import {
 } from '@expo-google-fonts/nunito-sans';
 import { LibreBaskerville_400Regular } from '@expo-google-fonts/libre-baskerville';
 import AppNavigator from './src/navigation/AppNavigator';
+import AiProvider from './src/components/AiProvider';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import SplashScreen from './src/screens/SplashScreen';
 import ErrorScreen from './src/screens/ErrorScreen';
@@ -26,18 +27,23 @@ import { ThemeProvider, useAppTheme } from './src/theme';
 import { fonts } from './src/theme/typography';
 
 function AppLoader() {
-  const { loadProducts, loadBills, loadExpenses, loadSettings, loadSuppliers, loadReturns, loadTemplates, loadPurchases, loadSupplierLedger, loadActiveStockTake } = useAppStore();
+  const { loadProducts, loadBills, loadExpenses, loadSettings, loadSuppliers, loadReturns, loadTemplates, loadPurchases, loadSupplierLedger, loadActiveStockTake, setDataReady } = useAppStore();
   const onboardingDone = useAppStore(state => state.settings.onboardingDone);
-  const { colors, paperTheme, isDark } = useAppTheme();
-  const [ready, setReady] = useState(false);
+  const { paperTheme } = useAppTheme();
+  // Settings load first (needed for theme + onboarding gate); the rest loads in the
+  // background so the app shell appears immediately and screens show skeletons.
+  const [settingsReady, setSettingsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadAll = useCallback(async () => {
     try {
       setError(null);
+      setDataReady(false);
+      setSettingsReady(false);
       await loadSettings();
+      setSettingsReady(true);
       await Promise.all([loadProducts(), loadBills(), loadExpenses(), loadSuppliers(), loadReturns(), loadTemplates(), loadPurchases(), loadSupplierLedger(), loadActiveStockTake()]);
-      setReady(true);
+      setDataReady(true);
     } catch (e: any) {
       setError(e?.message || 'Unknown error');
     }
@@ -45,18 +51,20 @@ function AppLoader() {
 
   useEffect(() => { loadAll(); }, []);
 
-  const handleRetry = () => { setReady(false); loadAll(); };
+  const handleRetry = () => { loadAll(); };
 
   return (
     <PaperProvider theme={paperTheme}>
       {error ? (
         <ErrorScreen message={error} onRetry={handleRetry} />
-      ) : !ready ? (
+      ) : !settingsReady ? (
         <SplashScreen />
       ) : !onboardingDone ? (
         <OnboardingScreen />
       ) : (
-        <AppNavigator />
+        <AiProvider>
+          <AppNavigator />
+        </AiProvider>
       )}
     </PaperProvider>
   );

@@ -7,6 +7,7 @@ import { useAppStore } from "../stores/useAppStore";
 import { useAppTheme } from "../theme";
 import { fonts } from "../theme/typography";
 import { formatCurrency, startOfDay, endOfDay } from "../utils/helpers";
+import { computeSalesStats, makeCostOf } from "../utils/stats";
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -26,6 +27,7 @@ const SECTIONS: { title: string; items: Item[] }[] = [
     items: [
       { label: "Suppliers", sub: "Manage your vendors", icon: "business-outline", screen: "Supplier" },
       { label: "Purchases", sub: "Stock receipts & payables", icon: "receipt-outline", screen: "Purchases" },
+      { label: "Reorder Stock", sub: "Restock low items via WhatsApp", icon: "refresh-outline", screen: "Reorder" },
       { label: "Stock Take", sub: "Count shelves & fix discrepancies", icon: "checkmark-circle-outline", screen: "StockTake" },
     ],
   },
@@ -39,12 +41,12 @@ const SECTIONS: { title: string; items: Item[] }[] = [
 
 export default function MenuScreen({ navigation }: any) {
   const { colors } = useAppTheme();
-  const { bills, products, settings } = useAppStore();
+  const { bills, products, returns, settings } = useAppStore();
   const s = makeStyles(colors);
 
-  const todayRevenue = bills
-    .filter((b) => b.createdAt >= startOfDay() && b.createdAt <= endOfDay())
-    .reduce((acc, b) => acc + b.total, 0);
+  const todayRevenue = computeSalesStats({
+    bills, returns, from: startOfDay(), to: endOfDay(), costOf: makeCostOf(products),
+  }).revenue;
   const lowStock = products.filter((p) => p.quantity <= p.lowStockThreshold).length;
 
   const Row = ({ item, last }: { item: Item; last?: boolean }) => (

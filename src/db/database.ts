@@ -160,6 +160,7 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase) {
   try { await database.execAsync('ALTER TABLE bills ADD COLUMN totalTaxableValue REAL NOT NULL DEFAULT 0'); } catch {}
   try { await database.execAsync('ALTER TABLE bills ADD COLUMN totalGst REAL NOT NULL DEFAULT 0'); } catch {}
   try { await database.execAsync('ALTER TABLE bills ADD COLUMN customerGstin TEXT'); } catch {}
+  try { await database.execAsync('ALTER TABLE customers ADD COLUMN lastRemindedAt INTEGER'); } catch {}
 }
 
 // Products
@@ -305,8 +306,8 @@ export async function getAllCustomers(): Promise<Customer[]> {
 export async function insertCustomer(customer: Customer): Promise<void> {
   const database = await getDatabase();
   await database.runAsync(
-    'INSERT INTO customers (id, name, phone, createdAt) VALUES (?, ?, ?, ?)',
-    [customer.id, customer.name, customer.phone ?? null, customer.createdAt]
+    'INSERT INTO customers (id, name, phone, createdAt, lastRemindedAt) VALUES (?, ?, ?, ?, ?)',
+    [customer.id, customer.name, customer.phone ?? null, customer.createdAt, customer.lastRemindedAt ?? null]
   );
 }
 
@@ -316,6 +317,11 @@ export async function updateCustomer(customer: Customer): Promise<void> {
     'UPDATE customers SET name=?, phone=? WHERE id=?',
     [customer.name, customer.phone ?? null, customer.id]
   );
+}
+
+export async function markCustomerReminded(id: string, ts: number = Date.now()): Promise<void> {
+  const database = await getDatabase();
+  await database.runAsync('UPDATE customers SET lastRemindedAt=? WHERE id=?', [ts, id]);
 }
 
 export async function deleteCustomer(id: string): Promise<void> {

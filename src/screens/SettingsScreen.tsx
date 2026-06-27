@@ -93,6 +93,7 @@ export default function SettingsScreen({ navigation }: any) {
         <Text style={[s.groupLabel, { color: colors.textMuted }]}>MANAGE</Text>
         <View style={[s.card, { backgroundColor: colors.surface }]}>
           <NavRow icon="options-outline" label="Preferences" sub="Categories, units, GST & alerts" onPress={() => navigation.navigate('ManageOptions')} />
+          <NavRow icon="logo-whatsapp" label="WhatsApp Messages" sub="Udhaar reminder & stock reorder messages" onPress={() => navigation.navigate('ReminderSettings')} />
           <NavRow icon="share-outline" label="Export Reports" sub="PDF & CSV · P&L, GST, inventory" onPress={() => navigation.navigate('Exports')} />
           <NavRow icon="cloud-upload-outline" label="Backup & Restore" sub="Cloud sync & file backup" onPress={() => navigation.navigate('BackupRestore')} />
           <NavRow icon="sparkles-outline" label="Run setup again" sub="Re-enter your shop details" onPress={() => updateSettings({ onboardingDone: false })} last />

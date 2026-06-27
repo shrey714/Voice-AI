@@ -95,7 +95,11 @@ import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
 import AnimatedNumber from '../components/common/AnimatedNumber';
 import PressableScale from '../components/common/PressableScale';
+import { DashboardSkeleton } from '../components/common/Skeleton';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { computeSalesStats, makeCostOf } from '../utils/stats';
+import { toast } from '../utils/toast';
+import * as db from '../db/database';
 
 // A single letter whose brightness peaks as the shimmer sweep passes its position.
 function ShimmerLetter({ char, t, progress, base, peakAdd, color, textStyle }: {
@@ -149,12 +153,16 @@ function ShimmerBrand({ colors }: { colors: any }) {
 
 export default function DashboardScreen({ navigation }: any) {
   const { colors } = useAppTheme();
-  const { products, bills, expenses, loadProducts, loadBills, loadExpenses, settings } = useAppStore();
+  const { products, bills, expenses, returns, loadProducts, loadBills, loadExpenses, settings } = useAppStore();
+  const dataReady = useAppStore(state => state.dataReady);
   const [refreshing, setRefreshing] = useState(false);
 
+  // All sales numbers are netted of returns via the shared stats helper.
+  const costOf = makeCostOf(products);
   const todayBills = bills.filter(b => b.createdAt >= startOfDay() && b.createdAt <= endOfDay());
-  const todayRevenue = todayBills.reduce((s, b) => s + b.total, 0);
-  const todayProfit = todayBills.reduce((s, b) => s + b.profit, 0);
+  const todayStats = computeSalesStats({ bills, returns, from: startOfDay(), to: endOfDay(), costOf });
+  const todayRevenue = todayStats.revenue;
+  const todayProfit = todayStats.profit;
   const todayExpenses = expenses.filter(e => e.createdAt >= startOfDay() && e.createdAt <= endOfDay()).reduce((s, e) => s + e.amount, 0);
   const lowStockItems = products.filter(p => p.quantity <= p.lowStockThreshold);
   const now = Date.now();
@@ -166,10 +174,9 @@ export default function DashboardScreen({ navigation }: any) {
   const expiredCount = expiringItems.filter(p => p.daysLeft <= 0).length;
   const expiringSoonCount = expiringItems.length - expiredCount;
 
-  const topItems: Record<string, number> = {};
-  todayBills.forEach(b => b.items.forEach(i => { topItems[i.productName] = (topItems[i.productName] || 0) + i.quantity; }));
-  const topSelling = Object.entries(topItems).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const itemsSold = todayBills.reduce((sum, b) => sum + b.items.reduce((a, i) => a + i.quantity, 0), 0);
+  // Net top-sellers & units sold (returned quantities removed).
+  const topSelling: [string, number][] = todayStats.topItems.slice(0, 5).map(it => [it.name, it.qty]);
+  const itemsSold = todayStats.itemsSold;
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const firstName = (settings.ownerName || '').trim().split(' ')[0];
@@ -178,13 +185,13 @@ export default function DashboardScreen({ navigation }: any) {
   // vs yesterday
   const dayMs = 86400000;
   const yesterdayStart = startOfDay() - dayMs;
-  const yesterdayRevenue = bills.filter(b => b.createdAt >= yesterdayStart && b.createdAt < startOfDay()).reduce((s, b) => s + b.total, 0);
+  const yesterdayRevenue = computeSalesStats({ bills, returns, from: yesterdayStart, to: startOfDay() - 1, costOf }).revenue;
   const deltaPct = yesterdayRevenue > 0 ? ((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100 : null;
 
   // last 7 days revenue (for the sparkline)
   const week = Array.from({ length: 7 }).map((_, idx) => {
     const ds = startOfDay() - (6 - idx) * dayMs;
-    const rev = bills.filter(b => b.createdAt >= ds && b.createdAt < ds + dayMs).reduce((s, b) => s + b.total, 0);
+    const rev = computeSalesStats({ bills, returns, from: ds, to: ds + dayMs - 1, costOf }).revenue;
     return {
       rev,
       label: new Date(ds).toLocaleDateString('en-IN', { weekday: 'narrow' }),
@@ -200,6 +207,24 @@ export default function DashboardScreen({ navigation }: any) {
   const goalProgress = dailyGoal > 0 ? todayRevenue / dailyGoal : 0;
   const goalReached = dailyGoal > 0 && todayRevenue >= dailyGoal;
 
+  // Goal-reached toast: fire once the day's revenue crosses the goal, at most once
+  // per day (persisted by date so reopening the app won't re-show it).
+  const celebratedRef = useRef(false);
+  useEffect(() => {
+    if (!goalReached || celebratedRef.current) return;
+    let cancelled = false;
+    (async () => {
+      const todayKey = String(startOfDay());
+      const last = await db.getSetting('goalCelebratedDate');
+      if (cancelled) return;
+      celebratedRef.current = true;
+      if (last === todayKey) return; // already shown today
+      await db.setSetting('goalCelebratedDate', todayKey);
+      toast.success("🎯 Goal reached!", { description: `You crossed today's goal of ${formatCurrency(dailyGoal, settings.currency)} — great work!` });
+    })();
+    return () => { cancelled = true; };
+  }, [goalReached, dailyGoal]);
+
   // Smart insights — all applicable (shown in a rotating slider)
   const margin = todayRevenue > 0 ? (todayProfit / todayRevenue) * 100 : 0;
   const bestDay = week.reduce((a, b) => (b.rev > a.rev ? b : a), week[0]);
@@ -214,7 +239,9 @@ export default function DashboardScreen({ navigation }: any) {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([loadProducts(), loadBills(), loadExpenses()]);
+      setTimeout(async() => {
+        await Promise.all([loadProducts(), loadBills(), loadExpenses()]);
+      }, 1000);
     } catch (e) {
       // ignore — still stop the spinner below
     } finally {
@@ -239,6 +266,7 @@ export default function DashboardScreen({ navigation }: any) {
 
   const insets = useSafeAreaInsets();
 
+  if (!dataReady) return <DashboardSkeleton />;
 
   return (
     <SafeAreaView style={{ flex: 1 }} edges={[]}>
@@ -318,6 +346,17 @@ export default function DashboardScreen({ navigation }: any) {
           ))}
         </View>
 
+        {/* Ask AI bar */}
+        <MotiView from={{ opacity: 0, translateY: 14 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 380, delay: 200 }}>
+          <PressableScale style={[s.askBar, { backgroundColor: colors.surface, borderColor: colors.primary + '40' }]} onPress={() => navigation.navigate('AskAi')}>
+            <View style={[s.askIcon, { backgroundColor: colors.primaryLight }]}>
+              <Ionicons name="sparkles" size={17} color={colors.primary} />
+            </View>
+            <Text style={[s.askText, { color: colors.textMuted }]} numberOfLines={1}>Ask anything about your shop…</Text>
+            <Ionicons name="arrow-forward-circle" size={24} color={colors.primary} />
+          </PressableScale>
+        </MotiView>
+
         {/* Daily goal ring */}
         {dailyGoal > 0 ? (
           <MotiView from={{ opacity: 0, translateY: 14 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 400, delay: 220 }}>
@@ -363,15 +402,11 @@ export default function DashboardScreen({ navigation }: any) {
         {/* 7-day revenue sparkline — tap to open Analytics */}
         {weekTotal > 0 && (
           <MotiView from={{ opacity: 0, translateY: 14 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 400, delay: 240 }}>
-            <PressableScale style={[s.weekCard, { backgroundColor: colors.surface }]} onPress={() => navigation.navigate('More', { screen: 'Analytics' })}>
+            <View style={[s.weekCard, { backgroundColor: colors.surface }]}>
               <View style={s.weekHead}>
                 <View>
                   <Text style={[s.weekTitle, { color: colors.text }]}>Last 7 days</Text>
                   <Text style={[s.weekSub, { color: colors.textMuted }]}>Revenue trend</Text>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                  <Text style={[s.weekTotal, { color: colors.primary }]}>{formatCurrency(weekTotal, settings.currency)}</Text>
-                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
                 </View>
               </View>
               <View style={s.weekBars}>
@@ -394,18 +429,18 @@ export default function DashboardScreen({ navigation }: any) {
                   </View>
                 ))}
               </View>
-            </PressableScale>
+            </View>
           </MotiView>
         )}
 
         {/* Alerts */}
         {lowStockItems.length > 0 && (
           <MotiView from={{ opacity: 0, translateX: -10 }} animate={{ opacity: 1, translateX: 0 }} transition={{ type: 'timing', duration: 350, delay: 220 }}>
-            <TouchableOpacity style={[s.alertCard, { backgroundColor: colors.warning + '14' }]} onPress={() => navigation.navigate('Inventory')} activeOpacity={0.8}>
+            <TouchableOpacity style={[s.alertCard, { backgroundColor: colors.warning + '14' }]} onPress={() => navigation.navigate('More', { screen: 'Reorder' })} activeOpacity={0.8}>
               <View style={[s.alertIcon, { backgroundColor: colors.warning + '24' }]}><Ionicons name="warning" size={18} color={colors.warning} /></View>
               <View style={{ flex: 1 }}>
                 <Text style={[s.alertTitle, { color: colors.warning }]}>{lowStockItems.length} items low on stock</Text>
-                <Text style={[s.alertSub, { color: colors.textSub }]} numberOfLines={1}>{lowStockItems.slice(0, 3).map(p => p.name).join(', ')}</Text>
+                <Text style={[s.alertSub, { color: colors.textSub }]} numberOfLines={1}>Tap to reorder · {lowStockItems.slice(0, 3).map(p => p.name).join(', ')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color={colors.warning} />
             </TouchableOpacity>
@@ -561,6 +596,11 @@ const makeStyles = (c: any) => StyleSheet.create({
   bentoDot: { width: 6, height: 6, borderRadius: 3, opacity: 0.55 },
   bentoVal: { fontFamily: fonts.extraBold, fontSize: 16 },
   bentoLbl: { fontFamily: fonts.medium, fontSize: 11 },
+
+  // Ask AI bar
+  askBar: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginTop: 14, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1 },
+  askIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  askText: { flex: 1, fontFamily: fonts.medium, fontSize: 14 },
 
   // Daily goal ring
   goalCard: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 14, borderRadius: 18, padding: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border },

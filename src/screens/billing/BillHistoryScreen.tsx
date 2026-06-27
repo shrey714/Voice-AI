@@ -8,10 +8,12 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useAppStore } from '../../stores/useAppStore';
 import { formatCurrency, formatDate, formatTime, generateBillText, startOfDay, startOfWeek, startOfMonth } from '../../utils/helpers';
+import { aggregateReturns, makeCostOf } from '../../utils/stats';
 import { Bill, ReturnItem } from '../../types';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
 import EmptyState from '../../components/common/EmptyState';
+import { SkeletonList } from '../../components/common/Skeleton';
 import FadeSlideIn from '../../components/common/FadeSlideIn';
 import DatePickerSheet, { DatePickerSheetRef } from '../../components/common/DatePickerSheet';
 
@@ -42,9 +44,11 @@ const PAY_ICON: Record<string, IoniconsName> = { cash: 'cash-outline', upi: 'pho
 
 export default function BillHistoryScreen() {
   const { colors } = useAppTheme();
-  const { bills, returns, settings, processReturn } = useAppStore();
+  const { bills, returns, products, settings, processReturn } = useAppStore();
+  const dataReady = useAppStore(st => st.dataReady);
   const [filter, setFilter] = useState<Filter>('today');
   const [payFilter, setPayFilter] = useState<PayFilter>('all');
+  const [returnedOnly, setReturnedOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [customFrom, setCustomFrom] = useState<Date | null>(null);
   const [customTo, setCustomTo] = useState<Date | null>(null);
@@ -73,8 +77,9 @@ export default function BillHistoryScreen() {
     let n = 0;
     if (filter !== 'today') n++;
     if (payFilter !== 'all') n++;
+    if (returnedOnly) n++;
     return n;
-  }, [filter, payFilter]);
+  }, [filter, payFilter, returnedOnly]);
 
   const openDetail = useCallback((bill: Bill) => {
     setSelectedBill(bill);
@@ -115,10 +120,12 @@ export default function BillHistoryScreen() {
     }
 
     const q = searchQuery.trim().toLowerCase();
+    const returnedIds = new Set(returns.map(r => r.billId));
 
     return bills
       .filter(b => b.createdAt >= start && (customEndMs === null || b.createdAt <= customEndMs))
       .filter(b => payFilter === 'all' || b.paymentMode === payFilter)
+      .filter(b => !returnedOnly || returnedIds.has(b.id))
       .filter(b => {
         if (!q) return true;
         return (
@@ -127,10 +134,15 @@ export default function BillHistoryScreen() {
           b.items.some(i => i.productName.toLowerCase().includes(q))
         );
       });
-  }, [bills, filter, payFilter, searchQuery, customFrom, customTo]);
+  }, [bills, returns, filter, payFilter, returnedOnly, searchQuery, customFrom, customTo]);
 
-  const totalRevenue = filtered.reduce((s, b) => s + b.total, 0);
-  const totalProfit = filtered.reduce((s, b) => s + b.profit, 0);
+  // Totals shown for the filtered list, netted of returns on those bills.
+  const filteredReturns = useMemo(() => {
+    const ids = new Set(filtered.map(b => b.id));
+    return aggregateReturns(returns.filter(r => ids.has(r.billId)), makeCostOf(products));
+  }, [filtered, returns, products]);
+  const totalRevenue = filtered.reduce((s, b) => s + b.total, 0) - filteredReturns.refunds;
+  const totalProfit = filtered.reduce((s, b) => s + b.profit, 0) - filteredReturns.profitCut;
 
   // Helpers — how much has already been returned for a given bill item
   const getAlreadyReturned = (billId: string, productId: string) =>
@@ -160,6 +172,7 @@ export default function BillHistoryScreen() {
         productName: i.productName,
         quantity: returnQtys[i.productId] ?? 0,
         sellingPrice: i.sellingPrice,
+        costPrice: i.costPrice, // captured so profit can be netted accurately later
       }));
 
     if (items.length === 0) {
@@ -317,6 +330,8 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
 
   const s = makeStyles(colors);
 
+  if (!dataReady) return <View style={{ flex: 1, backgroundColor: colors.bg }}><SkeletonList count={7} /></View>;
+
   return (
     <View style={[s.container, { backgroundColor: colors.bg }]}>
 
@@ -371,7 +386,7 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
       </View>
 
       {/* Active filter summary strip */}
-      {(filter !== 'today' || payFilter !== 'all') && (
+      {(filter !== 'today' || payFilter !== 'all' || returnedOnly) && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 7, gap: 8 }}>
           {filter !== 'today' && (
             <TouchableOpacity style={[s.activeChip, { backgroundColor: colors.primary + '18', borderColor: colors.primary + '40' }]} onPress={openFilterSheet}>
@@ -389,6 +404,13 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
               <Ionicons name={PAY_ICON[payFilter]} size={12} color={colors.info} />
               <Text style={[s.activeChipText, { color: colors.info }]}>{payFilter.charAt(0).toUpperCase() + payFilter.slice(1)}</Text>
               <Ionicons name="close" size={11} color={colors.info} onPress={() => setPayFilter('all')} />
+            </TouchableOpacity>
+          )}
+          {returnedOnly && (
+            <TouchableOpacity style={[s.activeChip, { backgroundColor: colors.danger + '18', borderColor: colors.danger + '40' }]} onPress={openFilterSheet}>
+              <Ionicons name="arrow-undo-outline" size={12} color={colors.danger} />
+              <Text style={[s.activeChipText, { color: colors.danger }]}>Returned</Text>
+              <Ionicons name="close" size={11} color={colors.danger} onPress={() => setReturnedOnly(false)} />
             </TouchableOpacity>
           )}
         </ScrollView>
@@ -460,7 +482,7 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
           {/* Header */}
           <View style={[s.fsHeader, { borderBottomColor: colors.border }]}>
             <Text style={[s.fsTitle, { color: colors.text }]}>Filters</Text>
-            <TouchableOpacity onPress={() => { setFilter('today'); setPayFilter('all'); setCustomFrom(null); setCustomTo(null); }}>
+            <TouchableOpacity onPress={() => { setFilter('today'); setPayFilter('all'); setReturnedOnly(false); setCustomFrom(null); setCustomTo(null); }}>
               <Text style={[s.fsReset, { color: colors.danger }]}>Reset all</Text>
             </TouchableOpacity>
           </View>
@@ -535,6 +557,18 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
                 </TouchableOpacity>
               );
             })}
+          </View>
+
+          {/* Returns */}
+          <Text style={[s.fsSectionLabel, { color: colors.textMuted }]}>RETURNS</Text>
+          <View style={s.fsChipRow}>
+            <TouchableOpacity
+              style={[s.fsChip, { backgroundColor: returnedOnly ? colors.primary : colors.surfaceHigh, borderColor: returnedOnly ? colors.primary : colors.border }]}
+              onPress={() => setReturnedOnly(v => !v)}
+            >
+              <Ionicons name="arrow-undo-outline" size={14} color={returnedOnly ? '#fff' : colors.textSub} />
+              <Text style={[s.fsChipText, { color: returnedOnly ? '#fff' : colors.textSub }]}>Returned bills only</Text>
+            </TouchableOpacity>
           </View>
         </BottomSheetScrollView>
       </BottomSheet>

@@ -19,6 +19,8 @@ interface AppState {
   stockTakeItems: StockTakeItem[];
   settings: AppSettings;
   isLoading: boolean;
+  dataReady: boolean;            // true once the initial data load finishes
+  setDataReady: (v: boolean) => void;
 
   // Actions
   loadProducts: () => Promise<void>;
@@ -86,6 +88,12 @@ const defaultSettings: AppSettings = {
   btScannerEnabled: true,
   onboardingDone: false,
   dailyGoal: 0,
+  reminderLang: 'hinglish',
+  reminderTone: 'polite',
+  reminderIncludeUpi: true,
+  reminderTemplate: '',
+  reorderLang: 'hinglish',
+  reorderTemplate: '',
 };
 
 // Settings keys whose values are arrays — stored as JSON, not String().
@@ -105,6 +113,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   stockTakeItems: [],
   settings: defaultSettings,
   isLoading: false,
+  dataReady: false,
+  setDataReady: (v) => set({ dataReady: v }),
 
   loadProducts: async () => {
     const products = await db.getAllProducts();
@@ -549,7 +559,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const val = await db.getSetting(key);
       if (val !== null) {
         if (key === 'lowStockThreshold' || key === 'dailyGoal') (loaded as any)[key] = parseInt(val) || 0;
-        else if (key === 'gstRegistered' || key === 'btScannerEnabled' || key === 'onboardingDone') (loaded as any)[key] = val === 'true';
+        else if (key === 'gstRegistered' || key === 'btScannerEnabled' || key === 'onboardingDone' || key === 'reminderIncludeUpi') (loaded as any)[key] = val === 'true';
         else if (JSON_SETTING_KEYS.has(key)) {
           try { (loaded as any)[key] = JSON.parse(val); } catch { /* keep default */ }
         }

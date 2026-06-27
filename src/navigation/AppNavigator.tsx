@@ -19,6 +19,7 @@ import { MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
 
 import DashboardScreen from '../screens/DashboardScreen';
+import AskAiScreen from '../screens/AskAiScreen';
 import BillingScreen from '../screens/billing/BillingScreen';
 import BillHistoryScreen from '../screens/billing/BillHistoryScreen';
 import InventoryScreen from '../screens/inventory/InventoryScreen';
@@ -38,6 +39,8 @@ import StockTakeHistoryScreen from '../screens/StockTakeHistoryScreen';
 import ExportsScreen from '../screens/ExportsScreen';
 import ManageOptionsScreen from '../screens/ManageOptionsScreen';
 import ShopInfoScreen from '../screens/ShopInfoScreen';
+import ReminderSettingsScreen from '../screens/ReminderSettingsScreen';
+import ReorderScreen from '../screens/ReorderScreen';
 import BackupRestoreScreen from '../screens/BackupRestoreScreen';
 import MenuScreen from '../screens/MenuScreen';
 import AppHeader from '../components/common/AppHeader';
@@ -46,12 +49,22 @@ import { useAppTheme } from '../theme';
 import { useScreenRadius } from '../utils/screenRadius';
 
 const TopTab = createMaterialTopTabNavigator();
+const HomeStack = createNativeStackNavigator();
 const BillingStack = createNativeStackNavigator();
 const InventoryStack = createNativeStackNavigator();
 const RecordsStack = createNativeStackNavigator();
 const MenuStack = createNativeStackNavigator();
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+
+function HomeStackNav({ colors }: { colors: any }) {
+  return (
+    <HomeStack.Navigator screenOptions={{...headerOpts(colors), animation: 'slide_from_right'}}>
+      <HomeStack.Screen name="DashboardMain" component={DashboardScreen} options={{ headerShown: false }} />
+      <HomeStack.Screen name="AskAi" component={AskAiScreen} options={{ title: 'Ask AI' }} />
+    </HomeStack.Navigator>
+  );
+}
 
 function BillingStackNav({ colors }: { colors: any }) {
   return (
@@ -93,6 +106,7 @@ function MenuStackNav({ colors }: { colors: any }) {
       <MenuStack.Screen name="Supplier" component={SupplierScreen} options={{ title: 'Suppliers' }} />
       <MenuStack.Screen name="Purchases" component={PurchasesScreen} options={{ title: 'Purchases' }} />
       <MenuStack.Screen name="PurchaseForm" component={PurchaseFormScreen} options={{ title: 'New Purchase / GRN' }} />
+      <MenuStack.Screen name="Reorder" component={ReorderScreen} options={{ title: 'Reorder Stock' }} />
       <MenuStack.Screen name="StockTake" component={StockTakeScreen} options={{ title: 'Stock Take' }} />
       <MenuStack.Screen name="StockTakeHistory" component={StockTakeHistoryScreen} options={{ title: 'Past Stock Takes' }} />
       <MenuStack.Screen name="StockTakeCount" component={StockTakeCountScreen} options={{ title: 'Count Stock' }} />
@@ -100,6 +114,7 @@ function MenuStackNav({ colors }: { colors: any }) {
       <MenuStack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
       <MenuStack.Screen name="ShopInfo" component={ShopInfoScreen} options={{ title: 'Shop Information' }} />
       <MenuStack.Screen name="ManageOptions" component={ManageOptionsScreen} options={{ title: 'Preferences' }} />
+      <MenuStack.Screen name="ReminderSettings" component={ReminderSettingsScreen} options={{ title: 'WhatsApp Messages' }} />
       <MenuStack.Screen name="BackupRestore" component={BackupRestoreScreen} options={{ title: 'Backup & Restore' }} />
     </MenuStack.Navigator>
   );
@@ -111,7 +126,7 @@ const headerOpts = (_colors?: any) => ({
   header: (props: any) => <AppHeader {...props} />,
 });
 
-const FULLSCREEN_SCREENS = new Set(['StockTake', 'StockTakeCount', 'StockTakeReview', 'StockTakeHistory']);
+const FULLSCREEN_SCREENS = new Set(['StockTake', 'StockTakeCount', 'StockTakeReview', 'StockTakeHistory', 'AskAi']);
 
 // Wraps a tab page in an opaque, corner-clipped card. The corner radius is the
 // device's *actual* screen radius (resolved async from the native module, with a
@@ -348,7 +363,7 @@ function MainTabs({ colors, isDark }: { colors: any; isDark: boolean }) {
       }}
     >
       <TopTab.Screen name="Home">
-        {(props) => <RoundedScene colors={colors}><DashboardScreen {...props} /></RoundedScene>}
+        {() => <RoundedScene colors={colors}><HomeStackNav colors={colors} /></RoundedScene>}
       </TopTab.Screen>
 
       <TopTab.Screen name="Inventory">

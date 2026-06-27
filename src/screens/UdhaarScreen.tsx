@@ -6,6 +6,7 @@ import { MotiView } from 'moti';
 import BottomSheet, { BottomSheetScrollView, BottomSheetTextInput, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { useAppStore } from '../stores/useAppStore';
 import { formatCurrency, formatDate, formatTime, generateId } from '../utils/helpers';
+import { buildReminderMessage, whatsappUrl, remindedAgo } from '../utils/reminder';
 import * as db from '../db/database';
 import { Customer, UdhaarEntry, Bill } from '../types';
 import { useAppTheme } from '../theme';
@@ -14,6 +15,10 @@ import EmptyState from '../components/common/EmptyState';
 import CollapsibleFab, { useFabScroll } from '../components/common/CollapsibleFab';
 import FadeSlideIn from '../components/common/FadeSlideIn';
 import { SkeletonList } from '../components/common/Skeleton';
+
+// Customers who owe money, largest balance first.
+const sortedDebtors = (customers: Customer[], balances: Record<string, number>): Customer[] =>
+  customers.filter(c => (balances[c.id] || 0) > 0).sort((a, b) => (balances[b.id] || 0) - (balances[a.id] || 0));
 
 export default function UdhaarScreen() {
   const { colors } = useAppTheme();
@@ -124,13 +129,49 @@ export default function UdhaarScreen() {
     await loadData();
   };
 
-  const sendReminder = (customer: Customer) => {
+  // Open WhatsApp pre-filled with the dues reminder, then record that we reminded.
+  const sendReminder = async (customer: Customer) => {
     const balance = balances[customer.id] || 0;
     if (balance <= 0) { Alert.alert('No dues', `${customer.name} has no pending dues.`); return; }
-    const msg = `नमस्ते ${customer.name} जी 🙏\n\n${settings.shopName} से आपका ${formatCurrency(balance, settings.currency)} बकाया है।\nकृपया जल्द भुगतान करें।\n\nधन्यवाद 🙏`;
-    const phone = customer.phone?.replace(/[^0-9]/g, '');
-    Linking.openURL(phone ? `whatsapp://send?phone=91${phone}&text=${encodeURIComponent(msg)}` : `whatsapp://send?text=${encodeURIComponent(msg)}`).catch(() => Alert.alert('WhatsApp not found'));
+    const msg = buildReminderMessage({ name: customer.name, balance, settings });
+    try {
+      await Linking.openURL(whatsappUrl(customer.phone, msg));
+      await db.markCustomerReminded(customer.id);
+      setCustomers(prev => prev.map(c => c.id === customer.id ? { ...c, lastRemindedAt: Date.now() } : c));
+    } catch {
+      Alert.alert('WhatsApp not found', 'Please install WhatsApp to send reminders.');
+    }
   };
+
+  // Sequential "remind everyone who owes" — WhatsApp can't bulk-send, so we step
+  // through debtors one at a time (open → you tap send → next).
+  const debtors = useMemo(() => sortedDebtors(customers, balances), [customers, balances]);
+  const [queueIndex, setQueueIndex] = useState<number | null>(null);
+  const queueSheetRef = useRef<BottomSheet>(null);
+  const queueSnapPoints = useMemo(() => ['80%'], []);
+
+  const startRemindAll = useCallback(() => {
+    if (debtors.length === 0) { Alert.alert('All clear', 'No customers currently owe you money.'); return; }
+    setQueueIndex(0);
+    queueSheetRef.current?.expand();
+  }, [debtors.length]);
+
+  const queueSendCurrent = async () => {
+    if (queueIndex === null) return;
+    const customer = debtors[queueIndex];
+    if (customer) await sendReminder(customer);
+    queueAdvance();
+  };
+
+  const queueAdvance = () => {
+    setQueueIndex(i => (i === null ? null : i + 1));
+  };
+
+  const queueBack = () => {
+    setQueueIndex(i => (i === null || i <= 0 ? i : i - 1));
+  };
+
+  const closeQueue = useCallback(() => { queueSheetRef.current?.close(); setQueueIndex(null); }, []);
 
   const totalOutstanding = Object.values(balances).filter(b => b > 0).reduce((s, b) => s + b, 0);
   const sorted = [...customers].sort((a, b) => (balances[b.id] || 0) - (balances[a.id] || 0));
@@ -141,8 +182,16 @@ export default function UdhaarScreen() {
       {/* Summary Banner */}
       <MotiView
         style={[s.summaryCard, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <Text style={[s.summaryAmount, {color: colors.danger}]}>{formatCurrency(totalOutstanding, settings.currency)}</Text>
-        <Text style={[s.summaryLabel, { color: colors.textMuted }]}>Total Outstanding (उधार)</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={[s.summaryAmount, {color: colors.danger}]}>{formatCurrency(totalOutstanding, settings.currency)}</Text>
+          <Text style={[s.summaryLabel, { color: colors.textMuted }]}>Total Outstanding (उधार)</Text>
+        </View>
+        {debtors.length > 0 && (
+          <TouchableOpacity style={[s.remindAllBtn, { backgroundColor: '#25D366' }]} onPress={startRemindAll} activeOpacity={0.85}>
+            <Ionicons name="logo-whatsapp" size={16} color="#fff" />
+            <Text style={s.remindAllText}>Remind all ({debtors.length})</Text>
+          </TouchableOpacity>
+        )}
       </MotiView>
 
       {loading ? <SkeletonList /> : (
@@ -176,10 +225,15 @@ export default function UdhaarScreen() {
                       </View>
                     ) : null}
                     {hasBalance && (
-                      <TouchableOpacity onPress={() => sendReminder(customer)} style={[s.waBadge, { backgroundColor: '#25D36615', marginTop: 8, alignSelf: 'flex-start' }]}>
-                        <Ionicons name="logo-whatsapp" size={12} color="#25D366" />
-                        <Text style={[s.waBadgeText, { color: '#25D366' }]}>Remind</Text>
-                      </TouchableOpacity>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                        <TouchableOpacity onPress={() => sendReminder(customer)} style={[s.waBadge, { backgroundColor: '#25D36615', alignSelf: 'flex-start' }]}>
+                          <Ionicons name="logo-whatsapp" size={12} color="#25D366" />
+                          <Text style={[s.waBadgeText, { color: '#25D366' }]}>Remind</Text>
+                        </TouchableOpacity>
+                        {customer.lastRemindedAt ? (
+                          <Text style={[s.remindedAgo, { color: colors.textMuted, marginTop: 0 }]}>· reminded {remindedAgo(customer.lastRemindedAt)}</Text>
+                        ) : null}
+                      </View>
                     )}
                   </View>
                   <View style={{ alignItems: 'flex-end', gap: 6 }}>
@@ -389,15 +443,95 @@ export default function UdhaarScreen() {
           </View>
         </BottomSheetScrollView>
       </BottomSheet>
+
+      {/* Remind-All queue Sheet — step through every debtor */}
+      <BottomSheet
+        ref={queueSheetRef}
+        index={-1}
+        snapPoints={queueSnapPoints}
+        enablePanDownToClose
+        backdropComponent={renderBackdrop}
+        backgroundStyle={{ backgroundColor: colors.surface }}
+        handleIndicatorStyle={{ backgroundColor: colors.primary, width: 40 }}
+        onClose={() => setQueueIndex(null)}
+      >
+        <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
+          {queueIndex !== null && (
+            queueIndex >= debtors.length ? (
+              <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                <Ionicons name="checkmark-circle" size={56} color={colors.success} />
+                <Text style={[s.modalTitle, { color: colors.text, marginTop: 12, marginBottom: 4 }]}>All done!</Text>
+                <Text style={{ fontFamily: fonts.regular, color: colors.textMuted, textAlign: 'center' }}>
+                  You went through all {debtors.length} {debtors.length === 1 ? 'customer' : 'customers'}.
+                </Text>
+                <TouchableOpacity style={[s.primaryBtn, { backgroundColor: colors.primary, marginTop: 22, alignSelf: 'stretch' }]} onPress={closeQueue}>
+                  <Text style={{ color: '#fff', fontFamily: fonts.bold }}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (() => {
+              const cust = debtors[queueIndex];
+              const bal = balances[cust.id] || 0;
+              const preview = buildReminderMessage({ name: cust.name, balance: bal, settings });
+              return (
+                <>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                    <Text style={[s.modalTitle, { color: colors.text, marginBottom: 0 }]}>Remind all</Text>
+                    <Text style={{ fontFamily: fonts.bold, color: colors.textMuted }}>{queueIndex + 1} of {debtors.length}</Text>
+                  </View>
+                  <View style={[s.balanceBanner, { backgroundColor: colors.danger + '10' }]}>
+                    <Text style={[s.balanceBannerLabel, { color: colors.textSub }]}>{cust.name}{cust.phone ? ` · ${cust.phone}` : ''}</Text>
+                    <Text style={[s.balanceBannerAmt, { color: colors.danger }]}>{formatCurrency(bal, settings.currency)}</Text>
+                  </View>
+                  {cust.lastRemindedAt ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 }}>
+                      <Ionicons name="time-outline" size={13} color={colors.textMuted} />
+                      <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.textMuted }}>Last reminded {remindedAgo(cust.lastRemindedAt)}</Text>
+                    </View>
+                  ) : null}
+                  {!cust.phone && (
+                    <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.warning, marginBottom: 10 }}>
+                      No phone saved — WhatsApp will ask you to pick a contact.
+                    </Text>
+                  )}
+                  <Text style={[s.previewBox, { backgroundColor: colors.surfaceHigh, color: colors.textSub, borderColor: colors.border }]}>{preview}</Text>
+                  <View style={s.btnRow}>
+                    <TouchableOpacity
+                      style={[s.queueNavBtn, { borderColor: colors.border, opacity: queueIndex === 0 ? 0.4 : 1 }]}
+                      onPress={queueBack}
+                      disabled={queueIndex === 0}>
+                      <Ionicons name="chevron-back" size={18} color={colors.textSub} />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[s.cancelBtn, { borderColor: colors.border }]} onPress={queueAdvance}>
+                      <Text style={{ color: colors.textSub, fontFamily: fonts.semiBold }}>Skip</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[s.primaryBtn, { backgroundColor: '#25D366', flexDirection: 'row', gap: 8 }]} onPress={queueSendCurrent}>
+                      <Ionicons name="logo-whatsapp" size={16} color="#fff" />
+                      <Text style={{ color: '#fff', fontFamily: fonts.bold }}>Send & next</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <TouchableOpacity onPress={closeQueue} style={{ alignSelf: 'center', marginTop: 14 }}>
+                    <Text style={{ fontFamily: fonts.semiBold, color: colors.textMuted }}>Stop</Text>
+                  </TouchableOpacity>
+                </>
+              );
+            })()
+          )}
+        </BottomSheetScrollView>
+      </BottomSheet>
     </View>
   );
 }
 
 const makeStyles = (c: any) => StyleSheet.create({
   container: { flex: 1 },
-  summaryCard: { paddingHorizontal: 18, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, alignItems: 'center' },
+  summaryCard: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth },
   summaryLabel: { fontFamily: fonts.medium, fontSize: 12, marginTop: 6 },
   summaryAmount: { fontFamily: fonts.display, fontSize: 18 },
+  remindAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12 },
+  remindAllText: { fontFamily: fonts.bold, fontSize: 12.5, color: '#fff' },
+  remindedAgo: { fontFamily: fonts.medium, fontSize: 10.5, marginTop: 5 },
+  previewBox: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 20, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: 14, marginBottom: 14 },
+  queueNavBtn: { width: 50, padding: 16, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   customerCard: { flexDirection: 'row', borderRadius: 10, padding: 14, marginBottom: 8, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, gap: 12 },
   avatar: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
   avatarText: { fontFamily: fonts.extraBold, fontSize: 22 },
@@ -412,7 +546,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   input: { borderRadius: 14, padding: 16, fontSize: 15, borderWidth: 1, marginBottom: 14, fontFamily: fonts.regular },
   btnRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
   cancelBtn: { flex: 1, padding: 16, borderRadius: 14, borderWidth: 1, alignItems: 'center' },
-  primaryBtn: { flex: 1, padding: 16, borderRadius: 14, alignItems: 'center' },
+  primaryBtn: { flex: 1, padding: 16, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   detailHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
   balanceBanner: { borderRadius: 16, padding: 16, alignItems: 'center', marginBottom: 16 },
   balanceBannerLabel: { fontFamily: fonts.medium, fontSize: 12 },

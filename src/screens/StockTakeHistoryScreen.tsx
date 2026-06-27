@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
 import { StockTakeSession, StockTakeItem } from '../types';
+import { SkeletonList } from '../components/common/Skeleton';
 import { getCompletedStockTakeSessions, getStockTakeItems, deleteAllCompletedStockTakeSessions } from '../db/database';
 
 function fmtDateTime(ts: number) {
@@ -158,9 +159,7 @@ export default function StockTakeHistoryScreen({ navigation }: any) {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       {loading ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator color={colors.primary} />
-        </View>
+        <SkeletonList count={5} />
       ) : (
         <FlatList
           data={sessions}

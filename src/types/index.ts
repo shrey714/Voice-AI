@@ -83,6 +83,7 @@ export interface ReturnItem {
   productName: string;
   quantity: number;
   sellingPrice: number;
+  costPrice?: number; // captured at return time so profit can be netted (optional: older returns lack it)
 }
 
 export interface BillReturn {
@@ -99,6 +100,7 @@ export interface Customer {
   name: string;
   phone?: string;
   createdAt: number;
+  lastRemindedAt?: number; // when a WhatsApp payment reminder was last sent
 }
 
 export interface UdhaarEntry {
@@ -190,6 +192,9 @@ export interface StockTakeSession {
 
 export type Language = 'en' | 'hi' | 'kn' | 'gu';
 
+export type ReminderLang = 'hi' | 'en' | 'hinglish';
+export type ReminderTone = 'polite' | 'firm';
+
 export interface AppSettings {
   shopName: string;
   ownerName: string;
@@ -208,4 +213,12 @@ export interface AppSettings {
   btScannerEnabled: boolean;   // Bluetooth HID barcode scanner support on the billing screen
   onboardingDone: boolean;     // first-run setup completed
   dailyGoal: number;           // daily revenue target (0 = not set)
+  // Udhaar WhatsApp payment reminders
+  reminderLang: ReminderLang;       // message language (Hindi / English / Hinglish)
+  reminderTone: ReminderTone;       // polite or firm wording
+  reminderIncludeUpi: boolean;      // append a "Pay via UPI: <id>" line
+  reminderTemplate: string;         // custom override ('' = use preset); placeholders {name} {shop} {amount} {upi}
+  // Supplier stock-reorder message
+  reorderLang: ReminderLang;        // reorder message language
+  reorderTemplate: string;          // custom override ('' = use preset); placeholders {shop} {supplier} {items}
 }

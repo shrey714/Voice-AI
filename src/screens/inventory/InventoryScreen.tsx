@@ -9,6 +9,7 @@ import { Product } from '../../types';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
 import EmptyState from '../../components/common/EmptyState';
+import { SkeletonList } from '../../components/common/Skeleton';
 import CollapsibleFab, { useFabScroll } from '../../components/common/CollapsibleFab';
 import ProductCard from '../../components/inventory/ProductCard';
 
@@ -17,6 +18,7 @@ import ProductCard from '../../components/inventory/ProductCard';
 export default function InventoryScreen({ route, navigation }: any) {
   const { colors } = useAppTheme();
   const { products, deleteProduct, updateProduct, settings } = useAppStore();
+  const dataReady = useAppStore(st => st.dataReady);
   const CATEGORIES = ['All', ...(settings.productCategories ?? [])];
 
   const [search, setSearch] = useState('');
@@ -109,6 +111,8 @@ export default function InventoryScreen({ route, navigation }: any) {
   }, [navigation, products.length, lowStockCount, colors]);
 
   const s = makeStyles(colors);
+
+  if (!dataReady) return <View style={{ flex: 1, backgroundColor: colors.bg }}><SkeletonList count={8} /></View>;
 
   return (
     <View style={[{ backgroundColor: colors.bg, flex: 1 }]}>
