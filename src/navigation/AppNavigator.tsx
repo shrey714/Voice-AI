@@ -41,6 +41,8 @@ import ManageOptionsScreen from '../screens/ManageOptionsScreen';
 import ShopInfoScreen from '../screens/ShopInfoScreen';
 import ReminderSettingsScreen from '../screens/ReminderSettingsScreen';
 import ReorderScreen from '../screens/ReorderScreen';
+import DayCloseScreen from '../screens/DayCloseScreen';
+import QuickEditScreen from '../screens/inventory/QuickEditScreen';
 import BackupRestoreScreen from '../screens/BackupRestoreScreen';
 import MenuScreen from '../screens/MenuScreen';
 import AppHeader from '../components/common/AppHeader';
@@ -102,11 +104,13 @@ function MenuStackNav({ colors }: { colors: any }) {
       <MenuStack.Screen name="Analytics" component={AnalyticsScreen} options={{ title: 'Analytics' }} />
       <MenuStack.Screen name="Exports" component={ExportsScreen} options={{ title: 'Export Reports' }} />
       <MenuStack.Screen name="Expenses" component={ExpensesScreen} options={{ title: 'Expenses' }} />
+      <MenuStack.Screen name="DayClose" component={DayCloseScreen} options={{ title: 'Day Close' }} />
       <MenuStack.Screen name="Udhaar" component={UdhaarScreen} options={{ title: 'Udhaar · Credit' }} />
       <MenuStack.Screen name="Supplier" component={SupplierScreen} options={{ title: 'Suppliers' }} />
       <MenuStack.Screen name="Purchases" component={PurchasesScreen} options={{ title: 'Purchases' }} />
       <MenuStack.Screen name="PurchaseForm" component={PurchaseFormScreen} options={{ title: 'New Purchase / GRN' }} />
       <MenuStack.Screen name="Reorder" component={ReorderScreen} options={{ title: 'Reorder Stock' }} />
+      <MenuStack.Screen name="QuickEdit" component={QuickEditScreen} options={{ title: 'Quick Edit' }} />
       <MenuStack.Screen name="StockTake" component={StockTakeScreen} options={{ title: 'Stock Take' }} />
       <MenuStack.Screen name="StockTakeHistory" component={StockTakeHistoryScreen} options={{ title: 'Past Stock Takes' }} />
       <MenuStack.Screen name="StockTakeCount" component={StockTakeCountScreen} options={{ title: 'Count Stock' }} />
@@ -126,7 +130,7 @@ const headerOpts = (_colors?: any) => ({
   header: (props: any) => <AppHeader {...props} />,
 });
 
-const FULLSCREEN_SCREENS = new Set(['StockTake', 'StockTakeCount', 'StockTakeReview', 'StockTakeHistory', 'AskAi']);
+const FULLSCREEN_SCREENS = new Set(['StockTake', 'StockTakeCount', 'StockTakeReview', 'StockTakeHistory', 'AskAi', 'QuickEdit']);
 
 // Wraps a tab page in an opaque, corner-clipped card. The corner radius is the
 // device's *actual* screen radius (resolved async from the native module, with a

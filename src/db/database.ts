@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import { Product, Bill, Expense, Customer, UdhaarEntry, Supplier, BillReturn, CartTemplate, Purchase, SupplierLedgerEntry, StockTakeSession, StockTakeItem, StockTakeSummary } from '../types';
+import { Product, Bill, Expense, Customer, UdhaarEntry, Supplier, BillReturn, CartTemplate, Purchase, SupplierLedgerEntry, StockTakeSession, StockTakeItem, StockTakeSummary, DayClose } from '../types';
 
 let db: SQLite.SQLiteDatabase | null = null;
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -147,6 +147,19 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase) {
       systemQty INTEGER NOT NULL DEFAULT 0,
       countedQty INTEGER,
       updatedAt INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS day_closes (
+      id TEXT PRIMARY KEY,
+      date INTEGER NOT NULL,
+      openingCash REAL NOT NULL DEFAULT 0,
+      cashSales REAL NOT NULL DEFAULT 0,
+      cashOut REAL NOT NULL DEFAULT 0,
+      expected REAL NOT NULL DEFAULT 0,
+      counted REAL NOT NULL DEFAULT 0,
+      difference REAL NOT NULL DEFAULT 0,
+      note TEXT,
+      createdAt INTEGER NOT NULL
     );
   `);
 
@@ -503,13 +516,34 @@ export async function insertLedgerEntry(entry: SupplierLedgerEntry): Promise<voi
   );
 }
 
+// ── Day close (cash reconciliation) ──────────────────────────────────────────
+export async function getAllDayCloses(): Promise<DayClose[]> {
+  const database = await getDatabase();
+  return await database.getAllAsync<DayClose>('SELECT * FROM day_closes ORDER BY date DESC');
+}
+
+export async function getDayClose(id: string): Promise<DayClose | null> {
+  const database = await getDatabase();
+  return (await database.getFirstAsync<DayClose>('SELECT * FROM day_closes WHERE id = ?', [id])) ?? null;
+}
+
+export async function upsertDayClose(dc: DayClose): Promise<void> {
+  const database = await getDatabase();
+  await database.runAsync(
+    `INSERT OR REPLACE INTO day_closes
+       (id, date, openingCash, cashSales, cashOut, expected, counted, difference, note, createdAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [dc.id, dc.date, dc.openingCash, dc.cashSales, dc.cashOut, dc.expected, dc.counted, dc.difference, dc.note ?? null, dc.createdAt]
+  );
+}
+
 // ── Full backup / restore ────────────────────────────────────────────────────
 // Every local table that should travel with the user's backup snapshot.
 // Order matters for restore (parents before children where FKs are implied).
 export const BACKUP_TABLES = [
   'products', 'bills', 'expenses', 'customers', 'udhaar', 'suppliers',
   'returns', 'cart_templates', 'purchases', 'supplier_ledger',
-  'stock_takes', 'stock_take_items', 'settings',
+  'stock_takes', 'stock_take_items', 'day_closes', 'settings',
 ] as const;
 
 // Device-local settings keys that must never be backed up or restored.

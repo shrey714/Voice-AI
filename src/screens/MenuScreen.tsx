@@ -19,6 +19,7 @@ const SECTIONS: { title: string; items: Item[] }[] = [
     items: [
       { label: "Analytics", sub: "Revenue & profit charts", icon: "bar-chart-outline", screen: "Analytics" },
       { label: "Expenses", sub: "Track shop costs", icon: "wallet-outline", screen: "Expenses" },
+      { label: "Day Close", sub: "Count cash & reconcile drawer", icon: "lock-closed-outline", screen: "DayClose" },
       { label: "Udhaar", sub: "Customer credit book", icon: "book-outline", screen: "Udhaar" },
     ],
   },
@@ -29,6 +30,7 @@ const SECTIONS: { title: string; items: Item[] }[] = [
       { label: "Purchases", sub: "Stock receipts & payables", icon: "receipt-outline", screen: "Purchases" },
       { label: "Reorder Stock", sub: "Restock low items via WhatsApp", icon: "refresh-outline", screen: "Reorder" },
       { label: "Stock Take", sub: "Count shelves & fix discrepancies", icon: "checkmark-circle-outline", screen: "StockTake" },
+      { label: "Quick Edit", sub: "Swipe to update prices & stock fast", icon: "albums-outline", screen: "QuickEdit" },
     ],
   },
   {

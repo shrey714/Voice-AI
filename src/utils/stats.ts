@@ -120,7 +120,8 @@ export function aggregateReturns(rets: BillReturn[], costOf: CostOf): {
 
 // GST to reverse for returns in [from, to], grouped by slab rate. sellingPrice is
 // GST-inclusive, so taxable = gross / (1 + rate/100) and tax = gross − taxable.
-// rateOf supplies each product's GST rate (%).
+// Uses the rate captured on the return item (the rate actually charged); rateOf is
+// only a fallback for older returns that didn't store it.
 export function returnGstImpact(
   returns: BillReturn[],
   from: number,
@@ -132,7 +133,7 @@ export function returnGstImpact(
   for (const r of returns) {
     if (r.createdAt < from || r.createdAt > to) continue;
     for (const it of r.items) {
-      const rate = rateOf(it.productId);
+      const rate = it.gstRate ?? rateOf(it.productId);
       if (!rate || rate <= 0) continue;
       const gross = it.sellingPrice * it.quantity;
       const taxable = gross / (1 + rate / 100);
@@ -146,6 +147,28 @@ export function returnGstImpact(
     }
   }
   return { totalTaxable, totalCgst, totalSgst, bySlab };
+}
+
+// Sales activity bucketed by weekday (0=Sun) × hour (0–23), for the busiest-hours
+// heatmap. Values are gross bill totals (timing view, not P&L). grid[day][hour].
+export function salesHeat(bills: Bill[], from: number, to: number): {
+  grid: number[][]; hours: number[]; max: number; gridMax: number; peakHour: number; total: number; billCount: number;
+} {
+  const grid = Array.from({ length: 7 }, () => new Array(24).fill(0));
+  const hours = new Array(24).fill(0);
+  let total = 0, billCount = 0;
+  for (const b of bills) {
+    if (b.createdAt < from || b.createdAt > to) continue;
+    const d = new Date(b.createdAt);
+    grid[d.getDay()][d.getHours()] += b.total;
+    hours[d.getHours()] += b.total;
+    total += b.total;
+    billCount++;
+  }
+  let max = 0, peakHour = 0, gridMax = 0;
+  for (let h = 0; h < 24; h++) { if (hours[h] > max) max = hours[h]; if (hours[h] > hours[peakHour]) peakHour = h; }
+  for (let dy = 0; dy < 7; dy++) for (let h = 0; h < 24; h++) if (grid[dy][h] > gridMax) gridMax = grid[dy][h];
+  return { grid, hours, max, gridMax, peakHour, total, billCount };
 }
 
 // Convenience: live cost lookup from the product list (fallback for old returns).

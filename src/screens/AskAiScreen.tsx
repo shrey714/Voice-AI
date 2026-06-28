@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, TextInput, FlatList, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, TextInput, FlatList, Keyboard, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView, MotiText } from 'moti';
@@ -7,9 +7,13 @@ import { BlurView } from 'expo-blur';
 import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
+import { useAudioRecorder, AudioModule, RecordingPresets, setAudioModeAsync } from 'expo-audio';
 import { ThreadPrimitive, ActionBarPrimitive, MessageByIndexProvider, useAui, useAuiState } from '@assistant-ui/react-native';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
+import { useAppStore } from '../stores/useAppStore';
+import { transcribeWithGroq } from '../services/groq';
+import { toast } from '../utils/toast';
 import { startNewAiChat, useAiWidgets } from '../services/aiRuntime';
 import { AiWidget, SUGGESTED_QUESTIONS } from '../services/askAi';
 
@@ -178,25 +182,76 @@ function MessageList({ colors, s, bottomPad }: { colors: any; s: any; bottomPad:
 function Composer({ colors, s, insets, isDark }: { colors: any; s: any; insets: any; isDark: boolean }) {
   const aui = useAui();
   const isRunning = useAuiState((st: any) => st.thread.isRunning);
+  const language = useAppStore((st: any) => st.settings.language);
   const [text, setText] = useState('');
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
   const canSend = text.trim().length > 0;
 
-  const send = useCallback(() => {
-    const t = text.trim();
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+
+  const sendText = useCallback((raw: string) => {
+    const t = raw.trim();
     if (!t) return;
     setText('');
     aui.composer().setText(t);
     aui.composer().send();
-  }, [text, aui]);
+  }, [aui]);
+  const send = useCallback(() => sendText(text), [sendText, text]);
+
+  // Voice → transcribe (Groq Whisper) → auto-send. Reuses the app's existing
+  // expo-audio + Groq STT stack (already shipped for Billing), so no rebuild.
+  const startRec = useCallback(async () => {
+    try {
+      const { granted } = await AudioModule.requestRecordingPermissionsAsync();
+      if (!granted) { toast.error('Microphone permission needed'); return; }
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await recorder.prepareToRecordAsync(RecordingPresets.HIGH_QUALITY);
+      recorder.record();
+      setRecording(true);
+    } catch { toast.error("Couldn't start recording"); }
+  }, [recorder]);
+
+  const stopRec = useCallback(async () => {
+    setRecording(false);
+    let uri = '';
+    try { await recorder.stop(); uri = recorder.uri || ''; } catch {}
+    try { await setAudioModeAsync({ allowsRecording: false }); } catch {}
+    if (!uri) return;
+    setTranscribing(true);
+    const res = await transcribeWithGroq(uri, language);
+    setTranscribing(false);
+    if (res.ok && res.text.trim()) sendText(res.text);          // auto-send
+    else if (!res.ok) toast.error(res.error || "Couldn't transcribe");
+  }, [recorder, language, sendText]);
+
+  // Stop any in-flight recording if the screen unmounts.
+  useEffect(() => () => { try { recorder.stop(); } catch {} ; setAudioModeAsync({ allowsRecording: false }).catch(() => {}); }, [recorder]);
 
   return (
     <View style={[s.composerWrap, { paddingBottom: Math.max(insets.bottom, 10) }]}>
       <BlurView intensity={50} tint={isDark ? 'dark' : 'light'} experimentalBlurMethod="dimezisBlurView" style={s.pill}>
+        <TouchableOpacity
+          style={s.micBtn}
+          hitSlop={8}
+          disabled={isRunning || transcribing}
+          onPress={() => (recording ? stopRec() : startRec())}
+        >
+          {transcribing ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : recording ? (
+            <MotiView from={{ opacity: 0.5 }} animate={{ opacity: 1 }} transition={{ type: 'timing', duration: 600, loop: true, repeatReverse: true }}>
+              <Ionicons name="stop-circle" size={24} color={colors.danger} />
+            </MotiView>
+          ) : (
+            <Ionicons name="mic-outline" size={22} color={isRunning ? colors.border : colors.textMuted} />
+          )}
+        </TouchableOpacity>
         <TextInput
           style={s.input}
           value={text}
           onChangeText={setText}
-          placeholder="Ask anything about your shop…"
+          placeholder={recording ? 'Listening…' : transcribing ? 'Transcribing…' : 'Ask anything about your shop…'}
           placeholderTextColor={colors.textMuted}
           multiline
           textAlignVertical="center"
@@ -317,7 +372,8 @@ const makeStyles = (c: any) => StyleSheet.create({
 
   // Composer — floats over the chat (chat scrolls behind the frosted glass)
   composerWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 12, paddingTop: 8 },
-  pill: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, overflow: 'hidden', backgroundColor: c.surfaceHigh + '4D', borderRadius: 26, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, paddingLeft: 18, paddingRight: 6, paddingVertical: 6 },
+  pill: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, overflow: 'hidden', backgroundColor: c.surfaceHigh + '4D', borderRadius: 26, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, paddingLeft: 8, paddingRight: 6, paddingVertical: 6 },
+  micBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   input: { flex: 1, maxHeight: 120, minHeight: 40, paddingVertical: Platform.OS === 'ios' ? 8 : 4, fontSize: 15.5, color: c.text, fontFamily: fonts.regular, lineHeight: 21 },
   sendBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
 });

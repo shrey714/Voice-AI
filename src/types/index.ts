@@ -84,6 +84,7 @@ export interface ReturnItem {
   quantity: number;
   sellingPrice: number;
   costPrice?: number; // captured at return time so profit can be netted (optional: older returns lack it)
+  gstRate?: number;   // captured at return time so GST can be reversed at the rate actually charged
 }
 
 export interface BillReturn {
@@ -188,6 +189,20 @@ export interface StockTakeSession {
   startedAt: number;
   completedAt?: number;
   summary?: StockTakeSummary;
+}
+
+// End-of-day cash reconciliation record (one per day; id = startOfDay timestamp).
+export interface DayClose {
+  id: string;
+  date: number;        // startOfDay timestamp (ms)
+  openingCash: number;
+  cashSales: number;   // net cash sales snapshot at close
+  cashOut: number;     // cash paid out (expenses), editable at close
+  expected: number;    // openingCash + cashSales − cashOut
+  counted: number;     // actual cash counted in the drawer
+  difference: number;  // counted − expected (+over / −short)
+  note?: string;
+  createdAt: number;
 }
 
 export type Language = 'en' | 'hi' | 'kn' | 'gu';

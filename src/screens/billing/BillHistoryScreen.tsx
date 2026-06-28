@@ -173,6 +173,7 @@ export default function BillHistoryScreen() {
         quantity: returnQtys[i.productId] ?? 0,
         sellingPrice: i.sellingPrice,
         costPrice: i.costPrice, // captured so profit can be netted accurately later
+        gstRate: i.gstRate,     // captured so GST can be reversed at the rate actually charged
       }));
 
     if (items.length === 0) {

@@ -26,7 +26,10 @@ Bottom tabs: Home, Inventory, Billing, Records, More.
 - Return / refund a bill: Records tab → open the bill → Return, pick items + refund amount. Returned stock goes back to inventory and your revenue/profit auto-adjust (netted by the return date). Filter to returned bills via the Bill History filter; see totals in Analytics → Returns.
 - Add a product: "Inventory" tab → the add (+) button → fill name, price, cost, stock, unit, category, optional barcode & expiry → Save. To add many at once: Inventory → Bulk Import CSV.
 - Edit / update stock of a product: Inventory tab → tap the product → edit.
+- Bulk-edit prices/stock fast: More → Quick Edit → pick a category, then swipe each product card right to save or left to skip (edit price, cost, stock, low-stock level on each card).
 - Record an expense: More → Expenses → add a new expense (amount + category).
+- Close the day / count cash (reconcile drawer): Home → Day Close, or More → Day Close. Enter opening cash + counted cash; it shows expected vs counted (over/short) and saves a daily record.
+- Ask AI by voice: tap the mic in the Ask AI input bar, speak your question, and it transcribes and asks automatically.
 - Customer credit / udhaar (paisa baaki): More → Udhaar. Open a customer, add an entry — "debit" = they took on credit (owe you), "credit" = they paid you back.
 - Send a WhatsApp payment reminder: More → Udhaar → tap "Remind" on a customer, or "Remind all" to go through everyone who owes one by one. Customise the message language/tone/UPI line at More → Settings → WhatsApp Messages.
 - Suppliers (vendors): More → Suppliers.
@@ -34,6 +37,7 @@ Bottom tabs: Home, Inventory, Billing, Records, More.
 - Count shelves & fix stock differences: More → Stock Take.
 - Reorder low stock: tap the "low on stock" alert on Home, or More → Reorder Stock. Items are grouped by supplier — adjust quantities, then "WhatsApp reorder" to message the supplier the list, or "Draft purchase" to pre-fill a new purchase. Customise the reorder message at More → Settings → WhatsApp Messages.
 - See charts (revenue & profit): More → Analytics.
+- See busiest hours / when sales happen: the "Busiest hours" card on Home, or More → Analytics (weekday × hour heatmap with your peak time).
 - Export reports (PDF/CSV): More → Export Reports.
 - Settings: More → Settings. Inside: Shop Information (name, owner, phone, address, UPI, GST), Preferences (customise product categories, units, expense categories, toggle the Bluetooth barcode scanner), and Backup & Restore.
 - Backup & restore data to the cloud: More → Settings → Backup & Restore (log in with your phone number + OTP, then Back up or Restore).

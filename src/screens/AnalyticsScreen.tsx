@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { Text } from 'react-native-paper';
 import { LineChart } from 'react-native-chart-kit';
@@ -7,7 +7,7 @@ import { MotiView } from 'moti';
 import { useAppStore } from '../stores/useAppStore';
 import { useTranslation } from '../hooks/useTranslation';
 import { formatCurrency, startOfDay, startOfWeek, startOfMonth } from '../utils/helpers';
-import { computeSalesStats, makeCostOf, returnGstImpact } from '../utils/stats';
+import { computeSalesStats, makeCostOf, returnGstImpact, salesHeat } from '../utils/stats';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
 
@@ -44,6 +44,16 @@ export default function AnalyticsScreen() {
   const chartLabels = last7Days.map(d => d.toLocaleDateString('en', { weekday: 'short' }));
 
   const payBreakdown = stats.paymentSplit;
+
+  // Busiest-hours heatmap (fixed 60-day window, independent of the period filter).
+  const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const heat = salesHeat(bills, Date.now() - 60 * 86400000, Date.now());
+  const heatPeak = useMemo(() => {
+    let best = { day: 0, hour: 0, v: 0 };
+    heat.grid.forEach((row, d) => row.forEach((v, h) => { if (v > best.v) best = { day: d, hour: h, v }; }));
+    return best;
+  }, [heat]);
+  const fmtH = (h: number) => `${(h % 12) || 12} ${h < 12 ? 'AM' : 'PM'}`;
 
   const lowStock = products.filter(p => p.quantity <= p.lowStockThreshold);
 
@@ -162,6 +172,31 @@ export default function AnalyticsScreen() {
           </View>
         )}
       </View>
+
+      {/* Busiest hours heatmap (weekday × hour) */}
+      {heat.billCount >= 5 && (
+        <View style={[s.section, { backgroundColor: colors.surface }]}>
+          <Text style={[s.sectionTitle, { color: colors.text, marginBottom: 4 }]}>Busiest Hours</Text>
+          <Text style={[s.noDataText, { color: colors.textMuted, textAlign: 'left', marginBottom: 12 }]}>Last 60 days · darker = busier</Text>
+          {heat.grid.map((row, day) => (
+            <View key={day} style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 2 }}>
+              <Text style={{ width: 30, fontFamily: fonts.semiBold, fontSize: 10, color: colors.textMuted }}>{DAY_LABELS[day]}</Text>
+              {row.map((v, h) => (
+                <View key={h} style={{ flex: 1, height: 13, borderRadius: 2, backgroundColor: colors.primary, opacity: 0.07 + 0.93 * (heat.gridMax > 0 ? v / heat.gridMax : 0) }} />
+              ))}
+            </View>
+          ))}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginLeft: 32, marginTop: 5 }}>
+            {[0, 6, 12, 18, 23].map(h => <Text key={h} style={{ fontFamily: fonts.medium, fontSize: 9, color: colors.textMuted }}>{(h % 12) || 12}{h < 12 ? 'a' : 'p'}</Text>)}
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: colors.primaryLight, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 11, marginTop: 14 }}>
+            <Ionicons name="flame" size={13} color={colors.primary} />
+            <Text style={{ fontFamily: fonts.bold, fontSize: 12.5, color: colors.primary }}>
+              Busiest: {DAY_LABELS[heatPeak.day]} {fmtH(heatPeak.hour)}–{fmtH((heatPeak.hour + 1) % 24)}
+            </Text>
+          </View>
+        </View>
+      )}
 
       {/* Top Selling */}
       {topItems.length > 0 && (

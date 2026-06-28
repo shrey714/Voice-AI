@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity, Linking, Alert, RefreshControl, Dimensions, Platform } from 'react-native';
 import { Text } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -96,6 +96,7 @@ import { fonts } from '../theme/typography';
 import AnimatedNumber from '../components/common/AnimatedNumber';
 import PressableScale from '../components/common/PressableScale';
 import { DashboardSkeleton } from '../components/common/Skeleton';
+import BusiestHours from '../components/common/BusiestHours';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { computeSalesStats, makeCostOf } from '../utils/stats';
 import { toast } from '../utils/toast';
@@ -157,10 +158,28 @@ export default function DashboardScreen({ navigation }: any) {
   const dataReady = useAppStore(state => state.dataReady);
   const [refreshing, setRefreshing] = useState(false);
 
-  // All sales numbers are netted of returns via the shared stats helper.
-  const costOf = makeCostOf(products);
+  // All sales numbers are netted of returns via the shared stats helper. Memoized
+  // so the 9 computeSalesStats passes (today + yesterday + 7 days) don't re-run on
+  // every unrelated re-render — only when bills/returns/products change.
+  const { todayStats, yesterdayRevenue, week } = useMemo(() => {
+    const costOf = makeCostOf(products);
+    const dayMs = 86400000;
+    const today = computeSalesStats({ bills, returns, from: startOfDay(), to: endOfDay(), costOf });
+    const yRev = computeSalesStats({ bills, returns, from: startOfDay() - dayMs, to: startOfDay() - 1, costOf }).revenue;
+    const wk = Array.from({ length: 7 }).map((_, idx) => {
+      const ds = startOfDay() - (6 - idx) * dayMs;
+      const rev = computeSalesStats({ bills, returns, from: ds, to: ds + dayMs - 1, costOf }).revenue;
+      return {
+        rev,
+        label: new Date(ds).toLocaleDateString('en-IN', { weekday: 'narrow' }),
+        full: new Date(ds).toLocaleDateString('en-IN', { weekday: 'long' }),
+        isToday: idx === 6,
+      };
+    });
+    return { todayStats: today, yesterdayRevenue: yRev, week: wk };
+  }, [bills, returns, products]);
+
   const todayBills = bills.filter(b => b.createdAt >= startOfDay() && b.createdAt <= endOfDay());
-  const todayStats = computeSalesStats({ bills, returns, from: startOfDay(), to: endOfDay(), costOf });
   const todayRevenue = todayStats.revenue;
   const todayProfit = todayStats.profit;
   const todayExpenses = expenses.filter(e => e.createdAt >= startOfDay() && e.createdAt <= endOfDay()).reduce((s, e) => s + e.amount, 0);
@@ -183,22 +202,8 @@ export default function DashboardScreen({ navigation }: any) {
   const netProfit = todayProfit - todayExpenses;
 
   // vs yesterday
-  const dayMs = 86400000;
-  const yesterdayStart = startOfDay() - dayMs;
-  const yesterdayRevenue = computeSalesStats({ bills, returns, from: yesterdayStart, to: startOfDay() - 1, costOf }).revenue;
   const deltaPct = yesterdayRevenue > 0 ? ((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100 : null;
 
-  // last 7 days revenue (for the sparkline)
-  const week = Array.from({ length: 7 }).map((_, idx) => {
-    const ds = startOfDay() - (6 - idx) * dayMs;
-    const rev = computeSalesStats({ bills, returns, from: ds, to: ds + dayMs - 1, costOf }).revenue;
-    return {
-      rev,
-      label: new Date(ds).toLocaleDateString('en-IN', { weekday: 'narrow' }),
-      full: new Date(ds).toLocaleDateString('en-IN', { weekday: 'long' }),
-      isToday: idx === 6,
-    };
-  });
   const weekMax = Math.max(...week.map(d => d.rev), 1);
   const weekTotal = week.reduce((s, d) => s + d.rev, 0);
 
@@ -433,6 +438,9 @@ export default function DashboardScreen({ navigation }: any) {
           </MotiView>
         )}
 
+        {/* Busiest hours heatmap */}
+        <BusiestHours onPress={() => navigation.navigate('More', { screen: 'Analytics' })} />
+
         {/* Alerts */}
         {lowStockItems.length > 0 && (
           <MotiView from={{ opacity: 0, translateX: -10 }} animate={{ opacity: 1, translateX: 0 }} transition={{ type: 'timing', duration: 350, delay: 220 }}>
@@ -474,6 +482,7 @@ export default function DashboardScreen({ navigation }: any) {
             { label: 'Analytics',   icon: 'bar-chart-outline' as const,   onPress: () => navigation.navigate('More', { screen: 'Analytics' }) },
             { label: 'Expenses',    icon: 'wallet-outline' as const,      onPress: () => navigation.navigate('More', { screen: 'Expenses' }) },
             { label: 'Udhaar',      icon: 'book-outline' as const,        onPress: () => navigation.navigate('More', { screen: 'Udhaar' }) },
+            { label: 'Day Close',   icon: 'lock-closed-outline' as const, onPress: () => navigation.navigate('More', { screen: 'DayClose' }) },
             { label: 'Suppliers',   icon: 'business-outline' as const,    onPress: () => navigation.navigate('More', { screen: 'Supplier' }) },
           ].map((action, i) => (
             <MotiView key={action.label} from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'timing', duration: 280, delay: 150 + i * 45 }}>
