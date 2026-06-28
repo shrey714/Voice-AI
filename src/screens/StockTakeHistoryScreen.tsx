@@ -12,6 +12,7 @@ import { fonts } from '../theme/typography';
 import { StockTakeSession, StockTakeItem } from '../types';
 import { SkeletonList } from '../components/common/Skeleton';
 import { getCompletedStockTakeSessions, getStockTakeItems, deleteAllCompletedStockTakeSessions } from '../db/database';
+import { useTranslation } from '../hooks/useTranslation';
 
 function fmtDateTime(ts: number) {
   return new Date(ts).toLocaleDateString('en-IN', {
@@ -28,6 +29,7 @@ function fmtDateShort(ts: number) {
 
 export default function StockTakeHistoryScreen({ navigation }: any) {
   const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [sessions, setSessions] = useState<StockTakeSession[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,12 +42,12 @@ export default function StockTakeHistoryScreen({ navigation }: any) {
 
   const handleDeleteAll = useCallback(() => {
     Alert.alert(
-      'Delete All History?',
+      t('deleteAllHistory'),
       `This will permanently delete ${sessions.length} stock take session${sessions.length !== 1 ? 's' : ''} and all their records. This cannot be undone.`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'Delete All',
+          text: t('delete'),
           style: 'destructive',
           onPress: async () => {
             await deleteAllCompletedStockTakeSessions();
@@ -169,9 +171,9 @@ export default function StockTakeHistoryScreen({ navigation }: any) {
           ListEmptyComponent={
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
               <Ionicons name="clipboard-outline" size={52} color={colors.textMuted} />
-              <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.text }}>No history yet</Text>
+              <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.text }}>{t('noHistoryYet')}</Text>
               <Text style={{ fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted, textAlign: 'center', paddingHorizontal: 40 }}>
-                Completed stock takes will appear here.
+                {t('completedStockTakesHere')}
               </Text>
             </View>
           }
@@ -212,11 +214,11 @@ export default function StockTakeHistoryScreen({ navigation }: any) {
               <View style={[s.sheetStats, { backgroundColor: colors.surfaceHigh, borderBottomColor: colors.border }]}>
                 {([
                   { label: 'Counted', value: String(sum.counted), color: colors.primary },
-                  { label: 'Short',   value: String(sum.short),   color: sum.short > 0 ? colors.danger  : colors.textMuted },
-                  { label: 'Over',    value: String(sum.over),    color: sum.over  > 0 ? colors.success : colors.textMuted },
+                  { label: t('short'),   value: String(sum.short),   color: sum.short > 0 ? colors.danger  : colors.textMuted },
+                  { label: t('over'),    value: String(sum.over),    color: sum.over  > 0 ? colors.success : colors.textMuted },
                   { label: 'Skipped', value: String(sum.skipped), color: colors.textMuted },
-                  { label: 'Net',     value: (net > 0 ? '+' : '') + net, color: net < 0 ? colors.danger : net > 0 ? colors.success : colors.textMuted },
-                ] as const).map((stat, i) => (
+                  { label: t('netLabel'), value: (net > 0 ? '+' : '') + net, color: net < 0 ? colors.danger : net > 0 ? colors.success : colors.textMuted },
+                ]).map((stat, i) => (
                   <React.Fragment key={stat.label}>
                     {i > 0 && <View style={[s.statDivider, { backgroundColor: colors.border }]} />}
                     <View style={s.sheetStatItem}>
@@ -287,7 +289,7 @@ export default function StockTakeHistoryScreen({ navigation }: any) {
               {sessionItems.length === 0 && (
                 <View style={{ padding: 40, alignItems: 'center' }}>
                   <Text style={{ fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted }}>
-                    No items recorded for this session.
+                    {t('noItemsRecorded')}
                   </Text>
                 </View>
               )}

@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import BottomSheet, { BottomSheetScrollView, BottomSheetTextInput, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { useAppStore } from '../stores/useAppStore';
+import { useTranslation } from '../hooks/useTranslation';
 import { formatCurrency, formatDate, formatTime, generateId } from '../utils/helpers';
 import { buildReminderMessage, whatsappUrl, remindedAgo } from '../utils/reminder';
 import * as db from '../db/database';
@@ -22,6 +23,7 @@ const sortedDebtors = (customers: Customer[], balances: Record<string, number>):
 
 export default function UdhaarScreen() {
   const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const { settings, bills } = useAppStore();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [balances, setBalances] = useState<Record<string, number>>({});
@@ -97,7 +99,7 @@ export default function UdhaarScreen() {
   };
 
   const saveCustomer = async () => {
-    if (!newName.trim()) { Alert.alert('Error', 'Name is required'); return; }
+    if (!newName.trim()) { Alert.alert(t('error'), t('nameRequired')); return; }
     if (editingCustomer) {
       await db.updateCustomer({ ...editingCustomer, name: newName.trim(), phone: newPhone.trim() || undefined });
     } else {
@@ -113,7 +115,7 @@ export default function UdhaarScreen() {
   };
 
   const confirmDeleteCustomer = (customer: Customer) => {
-    Alert.alert('Delete Customer', `Remove ${customer.name} and all their transactions?`, [
+    Alert.alert(t('deleteCustomer'), t('removeCustomerConfirm').replace('{name}', customer.name), [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => { await db.deleteCustomer(customer.id); closeCustomerDetail(); await loadData(); }},
     ]);
@@ -121,7 +123,7 @@ export default function UdhaarScreen() {
 
   const addTransaction = async () => {
     const amt = parseFloat(txAmount);
-    if (!amt || isNaN(amt) || amt <= 0) { Alert.alert('Error', 'Enter a valid amount'); return; }
+    if (!amt || isNaN(amt) || amt <= 0) { Alert.alert(t('error'), t('enterValidAmount')); return; }
     if (!selectedCustomer) return;
     await db.insertUdhaarEntry({ id: generateId(), customerId: selectedCustomer.id, amount: amt, type: txType, note: txNote.trim() || undefined, createdAt: Date.now() });
     setTxAmount(''); setTxNote(''); closeAddTx();
@@ -132,14 +134,14 @@ export default function UdhaarScreen() {
   // Open WhatsApp pre-filled with the dues reminder, then record that we reminded.
   const sendReminder = async (customer: Customer) => {
     const balance = balances[customer.id] || 0;
-    if (balance <= 0) { Alert.alert('No dues', `${customer.name} has no pending dues.`); return; }
+    if (balance <= 0) { Alert.alert(t('noDues'), t('noDuesMsg').replace('{name}', customer.name)); return; }
     const msg = buildReminderMessage({ name: customer.name, balance, settings });
     try {
       await Linking.openURL(whatsappUrl(customer.phone, msg));
       await db.markCustomerReminded(customer.id);
       setCustomers(prev => prev.map(c => c.id === customer.id ? { ...c, lastRemindedAt: Date.now() } : c));
     } catch {
-      Alert.alert('WhatsApp not found', 'Please install WhatsApp to send reminders.');
+      Alert.alert(t('whatsappNotFound'), t('pleaseInstallWhatsapp'));
     }
   };
 
@@ -151,7 +153,7 @@ export default function UdhaarScreen() {
   const queueSnapPoints = useMemo(() => ['80%'], []);
 
   const startRemindAll = useCallback(() => {
-    if (debtors.length === 0) { Alert.alert('All clear', 'No customers currently owe you money.'); return; }
+    if (debtors.length === 0) { Alert.alert(t('allClear'), t('allClearMsg')); return; }
     setQueueIndex(0);
     queueSheetRef.current?.expand();
   }, [debtors.length]);
@@ -180,19 +182,18 @@ export default function UdhaarScreen() {
   return (
     <View style={[s.container, { backgroundColor: colors.bg }]}>
       {/* Summary Banner */}
-      <MotiView
-        style={[s.summaryCard, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View style={[s.summaryCard, { backgroundColor: colors.surface }]}>
         <View style={{ flex: 1 }}>
           <Text style={[s.summaryAmount, {color: colors.danger}]}>{formatCurrency(totalOutstanding, settings.currency)}</Text>
-          <Text style={[s.summaryLabel, { color: colors.textMuted }]}>Total Outstanding (उधार)</Text>
+          <Text style={[s.summaryLabel, { color: colors.textMuted }]}>{t('totalOutstandingUdhaar')}</Text>
         </View>
         {debtors.length > 0 && (
           <TouchableOpacity style={[s.remindAllBtn, { backgroundColor: '#25D366' }]} onPress={startRemindAll} activeOpacity={0.85}>
             <Ionicons name="logo-whatsapp" size={16} color="#fff" />
-            <Text style={s.remindAllText}>Remind all ({debtors.length})</Text>
+            <Text style={s.remindAllText}>{t('remindAll')} ({debtors.length})</Text>
           </TouchableOpacity>
         )}
-      </MotiView>
+      </View>
 
       {loading ? <SkeletonList /> : (
         <FlatList
@@ -228,10 +229,10 @@ export default function UdhaarScreen() {
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
                         <TouchableOpacity onPress={() => sendReminder(customer)} style={[s.waBadge, { backgroundColor: '#25D36615', alignSelf: 'flex-start' }]}>
                           <Ionicons name="logo-whatsapp" size={12} color="#25D366" />
-                          <Text style={[s.waBadgeText, { color: '#25D366' }]}>Remind</Text>
+                          <Text style={[s.waBadgeText, { color: '#25D366' }]}>{t('remind')}</Text>
                         </TouchableOpacity>
                         {customer.lastRemindedAt ? (
-                          <Text style={[s.remindedAgo, { color: colors.textMuted, marginTop: 0 }]}>· reminded {remindedAgo(customer.lastRemindedAt)}</Text>
+                          <Text style={[s.remindedAgo, { color: colors.textMuted, marginTop: 0 }]}>· {t('lastReminded').replace('{time}', remindedAgo(customer.lastRemindedAt) ?? '')}</Text>
                         ) : null}
                       </View>
                     )}
@@ -252,11 +253,11 @@ export default function UdhaarScreen() {
               </FadeSlideIn>
             );
           }}
-          ListEmptyComponent={<EmptyState icon="book-outline" title="No customers yet" subtitle="Tap + to add a customer" />}
+          ListEmptyComponent={<EmptyState icon="book-outline" title={t('noCustomersYet')} subtitle={t('tapToAddCustomer')} />}
         />
       )}
 
-      <CollapsibleFab bottom={90} icon="add" label="Add Customer" extended={extended} onPress={() => { setEditingCustomer(null); setNewName(''); setNewPhone(''); openAddCustomer(); }} />
+      <CollapsibleFab bottom={90} icon="add" label={t('addCustomer')} extended={extended} onPress={() => { setEditingCustomer(null); setNewName(''); setNewPhone(''); openAddCustomer(); }} />
 
       {/* Add/Edit Customer Sheet */}
       <BottomSheet
@@ -272,17 +273,17 @@ export default function UdhaarScreen() {
         android_keyboardInputMode="adjustResize"
       >
         <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
-          <Text style={[s.modalTitle, { color: colors.text }]}>{editingCustomer ? 'Edit Customer' : 'Add Customer'}</Text>
+          <Text style={[s.modalTitle, { color: colors.text }]}>{editingCustomer ? t('editCustomer') : t('addCustomer')}</Text>
           <BottomSheetTextInput style={[s.input, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
-            value={newName} onChangeText={setNewName} placeholder="Customer name *" placeholderTextColor={colors.textMuted} />
+            value={newName} onChangeText={setNewName} placeholder={t('customerName') + ' *'} placeholderTextColor={colors.textMuted} />
           <BottomSheetTextInput style={[s.input, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
-            value={newPhone} onChangeText={setNewPhone} placeholder="Phone (for WhatsApp reminder)" placeholderTextColor={colors.textMuted} keyboardType="phone-pad" />
+            value={newPhone} onChangeText={setNewPhone} placeholder={t('phoneForWhatsapp')} placeholderTextColor={colors.textMuted} keyboardType="phone-pad" />
           <View style={s.btnRow}>
             <TouchableOpacity style={[s.cancelBtn, { borderColor: colors.border }]} onPress={closeAddCustomer}>
-              <Text style={{ color: colors.textSub, fontFamily: fonts.semiBold }}>Cancel</Text>
+              <Text style={{ color: colors.textSub, fontFamily: fonts.semiBold }}>{t('cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[s.primaryBtn, { backgroundColor: colors.primary }]} onPress={saveCustomer}>
-              <Text style={{ color: '#fff', fontFamily: fonts.bold }}>Save</Text>
+              <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{t('save')}</Text>
             </TouchableOpacity>
           </View>
         </BottomSheetScrollView>
@@ -318,7 +319,7 @@ export default function UdhaarScreen() {
               </View>
 
               <View style={[s.balanceBanner, { backgroundColor: (balances[selectedCustomer.id] || 0) > 0 ? colors.danger + '10' : colors.success + '10' }]}>
-                <Text style={[s.balanceBannerLabel, { color: colors.textSub }]}>Outstanding Amount</Text>
+                <Text style={[s.balanceBannerLabel, { color: colors.textSub }]}>{t('outstandingAmount')}</Text>
                 <Text style={[s.balanceBannerAmt, { color: (balances[selectedCustomer.id] || 0) > 0 ? colors.danger : colors.success }]}>
                   {formatCurrency(Math.abs(balances[selectedCustomer.id] || 0), settings.currency)}
                 </Text>
@@ -338,7 +339,7 @@ export default function UdhaarScreen() {
                       color={detailTab === tab ? colors.primary : colors.textMuted}
                     />
                     <Text style={[s.tabText, { color: detailTab === tab ? colors.primary : colors.textMuted }]}>
-                      {tab === 'ledger' ? 'Ledger' : `Purchase History${customerBills.length > 0 ? ` (${customerBills.length})` : ''}`}
+                      {tab === 'ledger' ? t('ledger') : `${t('purchaseHistory')}${customerBills.length > 0 ? ` (${customerBills.length})` : ''}`}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -346,11 +347,11 @@ export default function UdhaarScreen() {
 
               {detailTab === 'ledger' ? (
                 transactions.length === 0 ? (
-                  <Text style={{ fontFamily: fonts.regular, textAlign: 'center', color: colors.textMuted, marginTop: 24, marginBottom: 16 }}>No transactions yet</Text>
+                  <Text style={{ fontFamily: fonts.regular, textAlign: 'center', color: colors.textMuted, marginTop: 24, marginBottom: 16 }}>{t('noTransactionsYet')}</Text>
                 ) : transactions.map(tx => (
                   <View key={tx.id} style={[s.txRow, { borderLeftColor: tx.type === 'debit' ? colors.danger : colors.success }]}>
                     <View style={{ flex: 1 }}>
-                      <Text style={[s.txNote, { color: colors.text }]}>{tx.note || (tx.type === 'debit' ? 'Credit given' : 'Payment received')}</Text>
+                      <Text style={[s.txNote, { color: colors.text }]}>{tx.note || (tx.type === 'debit' ? t('creditGiven') : t('paymentReceived'))}</Text>
                       <Text style={[s.txDate, { color: colors.textMuted }]}>{formatDate(tx.createdAt)} · {formatTime(tx.createdAt)}</Text>
                     </View>
                     <Text style={[s.txAmt, { color: tx.type === 'debit' ? colors.danger : colors.success }]}>
@@ -361,7 +362,7 @@ export default function UdhaarScreen() {
               ) : (
                 customerBills.length === 0 ? (
                   <Text style={{ fontFamily: fonts.regular, textAlign: 'center', color: colors.textMuted, marginTop: 24, marginBottom: 16 }}>
-                    No bills found for this customer
+                    {t('noBillsForCustomer')}
                   </Text>
                 ) : customerBills.map(bill => (
                   <View key={bill.id} style={[s.billRow, { borderBottomColor: colors.border }]}>
@@ -396,17 +397,17 @@ export default function UdhaarScreen() {
                 <TouchableOpacity style={[s.detailActionBtn, { backgroundColor: colors.danger + '15' }]}
                   onPress={() => { setTxType('debit'); setTxAmount(''); setTxNote(''); openAddTx(); }}>
                   <Ionicons name="pencil-outline" size={16} color={colors.danger} />
-                  <Text style={{ color: colors.danger, fontFamily: fonts.bold, fontSize: 12 }}>Give Credit</Text>
+                  <Text style={{ color: colors.danger, fontFamily: fonts.bold, fontSize: 12 }}>{t('giveCredit')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[s.detailActionBtn, { backgroundColor: colors.success + '15' }]}
                   onPress={() => { setTxType('credit'); setTxAmount(''); setTxNote(''); openAddTx(); }}>
                   <Ionicons name="cash-outline" size={16} color={colors.success} />
-                  <Text style={{ color: colors.success, fontFamily: fonts.bold, fontSize: 12 }}>Mark Paid</Text>
+                  <Text style={{ color: colors.success, fontFamily: fonts.bold, fontSize: 12 }}>{t('markPaid')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[s.detailActionBtn, { backgroundColor: '#25D36615' }]}
                   onPress={() => sendReminder(selectedCustomer)}>
                   <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
-                  <Text style={{ color: '#25D366', fontFamily: fonts.bold, fontSize: 12 }}>Remind</Text>
+                  <Text style={{ color: '#25D366', fontFamily: fonts.bold, fontSize: 12 }}>{t('remind')}</Text>
                 </TouchableOpacity>
               </View>
             </>
@@ -428,17 +429,17 @@ export default function UdhaarScreen() {
         android_keyboardInputMode="adjustResize"
       >
         <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
-          <Text style={[s.modalTitle, { color: colors.text }]}>{txType === 'debit' ? 'Give Credit' : 'Payment Received'}</Text>
+          <Text style={[s.modalTitle, { color: colors.text }]}>{txType === 'debit' ? t('giveCredit') : t('paymentReceived')}</Text>
           <BottomSheetTextInput style={[s.input, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
-            value={txAmount} onChangeText={setTxAmount} placeholder={`Amount (${settings.currency})`} placeholderTextColor={colors.textMuted} keyboardType="numeric" />
+            value={txAmount} onChangeText={setTxAmount} placeholder={`${t('amount')} (${settings.currency})`} placeholderTextColor={colors.textMuted} keyboardType="numeric" />
           <BottomSheetTextInput style={[s.input, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
-            value={txNote} onChangeText={setTxNote} placeholder="Note (optional)" placeholderTextColor={colors.textMuted} />
+            value={txNote} onChangeText={setTxNote} placeholder={t('noteOptional')} placeholderTextColor={colors.textMuted} />
           <View style={s.btnRow}>
             <TouchableOpacity style={[s.cancelBtn, { borderColor: colors.border }]} onPress={closeAddTx}>
-              <Text style={{ color: colors.textSub, fontFamily: fonts.semiBold }}>Cancel</Text>
+              <Text style={{ color: colors.textSub, fontFamily: fonts.semiBold }}>{t('cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[s.primaryBtn, { backgroundColor: txType === 'debit' ? colors.danger : colors.success }]} onPress={addTransaction}>
-              <Text style={{ color: '#fff', fontFamily: fonts.bold }}>Save</Text>
+              <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{t('save')}</Text>
             </TouchableOpacity>
           </View>
         </BottomSheetScrollView>
@@ -460,12 +461,12 @@ export default function UdhaarScreen() {
             queueIndex >= debtors.length ? (
               <View style={{ alignItems: 'center', paddingVertical: 20 }}>
                 <Ionicons name="checkmark-circle" size={56} color={colors.success} />
-                <Text style={[s.modalTitle, { color: colors.text, marginTop: 12, marginBottom: 4 }]}>All done!</Text>
+                <Text style={[s.modalTitle, { color: colors.text, marginTop: 12, marginBottom: 4 }]}>{t('allDone')}</Text>
                 <Text style={{ fontFamily: fonts.regular, color: colors.textMuted, textAlign: 'center' }}>
-                  You went through all {debtors.length} {debtors.length === 1 ? 'customer' : 'customers'}.
+                  {t('wentThroughAll').replace('{count}', String(debtors.length))}
                 </Text>
                 <TouchableOpacity style={[s.primaryBtn, { backgroundColor: colors.primary, marginTop: 22, alignSelf: 'stretch' }]} onPress={closeQueue}>
-                  <Text style={{ color: '#fff', fontFamily: fonts.bold }}>Close</Text>
+                  <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{t('close')}</Text>
                 </TouchableOpacity>
               </View>
             ) : (() => {
@@ -475,7 +476,7 @@ export default function UdhaarScreen() {
               return (
                 <>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                    <Text style={[s.modalTitle, { color: colors.text, marginBottom: 0 }]}>Remind all</Text>
+                    <Text style={[s.modalTitle, { color: colors.text, marginBottom: 0 }]}>{t('remindAll')}</Text>
                     <Text style={{ fontFamily: fonts.bold, color: colors.textMuted }}>{queueIndex + 1} of {debtors.length}</Text>
                   </View>
                   <View style={[s.balanceBanner, { backgroundColor: colors.danger + '10' }]}>
@@ -485,12 +486,12 @@ export default function UdhaarScreen() {
                   {cust.lastRemindedAt ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 }}>
                       <Ionicons name="time-outline" size={13} color={colors.textMuted} />
-                      <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.textMuted }}>Last reminded {remindedAgo(cust.lastRemindedAt)}</Text>
+                      <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.textMuted }}>{t('lastReminded').replace('{time}', remindedAgo(cust.lastRemindedAt) ?? '')}</Text>
                     </View>
                   ) : null}
                   {!cust.phone && (
                     <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.warning, marginBottom: 10 }}>
-                      No phone saved — WhatsApp will ask you to pick a contact.
+                      {t('noPhoneSaved')}
                     </Text>
                   )}
                   <Text style={[s.previewBox, { backgroundColor: colors.surfaceHigh, color: colors.textSub, borderColor: colors.border }]}>{preview}</Text>
@@ -502,15 +503,15 @@ export default function UdhaarScreen() {
                       <Ionicons name="chevron-back" size={18} color={colors.textSub} />
                     </TouchableOpacity>
                     <TouchableOpacity style={[s.cancelBtn, { borderColor: colors.border }]} onPress={queueAdvance}>
-                      <Text style={{ color: colors.textSub, fontFamily: fonts.semiBold }}>Skip</Text>
+                      <Text style={{ color: colors.textSub, fontFamily: fonts.semiBold }}>{t('skip')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={[s.primaryBtn, { backgroundColor: '#25D366', flexDirection: 'row', gap: 8 }]} onPress={queueSendCurrent}>
                       <Ionicons name="logo-whatsapp" size={16} color="#fff" />
-                      <Text style={{ color: '#fff', fontFamily: fonts.bold }}>Send & next</Text>
+                      <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{t('sendAndNext')}</Text>
                     </TouchableOpacity>
                   </View>
                   <TouchableOpacity onPress={closeQueue} style={{ alignSelf: 'center', marginTop: 14 }}>
-                    <Text style={{ fontFamily: fonts.semiBold, color: colors.textMuted }}>Stop</Text>
+                    <Text style={{ fontFamily: fonts.semiBold, color: colors.textMuted }}>{t('stop')}</Text>
                   </TouchableOpacity>
                 </>
               );
@@ -524,7 +525,7 @@ export default function UdhaarScreen() {
 
 const makeStyles = (c: any) => StyleSheet.create({
   container: { flex: 1 },
-  summaryCard: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth },
+  summaryCard: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 11, borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
   summaryLabel: { fontFamily: fonts.medium, fontSize: 12, marginTop: 6 },
   summaryAmount: { fontFamily: fonts.display, fontSize: 18 },
   remindAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12 },

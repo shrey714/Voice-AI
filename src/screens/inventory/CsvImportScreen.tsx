@@ -8,6 +8,7 @@ import { useAppStore } from '../../stores/useAppStore';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
 import { Product } from '../../types';
+import { useTranslation } from '../../hooks/useTranslation';
 
 interface ParsedRow {
   name: string; category: string; costPrice: number; sellingPrice: number;
@@ -50,6 +51,7 @@ function flagDuplicateBarcodes(rows: ParsedRow[], existing: Product[]): ParsedRo
 export default function CsvImportScreen({ navigation }: any) {
   const { addProduct, products } = useAppStore();
   const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const [rows, setRows] = useState<ParsedRow[]>([]);
   const [fileName, setFileName] = useState('');
   const [importing, setImporting] = useState(false);
@@ -64,9 +66,9 @@ export default function CsvImportScreen({ navigation }: any) {
       setFileName(asset.name); setDone(false); setRows([]);
       const content = await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.UTF8 });
       const parsed = parseCSV(content);
-      if (parsed.length === 0) { Alert.alert('Error', 'Could not parse CSV. Make sure it has "name" and "price" columns.'); return; }
+      if (parsed.length === 0) { Alert.alert(t('error'), t('couldNotParseCsv')); return; }
       setRows(flagDuplicateBarcodes(parsed, products));
-    } catch { Alert.alert('Error', 'Could not read the file.'); }
+    } catch { Alert.alert(t('error'), t('couldNotReadFile')); }
   };
 
   const runImport = async () => {
@@ -95,8 +97,8 @@ export default function CsvImportScreen({ navigation }: any) {
           >
       {/* Info card */}
       <View style={[s.infoCard, { backgroundColor: colors.surface }]}>
-        <Text style={[s.infoTitle, { color: colors.text }]}>CSV Format</Text>
-        <Text style={[s.infoText, { color: colors.textSub }]}>Your CSV should have these columns (any order, case-insensitive):</Text>
+        <Text style={[s.infoTitle, { color: colors.text }]}>{t('csvFormat')}</Text>
+        <Text style={[s.infoText, { color: colors.textSub }]}>{t('csvFormatDesc')}</Text>
         <View style={{ gap: 4, marginBottom: 12 }}>
           {[
             ['name *', 'Product name (required)'],
@@ -114,7 +116,7 @@ export default function CsvImportScreen({ navigation }: any) {
           ))}
         </View>
         <View style={[s.exampleBox, { backgroundColor: colors.bg }]}>
-          <Text style={[s.exampleTitle, { color: colors.textMuted }]}>Example:</Text>
+          <Text style={[s.exampleTitle, { color: colors.textMuted }]}>{t('exampleLabel')}:</Text>
           <Text style={[s.exampleText, { color: colors.success }]}>name,selling price,cost price,quantity{'\n'}Cello Pen,10,6,100{'\n'}A4 Notebook,45,30,50</Text>
         </View>
       </View>
@@ -122,18 +124,18 @@ export default function CsvImportScreen({ navigation }: any) {
       {/* Pick file */}
       <TouchableOpacity style={[s.pickBtn, { backgroundColor: colors.surface, borderColor: colors.primary }]} onPress={pickFile}>
         <Ionicons name="folder-open-outline" size={24} color={colors.primary} />
-        <Text style={[s.pickBtnText, { color: colors.primary }]}>{fileName || 'Choose CSV File'}</Text>
+        <Text style={[s.pickBtnText, { color: colors.primary }]}>{fileName || t('chooseCsvFile')}</Text>
       </TouchableOpacity>
 
       {/* Preview */}
       {rows.length > 0 && !done && (
         <>
           <View style={s.previewHeader}>
-            <Text style={[s.previewTitle, { color: colors.text }]}>Preview ({rows.length} rows)</Text>
+            <Text style={[s.previewTitle, { color: colors.text }]}>{t('previewLabel')} ({rows.length} {t('rows')})</Text>
             <View style={{ flexDirection: 'row', gap: 6 }}>
               <View style={[s.badge, { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.success + '20' }]}>
                 <Ionicons name="checkmark-circle" size={13} color={colors.success} />
-                <Text style={{ fontFamily: fonts.semiBold, fontSize: 12, color: colors.success }}>{validRows.length} valid</Text>
+                <Text style={{ fontFamily: fonts.semiBold, fontSize: 12, color: colors.success }}>{validRows.length} {t('valid')}</Text>
               </View>
               {invalidRows.length > 0 && (
                 <View style={[s.badge, { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.danger + '20' }]}>
@@ -148,20 +150,20 @@ export default function CsvImportScreen({ navigation }: any) {
             <View key={i} style={[s.previewRow, { backgroundColor: colors.surface, borderLeftColor: row.valid ? colors.success : colors.danger }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Ionicons name={row.valid ? 'checkmark-circle' : 'close-circle'} size={15} color={row.valid ? colors.success : colors.danger} />
-                <Text style={[s.previewName, { color: colors.text }]} numberOfLines={1}>{row.name || '(no name)'}</Text>
+                <Text style={[s.previewName, { color: colors.text }]} numberOfLines={1}>{row.name || t('noName')}</Text>
               </View>
               <Text style={[s.previewMeta, { color: colors.textMuted }]}>{row.category} · ₹{row.sellingPrice} · {row.quantity} {row.unit}</Text>
               {row.error && <Text style={{ fontFamily: fonts.regular, fontSize: 11, color: colors.danger, marginTop: 2 }}>{row.error}</Text>}
             </View>
           ))}
-          {rows.length > 20 && <Text style={[s.moreRows, { color: colors.textMuted }]}>...and {rows.length - 20} more rows</Text>}
+          {rows.length > 20 && <Text style={[s.moreRows, { color: colors.textMuted }]}>{t('andMore').replace('{count}', String(rows.length - 20))}</Text>}
 
           <TouchableOpacity style={[s.importBtn, { backgroundColor: colors.primary, opacity: (importing || validRows.length === 0) ? 0.7 : 1 }]}
             onPress={runImport} disabled={importing || validRows.length === 0}>
             {importing ? <ActivityIndicator color="#fff" /> : (
               <>
                 <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
-                <Text style={s.importBtnText}>Import {validRows.length} Products</Text>
+                <Text style={s.importBtnText}>{t('importNProducts').replace('{count}', String(validRows.length))}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -172,10 +174,10 @@ export default function CsvImportScreen({ navigation }: any) {
       {done && (
         <View style={[s.successCard, { backgroundColor: colors.surface }]}>
           <Ionicons name="checkmark-circle-outline" size={56} color={colors.primary} style={{ marginBottom: 12 }} />
-          <Text style={[s.successTitle, { color: colors.text }]}>Import Complete!</Text>
-          <Text style={[s.successSub, { color: colors.textSub }]}>{importedCount} products added to inventory</Text>
+          <Text style={[s.successTitle, { color: colors.text }]}>{t('importCompleteExcl')}</Text>
+          <Text style={[s.successSub, { color: colors.textSub }]}>{importedCount} {t('productsAddedToInventory')}</Text>
           <TouchableOpacity style={[s.doneBtn, { backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', gap: 6 }]} onPress={() => navigation.goBack()}>
-            <Text style={s.doneBtnText}>View Inventory</Text>
+            <Text style={s.doneBtnText}>{t('viewInventory')}</Text>
             <Ionicons name="arrow-forward" size={16} color="#fff" />
           </TouchableOpacity>
         </View>

@@ -7,6 +7,7 @@ import BottomSheet, { BottomSheetScrollView, BottomSheetTextInput, BottomSheetBa
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useAppStore } from '../../stores/useAppStore';
+import { useTranslation } from '../../hooks/useTranslation';
 import { formatCurrency, formatDate, formatTime, generateBillText, startOfDay, startOfWeek, startOfMonth } from '../../utils/helpers';
 import { aggregateReturns, makeCostOf } from '../../utils/stats';
 import { Bill, ReturnItem } from '../../types';
@@ -44,6 +45,7 @@ const PAY_ICON: Record<string, IoniconsName> = { cash: 'cash-outline', upi: 'pho
 
 export default function BillHistoryScreen() {
   const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const { bills, returns, products, settings, processReturn } = useAppStore();
   const dataReady = useAppStore(st => st.dataReady);
   const [filter, setFilter] = useState<Filter>('today');
@@ -177,7 +179,7 @@ export default function BillHistoryScreen() {
       }));
 
     if (items.length === 0) {
-      Alert.alert('No items selected', 'Select at least one item to return.');
+      Alert.alert(t('noItemsSelected'), t('selectItemToReturn'));
       return;
     }
 
@@ -196,9 +198,9 @@ export default function BillHistoryScreen() {
             try {
               await processReturn(bill.id, items, refund, returnReason);
               closeReturnSheet();
-              Alert.alert('Return processed', 'Stock has been restocked.');
+              Alert.alert(t('returnProcessed'), t('stockRestocked'));
             } catch {
-              Alert.alert('Error', 'Could not process return.');
+              Alert.alert(t('error'), t('couldNotProcess'));
             } finally {
               setProcessingReturn(false);
             }
@@ -216,7 +218,7 @@ export default function BillHistoryScreen() {
       ? `whatsapp://send?phone=${digits.length === 10 ? '91' + digits : digits}&text=${encoded}`
       : `whatsapp://send?text=${encoded}`;
     Linking.openURL(url).catch(() =>
-      Alert.alert('WhatsApp not found', 'Please install WhatsApp to share bills.')
+      Alert.alert(t('whatsappNotFound'), t('pleaseInstallWhatsapp'))
     );
   };
 
@@ -224,7 +226,7 @@ export default function BillHistoryScreen() {
     setPrinting(true);
     try {
       const isGst = bill.gstBreakdown?.length > 0;
-      const invoiceType = settings.gstRegistered ? (isGst ? 'TAX INVOICE' : 'BILL OF SUPPLY') : 'INVOICE';
+      const invoiceType = settings.gstRegistered ? (isGst ? t('taxInvoice') : t('billOfSupply')) : t('invoice');
 
       const itemRows = bill.items.map(i => {
         const gstAmt = i.sellingPrice * i.quantity - (i.taxableValue ?? i.sellingPrice * i.quantity);
@@ -337,7 +339,7 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
     <View style={[s.container, { backgroundColor: colors.bg }]}>
 
       {/* Summary bar */}
-      <MotiView from={{ opacity: 0, translateY: -6 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300 }}
+      <View
         style={[s.summaryBar, { backgroundColor: colors.surface }]}>
         {[
           { label: 'Bills', value: String(filtered.length), color: colors.text },
@@ -352,7 +354,7 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
             </View>
           </React.Fragment>
         ))}
-      </MotiView>
+      </View>
 
       {/* Search + Filter button */}
       <View style={[s.topRow]}>
@@ -360,7 +362,7 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
           <Ionicons name="search-outline" size={16} color={colors.textMuted} />
           <TextInput
             style={[s.searchInput, { color: colors.text }]}
-            placeholder="Customer, phone, product…"
+            placeholder={t('customerPhoneProduct')}
             placeholderTextColor={colors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -393,9 +395,9 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
             <TouchableOpacity style={[s.activeChip, { backgroundColor: colors.primary + '18', borderColor: colors.primary + '40' }]} onPress={openFilterSheet}>
               <Ionicons name="time-outline" size={12} color={colors.primary} />
               <Text style={[s.activeChipText, { color: colors.primary }]}>
-                {filter === 'week' ? 'This Week' : filter === 'month' ? 'This Month' : filter === 'all' ? 'All Time' : customFrom || customTo
+                {filter === 'week' ? t('thisWeek') : filter === 'month' ? t('thisMonth') : filter === 'all' ? t('allTime') : customFrom || customTo
                   ? [customFrom?.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }), customTo?.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })].filter(Boolean).join(' – ')
-                  : 'Custom Range'}
+                  : t('customRange')}
               </Text>
               <Ionicons name="close" size={11} color={colors.primary} onPress={() => { setFilter('today'); setCustomFrom(null); setCustomTo(null); }} />
             </TouchableOpacity>
@@ -410,7 +412,7 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
           {returnedOnly && (
             <TouchableOpacity style={[s.activeChip, { backgroundColor: colors.danger + '18', borderColor: colors.danger + '40' }]} onPress={openFilterSheet}>
               <Ionicons name="arrow-undo-outline" size={12} color={colors.danger} />
-              <Text style={[s.activeChipText, { color: colors.danger }]}>Returned</Text>
+              <Text style={[s.activeChipText, { color: colors.danger }]}>{t('returns')}</Text>
               <Ionicons name="close" size={11} color={colors.danger} onPress={() => setReturnedOnly(false)} />
             </TouchableOpacity>
           )}
@@ -450,7 +452,7 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
                       <View style={[s.returnBadge, { backgroundColor: colors.warning + '20' }]}>
                         <Ionicons name="arrow-undo" size={9} color={colors.warning} />
                         <Text style={[s.returnBadgeText, { color: colors.warning }]}>
-                          {refunded > 0 ? `${formatCurrency(refunded, settings.currency)}` : 'Returned'}
+                          {refunded > 0 ? `${formatCurrency(refunded, settings.currency)}` : t('returns')}
                         </Text>
                       </View>
                     )}
@@ -466,7 +468,7 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
             </FadeSlideIn>
           );
         }}
-        ListEmptyComponent={<EmptyState icon="receipt-outline" title="No bills found" subtitle="Try a different time period or filter" />}
+        ListEmptyComponent={<EmptyState icon="receipt-outline" title={t('noBillsFound')} subtitle={t('tryDifferentFilter')} />}
       />
 
       {/* ── Filter Sheet ── */}
@@ -482,9 +484,9 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
         <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 120 }}>
           {/* Header */}
           <View style={[s.fsHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[s.fsTitle, { color: colors.text }]}>Filters</Text>
+            <Text style={[s.fsTitle, { color: colors.text }]}>{t('filters')}</Text>
             <TouchableOpacity onPress={() => { setFilter('today'); setPayFilter('all'); setReturnedOnly(false); setCustomFrom(null); setCustomTo(null); }}>
-              <Text style={[s.fsReset, { color: colors.danger }]}>Reset all</Text>
+              <Text style={[s.fsReset, { color: colors.danger }]}>{t('resetAll')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -492,11 +494,11 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
           <Text style={[s.fsSectionLabel, { color: colors.textMuted }]}>PERIOD</Text>
           <View style={s.fsChipRow}>
             {([
-              { key: 'today', label: 'Today', icon: 'today-outline' },
-              { key: 'week',  label: 'This Week', icon: 'calendar-outline' },
-              { key: 'month', label: 'This Month', icon: 'calendar-outline' },
-              { key: 'all',   label: 'All Time', icon: 'infinite-outline' },
-              { key: 'custom',label: 'Custom', icon: 'options-outline' },
+              { key: 'today', label: t('today'), icon: 'today-outline' },
+              { key: 'week',  label: t('thisWeek'), icon: 'calendar-outline' },
+              { key: 'month', label: t('thisMonth'), icon: 'calendar-outline' },
+              { key: 'all',   label: t('allTime'), icon: 'infinite-outline' },
+              { key: 'custom',label: t('custom'), icon: 'options-outline' },
             ] as { key: Filter; label: string; icon: IoniconsName }[]).map(({ key, label, icon }) => {
               const on = filter === key;
               return (
@@ -516,14 +518,14 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
             <View style={[s.fsDateBox, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
               <TouchableOpacity style={s.fsDateRow} onPress={() => rangePickerRef.current?.open()}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[s.fsDateLabel, { color: colors.textMuted }]}>DATE RANGE</Text>
+                  <Text style={[s.fsDateLabel, { color: colors.textMuted }]}>{t('dateRange').toUpperCase()}</Text>
                   <Text style={[s.fsDateRowValue, { color: (customFrom || customTo) ? colors.text : colors.textMuted }]}>
                     {customFrom || customTo
                       ? [
                           customFrom?.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
                           customTo?.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
                         ].filter(Boolean).join('  →  ')
-                      : 'Tap to select range'}
+                      : t('tapToSelectRange')}
                   </Text>
                 </View>
                 <Ionicons name={(customFrom && customTo) ? 'checkmark-circle' : 'calendar-outline'} size={18} color={(customFrom && customTo) ? colors.success : colors.textMuted} />
@@ -532,7 +534,7 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
               {(customFrom || customTo) && (
                 <TouchableOpacity style={s.fsClearDates} onPress={() => { setCustomFrom(null); setCustomTo(null); }}>
                   <Ionicons name="close-circle-outline" size={15} color={colors.danger} />
-                  <Text style={[s.fsClearDatesText, { color: colors.danger }]}>Clear dates</Text>
+                  <Text style={[s.fsClearDatesText, { color: colors.danger }]}>{t('clearDates')}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -568,7 +570,7 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
               onPress={() => setReturnedOnly(v => !v)}
             >
               <Ionicons name="arrow-undo-outline" size={14} color={returnedOnly ? '#fff' : colors.textSub} />
-              <Text style={[s.fsChipText, { color: returnedOnly ? '#fff' : colors.textSub }]}>Returned bills only</Text>
+              <Text style={[s.fsChipText, { color: returnedOnly ? '#fff' : colors.textSub }]}>{t('returnedBillsOnly')}</Text>
             </TouchableOpacity>
           </View>
         </BottomSheetScrollView>
@@ -592,7 +594,7 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
             return (
               <>
                 <View style={[s.modalHeader, { borderBottomColor: colors.border }]}>
-                  <Text style={[s.modalTitle, { color: colors.text }]}>Bill Detail</Text>
+                  <Text style={[s.modalTitle, { color: colors.text }]}>{t('billDetail')}</Text>
                   <TouchableOpacity onPress={closeDetail}>
                     <Ionicons name="close" size={22} color={colors.textSub} />
                   </TouchableOpacity>
@@ -606,8 +608,8 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
 
                 <View style={s.itemsTable}>
                   <View style={[s.tableHeader, { borderBottomColor: colors.border }]}>
-                    <Text style={[s.tableCell, { flex: 3, color: colors.textSub, fontFamily: fonts.bold }]}>Item</Text>
-                    <Text style={[s.tableCell, { flex: 1, textAlign: 'center', color: colors.textSub, fontFamily: fonts.bold }]}>Qty</Text>
+                    <Text style={[s.tableCell, { flex: 3, color: colors.textSub, fontFamily: fonts.bold }]}>{t('item')}</Text>
+                    <Text style={[s.tableCell, { flex: 1, textAlign: 'center', color: colors.textSub, fontFamily: fonts.bold }]}>{t('qty')}</Text>
                     <Text style={[s.tableCell, { flex: 2, textAlign: 'right', color: colors.textSub, fontFamily: fonts.bold }]}>Amount</Text>
                   </View>
                   {selectedBill.items.map((item, i) => {
@@ -618,7 +620,7 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
                           <Text style={[s.tableCell, { color: colors.text }]} numberOfLines={1}>{item.productName}</Text>
                           {returned > 0 && (
                             <Text style={{ fontFamily: fonts.regular, fontSize: 11, color: colors.warning, marginTop: 2 }}>
-                              {returned} returned
+                              {returned} {t('returned')}
                             </Text>
                           )}
                         </View>
@@ -636,16 +638,16 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
                   {selectedBill.gstBreakdown?.length > 0 && (
                     <>
                       <View style={s.totalRow}>
-                        <Text style={{ fontFamily: fonts.bold, color: colors.text, fontSize: 13 }}>GST Breakdown</Text>
+                        <Text style={{ fontFamily: fonts.bold, color: colors.text, fontSize: 13 }}>{t('gstBreakdown')}</Text>
                         <Text style={{ fontFamily: fonts.bold, color: colors.text, fontSize: 13 }}>
-                          {selectedBill.customerGstin ? `Buyer: ${selectedBill.customerGstin}` : ''}
+                          {selectedBill.customerGstin ? `${t('buyer')}: ${selectedBill.customerGstin}` : ''}
                         </Text>
                       </View>
                       <View style={[s.totalRow, { paddingBottom: 2 }]}>
-                        <Text style={{ fontFamily: fonts.semiBold, color: colors.textMuted, fontSize: 12, flex: 2 }}>Rate</Text>
-                        <Text style={{ fontFamily: fonts.semiBold, color: colors.textMuted, fontSize: 12, flex: 2, textAlign: 'center' }}>Taxable</Text>
-                        <Text style={{ fontFamily: fonts.semiBold, color: colors.textMuted, fontSize: 12, flex: 1.5, textAlign: 'center' }}>CGST</Text>
-                        <Text style={{ fontFamily: fonts.semiBold, color: colors.textMuted, fontSize: 12, flex: 1.5, textAlign: 'right' }}>SGST</Text>
+                        <Text style={{ fontFamily: fonts.semiBold, color: colors.textMuted, fontSize: 12, flex: 2 }}>{t('rate')}</Text>
+                        <Text style={{ fontFamily: fonts.semiBold, color: colors.textMuted, fontSize: 12, flex: 2, textAlign: 'center' }}>{t('taxable')}</Text>
+                        <Text style={{ fontFamily: fonts.semiBold, color: colors.textMuted, fontSize: 12, flex: 1.5, textAlign: 'center' }}>{t('cgst')}</Text>
+                        <Text style={{ fontFamily: fonts.semiBold, color: colors.textMuted, fontSize: 12, flex: 1.5, textAlign: 'right' }}>{t('sgst')}</Text>
                       </View>
                       {selectedBill.gstBreakdown.map(slab => (
                         <View key={slab.rate} style={[s.totalRow, { paddingVertical: 4 }]}>
@@ -657,20 +659,20 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
                       ))}
                       <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 8 }} />
                       <View style={s.totalRow}>
-                        <Text style={{ fontFamily: fonts.bold, color: colors.textSub, fontSize: 13 }}>Total GST</Text>
+                        <Text style={{ fontFamily: fonts.bold, color: colors.textSub, fontSize: 13 }}>{t('totalGst')}</Text>
                         <Text style={{ fontFamily: fonts.bold, color: colors.textSub, fontSize: 13 }}>{formatCurrency(selectedBill.totalGst, settings.currency)}</Text>
                       </View>
                       <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 8 }} />
                     </>
                   )}
                   {[
-                    { label: selectedBill.totalGst > 0 ? 'Taxable Value' : 'Subtotal', value: formatCurrency(selectedBill.totalGst > 0 ? selectedBill.totalTaxableValue : selectedBill.subtotal, settings.currency), color: colors.textSub },
-                    ...(selectedBill.totalGst > 0 ? [{ label: 'Total GST (CGST+SGST)', value: formatCurrency(selectedBill.totalGst, settings.currency), color: colors.textSub }] : []),
-                    ...(selectedBill.discount > 0 ? [{ label: 'Discount', value: `-${formatCurrency(selectedBill.discount, settings.currency)}`, color: colors.success }] : []),
-                    { label: 'Total', value: formatCurrency(selectedBill.total, settings.currency), color: colors.primary, bold: true },
-                    { label: 'Profit', value: formatCurrency(selectedBill.profit, settings.currency), color: colors.success },
-                    { label: 'Payment', value: selectedBill.paymentMode.toUpperCase(), color: selectedBill.paymentMode === 'credit' ? colors.warning : colors.text },
-                    ...(refunded > 0 ? [{ label: 'Refunded', value: formatCurrency(refunded, settings.currency), color: colors.warning }] : []),
+                    { label: selectedBill.totalGst > 0 ? t('taxable') : t('subtotal'), value: formatCurrency(selectedBill.totalGst > 0 ? selectedBill.totalTaxableValue : selectedBill.subtotal, settings.currency), color: colors.textSub },
+                    ...(selectedBill.totalGst > 0 ? [{ label: t('totalGstCgstSgst'), value: formatCurrency(selectedBill.totalGst, settings.currency), color: colors.textSub }] : []),
+                    ...(selectedBill.discount > 0 ? [{ label: t('discount'), value: `-${formatCurrency(selectedBill.discount, settings.currency)}`, color: colors.success }] : []),
+                    { label: t('total'), value: formatCurrency(selectedBill.total, settings.currency), color: colors.primary, bold: true },
+                    { label: t('profit'), value: formatCurrency(selectedBill.profit, settings.currency), color: colors.success },
+                    { label: t('paymentMode'), value: selectedBill.paymentMode.toUpperCase(), color: selectedBill.paymentMode === 'credit' ? colors.warning : colors.text },
+                    ...(refunded > 0 ? [{ label: t('refunded'), value: formatCurrency(refunded, settings.currency), color: colors.warning }] : []),
                   ].map(row => (
                     <View key={row.label} style={s.totalRow}>
                       <Text style={{ fontFamily: fonts.regular, color: colors.textSub, fontSize: 14 }}>{row.label}</Text>
@@ -699,7 +701,7 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
                 {selectedBill.items.every(i => getAlreadyReturned(selectedBill.id, i.productId) >= i.quantity) ? (
                   <View style={[s.returnedBanner, { backgroundColor: colors.warning + '18', borderColor: colors.warning + '40' }]}>
                     <Ionicons name="arrow-undo" size={16} color={colors.warning} />
-                    <Text style={[s.returnedBannerText, { color: colors.warning }]}>All items fully returned</Text>
+                    <Text style={[s.returnedBannerText, { color: colors.warning }]}>{t('allItemsReturned')}</Text>
                   </View>
                 ) : (
                   <TouchableOpacity
@@ -708,7 +710,7 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
                   >
                     <Ionicons name="arrow-undo-outline" size={18} color={colors.warning} />
                     <Text style={[s.returnBtnText, { color: colors.warning }]}>
-                      {hasReturn ? 'Return More Items' : 'Return Items'}
+                      {hasReturn ? t('returnMoreItems') : t('returnItems')}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -737,7 +739,7 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
             <>
               <View style={[s.modalHeader, { borderBottomColor: colors.border }]}>
                 <View>
-                  <Text style={[s.modalTitle, { color: colors.text }]}>Return Items</Text>
+                  <Text style={[s.modalTitle, { color: colors.text }]}>{t('returnItems')}</Text>
                   <Text style={[s.returnSheetSub, { color: colors.textMuted }]}>{returnBill.items.map(i => i.productName).join(', ')}</Text>
                 </View>
                 <TouchableOpacity onPress={closeReturnSheet}>
@@ -796,7 +798,7 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
 
               {/* Refund amount */}
               <View style={{ marginTop: 18 }}>
-                <Text style={[s.fieldLabel, { color: colors.textSub }]}>Refund Amount ({settings.currency})</Text>
+                <Text style={[s.fieldLabel, { color: colors.textSub }]}>{t('refundAmount')} ({settings.currency})</Text>
                 <BottomSheetTextInput
                   style={[s.input, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
                   value={returnRefundAmt}
@@ -808,12 +810,12 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
 
               {/* Reason */}
               <View style={{ marginBottom: 20 }}>
-                <Text style={[s.fieldLabel, { color: colors.textSub }]}>Reason (optional)</Text>
+                <Text style={[s.fieldLabel, { color: colors.textSub }]}>{t('reasonOptional')}</Text>
                 <BottomSheetTextInput
                   style={[s.input, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
                   value={returnReason}
                   onChangeText={setReturnReason}
-                  placeholder="Damaged, wrong item, etc."
+                  placeholder={t('damagedWrongItem')}
                   placeholderTextColor={colors.textMuted}
                 />
               </View>
@@ -828,7 +830,7 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
                   ? <ActivityIndicator color="#fff" size="small" />
                   : <Ionicons name="arrow-undo" size={18} color="#fff" />}
                 <Text style={s.processBtnText}>
-                  {processingReturn ? 'Processing…' : 'Process Return'}
+                  {processingReturn ? t('processing') : t('processReturn')}
                 </Text>
               </TouchableOpacity>
             </>
@@ -840,7 +842,7 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
       <DatePickerSheet
         ref={rangePickerRef}
         mode="range"
-        title="Select Date Range"
+        title={t('selectDateRange')}
         onSelectRange={({ from, to }) => { setCustomFrom(from); setCustomTo(to); }}
         calendarProps={{
         enableSwipeMonths: true
@@ -876,7 +878,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   fsDateRowValue: { fontFamily: fonts.semiBold, fontSize: 15, marginTop: 2 },
   fsClearDates: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 12, justifyContent: 'center' },
   fsClearDatesText: { fontFamily: fonts.semiBold, fontSize: 13 },
-  summaryBar: { flexDirection: 'row', paddingHorizontal: 18, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: c.border },
+  summaryBar: { flexDirection: 'row', paddingHorizontal: 18, paddingVertical: 11, borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
   summaryItem: { flex: 1, alignItems: 'center' },
   summaryVal: { fontFamily: fonts.display, fontSize: 18 },
   summaryLbl: { fontFamily: fonts.medium, fontSize: 12, marginTop: 6 },

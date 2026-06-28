@@ -47,8 +47,8 @@ export default function ExpensesScreen() {
   const totalAll = expenses.reduce((s, e) => s + e.amount, 0);
 
   const handleSave = async () => {
-    if (!title.trim()) { Alert.alert('Error', 'Please enter a title'); return; }
-    if (!amount || parseFloat(amount) <= 0) { Alert.alert('Error', 'Enter a valid amount'); return; }
+    if (!title.trim()) { Alert.alert(t('error'), t('enterTitle')); return; }
+    if (!amount || parseFloat(amount) <= 0) { Alert.alert(t('error'), t('enterValidAmount')); return; }
     await addExpense({
       title: title.trim(),
       amount: parseFloat(amount),
@@ -63,17 +63,17 @@ export default function ExpensesScreen() {
   const handleDelete = (expense: Expense) => {
     if (expense.category === 'supplier') {
       Alert.alert(
-        'Warning: Linked Record',
-        `Deleting "${expense.title}" only removes it from this list.\n\nThe linked supplier payment or stock receipt will NOT be reversed — your purchase records and outstanding balance stay unchanged.`,
+        t('warningLinkedRecord'),
+        t('deleteLinkedMsg').replace('{title}', expense.title),
         [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Delete Anyway', style: 'destructive', onPress: () => deleteExpense(expense.id) },
+          { text: t('cancel'), style: 'cancel' },
+          { text: t('deleteAnyway'), style: 'destructive', onPress: () => deleteExpense(expense.id) },
         ]
       );
     } else {
-      Alert.alert('Delete Expense', `Delete "${expense.title}"?`, [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => deleteExpense(expense.id) },
+      Alert.alert(t('deleteExpense'), t('deleteExpenseConfirm').replace('{title}', expense.title), [
+        { text: t('cancel'), style: 'cancel' },
+        { text: t('delete'), style: 'destructive', onPress: () => deleteExpense(expense.id) },
       ]);
     }
   };
@@ -85,11 +85,11 @@ export default function ExpensesScreen() {
    <View style={[{ backgroundColor: colors.bg, flex: 1 }]}>
       {/* Summary bar */}
       <MotiView
-        style={[s.summaryBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        style={[s.summaryBar, { backgroundColor: colors.surface }]}>
         {[
-          { label: 'Today', value: formatCurrency(todayTotal, settings.currency), color: colors.warning },
-          { label: 'All Time', value: formatCurrency(totalAll, settings.currency), color: colors.danger },
-          { label: 'Entries', value: String(expenses.length), color: colors.primary },
+          { label: t('today'), value: formatCurrency(todayTotal, settings.currency), color: colors.warning },
+          { label: t('allTime'), value: formatCurrency(totalAll, settings.currency), color: colors.danger },
+          { label: t('entries'), value: String(expenses.length), color: colors.primary },
         ].map((item, i) => (
           <React.Fragment key={item.label}>
             {i > 0 && <View style={[s.divider, { backgroundColor: colors.border }]} />}
@@ -151,13 +151,13 @@ export default function ExpensesScreen() {
                   hitSlop={6}
                 >
                   <Ionicons name="trash-outline" size={14} color={colors.danger} />
-                  <Text style={[s.deleteBtnLabel, { color: colors.danger }]}>Delete</Text>
+                  <Text style={[s.deleteBtnLabel, { color: colors.danger }]}>{t('delete')}</Text>
                 </TouchableOpacity>
               </View>
             </FadeSlideIn>
           );
         }}
-        ListEmptyComponent={<EmptyState icon="wallet-outline" title="No expenses yet" subtitle="Track your shop expenses here" />}
+        ListEmptyComponent={<EmptyState icon="wallet-outline" title={t('noExpensesYet')} subtitle={t('trackExpensesHere')} />}
       />
 
       <CollapsibleFab bottom={90} icon="add" label={t('saveExpense')} extended={extended} onPress={openForm} />
@@ -174,19 +174,19 @@ export default function ExpensesScreen() {
         keyboardBlurBehavior="restore"
         android_keyboardInputMode="adjustResize"
       >
-        <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
-          <Text style={[s.modalTitle, { color: colors.text }]}>Add Expense</Text>
+         <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
+          <Text style={[s.modalTitle, { color: colors.text }]}>{t('addExpense')}</Text>
 
           <BottomSheetTextInput style={[s.input, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
-            placeholder="Title (e.g. Electricity Bill)" placeholderTextColor={colors.textMuted}
+            placeholder={t('titlePlaceholder')} placeholderTextColor={colors.textMuted}
             value={title} onChangeText={setTitle} />
 
           <BottomSheetTextInput style={[s.input, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
-            placeholder={`Amount (${settings.currency})`} placeholderTextColor={colors.textMuted}
+            placeholder={t('amountPlaceholder').replace('{currency}', settings.currency)} placeholderTextColor={colors.textMuted}
             value={amount} onChangeText={setAmount} keyboardType="numeric" />
 
-          <Text style={[s.fieldLabel, { color: colors.textSub }]}>Category</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+          <Text style={[s.fieldLabel, { color: colors.textSub }]}>{t('category')}</Text>
+          <View style={s.chipWrap}>
             {CATEGORIES.map(cat => (
               <TouchableOpacity key={cat.key}
                 style={[s.catChip, { flexDirection: 'row', alignItems: 'center', gap: 6, borderColor: category === cat.key ? colors.primary : colors.border, backgroundColor: category === cat.key ? colors.primary : 'transparent' }]}
@@ -197,16 +197,16 @@ export default function ExpensesScreen() {
                 </Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </View>
 
           {category === 'supplier' && suppliers.length > 0 && (
             <>
-              <Text style={[s.fieldLabel, { color: colors.textSub }]}>Supplier</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+              <Text style={[s.fieldLabel, { color: colors.textSub }]}>{t('supplier')}</Text>
+              <View style={s.chipWrap}>
                 <TouchableOpacity
                   style={[s.catChip, { borderColor: !supplierId ? colors.primary : colors.border, backgroundColor: !supplierId ? colors.primary : 'transparent' }]}
                   onPress={() => setSupplierId('')}>
-                  <Text style={{ color: !supplierId ? '#fff' : colors.textSub, fontFamily: fonts.semiBold, fontSize: 13 }}>Any</Text>
+                  <Text style={{ color: !supplierId ? '#fff' : colors.textSub, fontFamily: fonts.semiBold, fontSize: 13 }}>{t('any')}</Text>
                 </TouchableOpacity>
                 {suppliers.map(sup => (
                   <TouchableOpacity key={sup.id}
@@ -215,20 +215,20 @@ export default function ExpensesScreen() {
                     <Text style={{ color: supplierId === sup.id ? '#fff' : colors.textSub, fontFamily: fonts.semiBold, fontSize: 13 }}>{sup.name}</Text>
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </View>
             </>
           )}
 
           <BottomSheetTextInput style={[s.input, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
-            placeholder="Note (optional)" placeholderTextColor={colors.textMuted}
+            placeholder={t('noteOptional')} placeholderTextColor={colors.textMuted}
             value={note} onChangeText={setNote} />
 
           <View style={s.btnRow}>
             <TouchableOpacity style={[s.cancelBtn, { borderColor: colors.border }]} onPress={closeForm}>
-              <Text style={{ color: colors.textSub, fontFamily: fonts.semiBold }}>Cancel</Text>
+              <Text style={{ color: colors.textSub, fontFamily: fonts.semiBold }}>{t('cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[s.saveBtn, { backgroundColor: colors.primary }]} onPress={handleSave}>
-              <Text style={{ color: '#fff', fontFamily: fonts.bold }}>Save</Text>
+              <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{t('save')}</Text>
             </TouchableOpacity>
           </View>
         </BottomSheetScrollView>
@@ -239,7 +239,7 @@ export default function ExpensesScreen() {
 
 const makeStyles = (c: any) => StyleSheet.create({
   // Summary bar — bigger values, better spacing
-  summaryBar: { flexDirection: 'row',paddingHorizontal: 18, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth },
+  summaryBar: { flexDirection: 'row',paddingHorizontal: 18, paddingVertical: 11, borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
   summaryItem: { flex: 1, alignItems: 'center' },
   summaryValue: { fontFamily: fonts.display, fontSize: 18 },
   summaryLabel: { fontFamily: fonts.medium, fontSize: 12, marginTop: 6 },
@@ -266,7 +266,8 @@ const makeStyles = (c: any) => StyleSheet.create({
   modalTitle: { fontFamily: fonts.extraBold, fontSize: 18, marginBottom: 16 },
   input: { borderRadius: 14, padding: 16, fontSize: 15, borderWidth: 1, marginBottom: 14, fontFamily: fonts.regular },
   fieldLabel: { fontFamily: fonts.bold, fontSize: 13, marginBottom: 8 },
-  catChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1.5, marginRight: 10 },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  catChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1.5 },
   btnRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
   cancelBtn: { flex: 1, padding: 16, borderRadius: 14, borderWidth: 1, alignItems: 'center' },
   saveBtn: { flex: 1, padding: 16, borderRadius: 14, alignItems: 'center' },

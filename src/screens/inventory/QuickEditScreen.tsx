@@ -11,6 +11,7 @@ import { toast } from '../../utils/toast';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
 import EmptyState from '../../components/common/EmptyState';
+import { useTranslation } from '../../hooks/useTranslation';
 
 const { width, height } = Dimensions.get('window');
 const SWIPE_THRESHOLD = width * 0.28;
@@ -71,6 +72,7 @@ const isDirty = (p: Product, d: Draft) =>
 
 export default function QuickEditScreen({ navigation }: any) {
   const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const { products, updateProduct, settings } = useAppStore();
   const s = makeStyles(colors);
   const productCategories: string[] = settings.productCategories || [];
@@ -96,7 +98,7 @@ export default function QuickEditScreen({ navigation }: any) {
   }, [products, productCategories]);
 
   const start = (list: Product[], label: string) => {
-    if (!list.length) { toast.error('Nothing to edit here'); return; }
+    if (!list.length) { toast.error(t('quickEditNothingToEditHere')); return; }
     setQueue(list); setIndex(0); setDraft(toDraft(list[0])); setStats({ saved: 0, skipped: 0 });
     setSetLabel(label); setStarted(true);
   };
@@ -121,9 +123,9 @@ export default function QuickEditScreen({ navigation }: any) {
     const cur = currentRef.current, d = draftRef.current;
     let didSave = false;
     if (cur && d && isDirty(cur, d)) {
-      if (num(d.sellingPrice) <= 0) { toast.error('Selling price must be greater than 0'); tx.value = withSpring(0); return; }
+      if (num(d.sellingPrice) <= 0) { toast.error(t('sellingPriceMustBeGreaterThanZero')); tx.value = withSpring(0); return; }
       const bc = d.barcode.trim();
-      if (bc && products.some(p => p.barcode === bc && p.id !== cur.id)) { toast.error('That barcode is already used by another product'); tx.value = withSpring(0); return; }
+      if (bc && products.some(p => p.barcode === bc && p.id !== cur.id)) { toast.error(t('barcodeAlreadyUsed')); tx.value = withSpring(0); return; }
       await updateProduct({
         ...cur,
         name: d.name.trim() || cur.name,
@@ -185,21 +187,21 @@ export default function QuickEditScreen({ navigation }: any) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-          <Text style={[s.pickTitle, { color: colors.text }]}>Quick Edit</Text>
-          <Text style={[s.pickSub, { color: colors.textMuted }]}>Pick a set, then swipe each product — right to save, left to skip. Every field is editable on the card.</Text>
+          <Text style={[s.pickTitle, { color: colors.text }]}>{t('quickEdit')}</Text>
+          <Text style={[s.pickSub, { color: colors.textMuted }]}>{t('quickEditPickSet')}</Text>
           {products.length === 0 ? (
-            <View style={{ marginTop: 40 }}><EmptyState icon="cube-outline" title="No products yet" subtitle="Add products first to use Quick Edit." /></View>
+            <View style={{ marginTop: 40 }}><EmptyState icon="cube-outline" title={t('noProductsYet')} subtitle={t('addProductsFirst')} /></View>
           ) : (
             <>
-              <Text style={[s.groupLbl, { color: colors.textMuted }]}>FILTERS</Text>
+              <Text style={[s.groupLbl, { color: colors.textMuted }]}>{t('filters')}</Text>
               <View style={{ gap: 10 }}>
-                <FilterRow icon="apps" label="All products" list={products} />
-                <FilterRow icon="alert-circle" label="Low on stock" sub="At or below low-stock level" list={lowStockList} color={colors.warning} />
-                <FilterRow icon="time" label="Expiring soon" sub={`Within ${EXPIRY_SOON_DAYS} days`} list={expiringList} color={colors.danger} />
+                <FilterRow icon="apps" label={t('allProducts')} list={products} />
+                <FilterRow icon="alert-circle" label={t('lowOnStock')} sub={t('atOrBelow')} list={lowStockList} color={colors.warning} />
+                <FilterRow icon="time" label={t('expiringSoon')} sub={t('expiryWithinDays').replace('{n}', String(EXPIRY_SOON_DAYS))} list={expiringList} color={colors.danger} />
               </View>
               {catOptions.length > 0 && (
                 <>
-                  <Text style={[s.groupLbl, { color: colors.textMuted }]}>BY CATEGORY</Text>
+                  <Text style={[s.groupLbl, { color: colors.textMuted }]}>{t('byCategory')}</Text>
                   <View style={{ gap: 10 }}>
                     {catOptions.map(c => (
                       <FilterRow key={c.key} icon="pricetag" label={c.key} list={products.filter(p => p.category === c.key)} />
@@ -220,13 +222,13 @@ export default function QuickEditScreen({ navigation }: any) {
       <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <MotiView from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'timing', duration: 300 }} style={{ alignItems: 'center' }}>
           <Ionicons name="checkmark-circle" size={64} color={colors.success} />
-          <Text style={[s.doneTitle, { color: colors.text }]}>All done!</Text>
-          <Text style={[s.doneSub, { color: colors.textMuted }]}>{stats.saved} updated · {stats.skipped} skipped</Text>
+          <Text style={[s.doneTitle, { color: colors.text }]}>{t('allDone')}</Text>
+          <Text style={[s.doneSub, { color: colors.textMuted }]}>{stats.saved} {t('updated')} {t('sepDot')} {stats.skipped} {t('skipped')}</Text>
           <TouchableOpacity style={[s.doneBtn, { backgroundColor: colors.primary }]} onPress={() => setStarted(false)}>
-            <Text style={s.doneBtnText}>Edit another set</Text>
+            <Text style={s.doneBtnText}>{t('editAnotherSet')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={{ marginTop: 14 }} onPress={() => navigation.goBack()}>
-            <Text style={{ fontFamily: fonts.semiBold, color: colors.textMuted }}>Done</Text>
+            <Text style={{ fontFamily: fonts.semiBold, color: colors.textMuted }}>{t('done')}</Text>
           </TouchableOpacity>
         </MotiView>
       </View>
@@ -243,7 +245,7 @@ export default function QuickEditScreen({ navigation }: any) {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: colors.bg }}>
       <View style={s.progressWrap}>
-        <Text style={[s.progressText, { color: colors.textMuted }]}>{index + 1} of {queue.length} · {setLabel}</Text>
+        <Text style={[s.progressText, { color: colors.textMuted }]}>{index + 1} {t('ofText')} {queue.length} {t('sepDot')} {setLabel}</Text>
         <View style={[s.progressTrack, { backgroundColor: colors.border }]}>
           <View style={[s.progressFill, { backgroundColor: colors.primary, width: `${(index / queue.length) * 100}%` }]} />
         </View>
@@ -252,52 +254,52 @@ export default function QuickEditScreen({ navigation }: any) {
       <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 14 }}>
         <GestureDetector gesture={pan}>
           <Animated.View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }, cardStyle]}>
-            <Animated.View style={[s.hint, s.hintSave, { borderColor: colors.success }, saveHintStyle]}><Text style={[s.hintText, { color: colors.success }]}>SAVE</Text></Animated.View>
-            <Animated.View style={[s.hint, s.hintSkip, { borderColor: colors.textMuted }, skipHintStyle]}><Text style={[s.hintText, { color: colors.textMuted }]}>SKIP</Text></Animated.View>
+            <Animated.View style={[s.hint, s.hintSave, { borderColor: colors.success }, saveHintStyle]}><Text style={[s.hintText, { color: colors.success }]}>{t('save')}</Text></Animated.View>
+            <Animated.View style={[s.hint, s.hintSkip, { borderColor: colors.textMuted }, skipHintStyle]}><Text style={[s.hintText, { color: colors.textMuted }]}>{t('skip')}</Text></Animated.View>
 
             <GHScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 18 }} keyboardShouldPersistTaps="handled">
-              <Text style={[s.fieldLabel, { color: colors.textMuted, marginTop: 0 }]}>NAME</Text>
+              <Text style={[s.fieldLabel, { color: colors.textMuted, marginTop: 0 }]}>{t('nameLabel')}</Text>
               <TextInput style={[s.nameInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceHigh }]} value={draft?.name ?? ''} onChangeText={(v) => setField({ name: v })} />
 
-              <Text style={[s.fieldLabel, { color: colors.textMuted }]}>CATEGORY</Text>
+              <Text style={[s.fieldLabel, { color: colors.textMuted }]}>{t('categoryLabel')}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow}>
                 {productCategories.map(cat => <Chip key={cat} active={draft?.category === cat} label={cat} onPress={() => setField({ category: cat })} />)}
               </ScrollView>
 
-              <Text style={[s.fieldLabel, { color: colors.textMuted }]}>UNIT</Text>
+              <Text style={[s.fieldLabel, { color: colors.textMuted }]}>{t('unitLabel')}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow}>
                 {units.map(u => <Chip key={u} active={draft?.unit === u} label={u} onPress={() => setField({ unit: u })} />)}
               </ScrollView>
 
               <View style={s.grid}>
-                <NumField label={`Selling (${settings.currency})`} value={draft?.sellingPrice ?? ''} onChange={(v) => setField({ sellingPrice: v })} colors={colors} s={s} />
-                <NumField label={`Cost (${settings.currency})`} value={draft?.costPrice ?? ''} onChange={(v) => setField({ costPrice: v })} colors={colors} s={s} />
-                <NumField label="Stock" value={draft?.quantity ?? ''} onChange={(v) => setField({ quantity: v.replace(/\D/g, '') })} colors={colors} s={s} />
-                <NumField label="Low-stock ≤" value={draft?.lowStockThreshold ?? ''} onChange={(v) => setField({ lowStockThreshold: v.replace(/\D/g, '') })} colors={colors} s={s} />
+                 <NumField label={`${t('sellingLabel')} (${settings.currency})`} value={draft?.sellingPrice ?? ''} onChange={(v) => setField({ sellingPrice: v })} colors={colors} s={s} />
+                 <NumField label={`${t('costLabel')} (${settings.currency})`} value={draft?.costPrice ?? ''} onChange={(v) => setField({ costPrice: v })} colors={colors} s={s} />
+                 <NumField label={t('stockLabel')} value={draft?.quantity ?? ''} onChange={(v) => setField({ quantity: v.replace(/\D/g, '') })} colors={colors} s={s} />
+                 <NumField label={t('lowStockThresholdLabel')} value={draft?.lowStockThreshold ?? ''} onChange={(v) => setField({ lowStockThreshold: v.replace(/\D/g, '') })} colors={colors} s={s} />
               </View>
-              <Text style={[s.marginText, { color: margin >= 0 ? colors.success : colors.danger }]}>Margin: {formatCurrency(margin, settings.currency)}</Text>
+              <Text style={[s.marginText, { color: margin >= 0 ? colors.success : colors.danger }]}>{t('marginLabel')} {formatCurrency(margin, settings.currency)}</Text>
 
-              <Text style={[s.fieldLabel, { color: colors.textMuted }]}>GST RATE</Text>
+              <Text style={[s.fieldLabel, { color: colors.textMuted }]}>{t('gstRateLabel')}</Text>
               <View style={s.chipRow}>
                 {GST_RATES.map(r => <Chip key={r} active={draft?.gstRate === r} label={`${r}%`} onPress={() => setField({ gstRate: r })} />)}
               </View>
 
               <View style={s.grid}>
-                <View style={s.gridItem}>
-                  <Text style={[s.fieldLabel, { color: colors.textMuted }]}>HSN CODE</Text>
+                 <View style={s.gridItem}>
+                  <Text style={[s.fieldLabel, { color: colors.textMuted }]}>{t('hsnCodeLabel')}</Text>
                   <TextInput style={[s.smallInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceHigh }]} value={draft?.hsnCode ?? ''} onChangeText={(v) => setField({ hsnCode: v })} />
                 </View>
                 <View style={s.gridItem}>
-                  <Text style={[s.fieldLabel, { color: colors.textMuted }]}>BARCODE</Text>
+                  <Text style={[s.fieldLabel, { color: colors.textMuted }]}>{t('barcodeLabel')}</Text>
                   <TextInput style={[s.smallInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceHigh }]} value={draft?.barcode ?? ''} onChangeText={(v) => setField({ barcode: v })} keyboardType="number-pad" />
                 </View>
               </View>
 
-              <Text style={[s.fieldLabel, { color: colors.textMuted }]}>EXPIRY (DD / MM / YYYY)</Text>
+              <Text style={[s.fieldLabel, { color: colors.textMuted }]}>{t('expiryLabel')}</Text>
               <View style={{ flexDirection: 'row', gap: 8 }}>
-                <TextInput style={[s.dateInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceHigh }]} value={draft?.expiryDay ?? ''} onChangeText={(v) => setField({ expiryDay: v.replace(/\D/g, '').slice(0, 2) })} placeholder="DD" placeholderTextColor={colors.textMuted} keyboardType="number-pad" />
-                <TextInput style={[s.dateInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceHigh }]} value={draft?.expiryMonth ?? ''} onChangeText={(v) => setField({ expiryMonth: v.replace(/\D/g, '').slice(0, 2) })} placeholder="MM" placeholderTextColor={colors.textMuted} keyboardType="number-pad" />
-                <TextInput style={[s.dateInput, { flex: 1.4, color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceHigh }]} value={draft?.expiryYear ?? ''} onChangeText={(v) => setField({ expiryYear: v.replace(/\D/g, '').slice(0, 4) })} placeholder="YYYY" placeholderTextColor={colors.textMuted} keyboardType="number-pad" />
+                <TextInput style={[s.dateInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceHigh }]} value={draft?.expiryDay ?? ''} onChangeText={(v) => setField({ expiryDay: v.replace(/\D/g, '').slice(0, 2) })} placeholder={t('ddPlaceholder')} placeholderTextColor={colors.textMuted} keyboardType="number-pad" />
+                <TextInput style={[s.dateInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceHigh }]} value={draft?.expiryMonth ?? ''} onChangeText={(v) => setField({ expiryMonth: v.replace(/\D/g, '').slice(0, 2) })} placeholder={t('mmPlaceholder')} placeholderTextColor={colors.textMuted} keyboardType="number-pad" />
+                <TextInput style={[s.dateInput, { flex: 1.4, color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceHigh }]} value={draft?.expiryYear ?? ''} onChangeText={(v) => setField({ expiryYear: v.replace(/\D/g, '').slice(0, 4) })} placeholder={t('yyyyPlaceholder')} placeholderTextColor={colors.textMuted} keyboardType="number-pad" />
               </View>
             </GHScrollView>
           </Animated.View>
@@ -307,11 +309,11 @@ export default function QuickEditScreen({ navigation }: any) {
       <View style={[s.actions, { paddingBottom: 28 }]}>
         <TouchableOpacity style={[s.actionBtn, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => commit('skip')} activeOpacity={0.85}>
           <Ionicons name="play-skip-forward" size={20} color={colors.textMuted} />
-          <Text style={[s.actionLabel, { color: colors.textMuted }]}>Skip</Text>
+          <Text style={[s.actionLabel, { color: colors.textMuted }]}>{t('skip')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[s.actionBtn, s.saveBtn, { backgroundColor: colors.primary }]} onPress={() => commit('save')} activeOpacity={0.9}>
           <Ionicons name="checkmark" size={20} color="#fff" />
-          <Text style={[s.actionLabel, { color: '#fff' }]}>Save & next</Text>
+          <Text style={[s.actionLabel, { color: '#fff' }]}>{t('saveAndNext')}</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>

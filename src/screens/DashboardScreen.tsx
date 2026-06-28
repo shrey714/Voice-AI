@@ -7,6 +7,7 @@ import { MotiView } from 'moti';
 import Animated, { useSharedValue, useAnimatedStyle, useAnimatedProps, withRepeat, withTiming, Easing, SharedValue } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 import { useAppStore } from '../stores/useAppStore';
+import { useTranslation } from '../hooks/useTranslation';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -29,6 +30,7 @@ function GoalRing({ progress, size = 96, stroke = 10, color, track }: { progress
 
 // Auto-rotating, swipeable carousel of insight cards with a dots indicator.
 function InsightSlider({ insights, colors }: { insights: { icon: any; text: string }[]; colors: any }) {
+  const { t: tSlider } = useTranslation();
   const { width } = Dimensions.get('window');
   // Page = full ScrollView width so pagingEnabled snaps correctly; the 16px side
   // padding lives inside each page so the card lines up with the other cards.
@@ -64,7 +66,7 @@ function InsightSlider({ insights, colors }: { insights: { icon: any; text: stri
                 <Ionicons name={ins.icon} size={18} color={colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[isl.lbl, { color: colors.primary }]}>INSIGHT</Text>
+                <Text style={[isl.lbl, { color: colors.primary }]}>{tSlider('insight').toUpperCase()}</Text>
                 <Text style={[isl.text, { color: colors.text }]}>{ins.text}</Text>
               </View>
             </View>
@@ -154,6 +156,7 @@ function ShimmerBrand({ colors }: { colors: any }) {
 
 export default function DashboardScreen({ navigation }: any) {
   const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const { products, bills, expenses, returns, loadProducts, loadBills, loadExpenses, settings } = useAppStore();
   const dataReady = useAppStore(state => state.dataReady);
   const [refreshing, setRefreshing] = useState(false);
@@ -197,7 +200,7 @@ export default function DashboardScreen({ navigation }: any) {
   const topSelling: [string, number][] = todayStats.topItems.slice(0, 5).map(it => [it.name, it.qty]);
   const itemsSold = todayStats.itemsSold;
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const greeting = hour < 12 ? t('goodMorning') : hour < 17 ? t('goodAfternoon') : t('goodEvening');
   const firstName = (settings.ownerName || '').trim().split(' ')[0];
   const netProfit = todayProfit - todayExpenses;
 
@@ -225,7 +228,7 @@ export default function DashboardScreen({ navigation }: any) {
       celebratedRef.current = true;
       if (last === todayKey) return; // already shown today
       await db.setSetting('goalCelebratedDate', todayKey);
-      toast.success("🎯 Goal reached!", { description: `You crossed today's goal of ${formatCurrency(dailyGoal, settings.currency)} — great work!` });
+      toast.success(`🎯 ${t('goalReached')}`, { description: t('goalReachedDesc').replace('{amount}', formatCurrency(dailyGoal, settings.currency)) });
     })();
     return () => { cancelled = true; };
   }, [goalReached, dailyGoal]);
@@ -306,13 +309,13 @@ export default function DashboardScreen({ navigation }: any) {
             </View>
 
             <View style={s.earnBlock}>
-              <Text style={s.earnLbl}>TODAY'S EARNINGS</Text>
+              <Text style={s.earnLbl}>{t('todaysEarnings').toUpperCase()}</Text>
               <AnimatedNumber value={todayRevenue} format={(n) => formatCurrency(n, settings.currency)} style={s.earnVal} />
               {deltaPct !== null && (
                 <View style={s.deltaRow}>
                   <Ionicons name={deltaPct >= 0 ? 'arrow-up' : 'arrow-down'} size={12} color={deltaPct >= 0 ? '#A5E8B5' : '#F2B8AE'} />
                   <Text style={[s.deltaPct, { color: deltaPct >= 0 ? '#A5E8B5' : '#F2B8AE' }]}>{Math.abs(deltaPct).toFixed(0)}%</Text>
-                  <Text style={s.deltaMuted}>vs yesterday</Text>
+                  <Text style={s.deltaMuted}>{t('vsYesterday')}</Text>
                 </View>
               )}
               <View style={s.heroChips}>
@@ -357,7 +360,7 @@ export default function DashboardScreen({ navigation }: any) {
             <View style={[s.askIcon, { backgroundColor: colors.primaryLight }]}>
               <Ionicons name="sparkles" size={17} color={colors.primary} />
             </View>
-            <Text style={[s.askText, { color: colors.textMuted }]} numberOfLines={1}>Ask anything about your shop…</Text>
+            <Text style={[s.askText, { color: colors.textMuted }]} numberOfLines={1}>{t('askAnything')}</Text>
             <Ionicons name="arrow-forward-circle" size={24} color={colors.primary} />
           </PressableScale>
         </MotiView>
@@ -375,13 +378,13 @@ export default function DashboardScreen({ navigation }: any) {
               <View style={{ flex: 1, marginLeft: 16 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Ionicons name={goalReached ? 'trophy' : 'flag'} size={14} color={goalReached ? colors.success : colors.primary} />
-                  <Text style={[s.goalLbl, { color: colors.textMuted }]}>{goalReached ? 'GOAL REACHED' : 'DAILY GOAL'}</Text>
+                  <Text style={[s.goalLbl, { color: colors.textMuted }]}>{goalReached ? t('goalReachedLabel').toUpperCase() : t('dailyGoal').toUpperCase()}</Text>
                 </View>
                 <Text style={[s.goalAmount, { color: colors.text }]}>
                   {formatCurrency(todayRevenue, settings.currency)}<Text style={{ color: colors.textMuted }}> of {formatCurrency(dailyGoal, settings.currency)}</Text>
                 </Text>
                 <Text style={[s.goalRemain, { color: goalReached ? colors.success : colors.textSub }]}>
-                  {goalReached ? 'You smashed today’s target!' : `${formatCurrency(dailyGoal - todayRevenue, settings.currency)} to go`}
+                  {goalReached ? t('smashedTarget') : t('amountToGo').replace('{amount}', formatCurrency(dailyGoal - todayRevenue, settings.currency))}
                 </Text>
               </View>
             </PressableScale>
@@ -393,8 +396,8 @@ export default function DashboardScreen({ navigation }: any) {
                 <Ionicons name="flag-outline" size={18} color={colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[s.goalAmount, { color: colors.text }]}>Set a daily goal</Text>
-                <Text style={[s.goalRemain, { color: colors.textMuted }]}>Track your progress with a goal ring</Text>
+                <Text style={[s.goalAmount, { color: colors.text }]}>{t('setDailyGoal')}</Text>
+                <Text style={[s.goalRemain, { color: colors.textMuted }]}>{t('trackProgress')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
             </PressableScale>
@@ -410,8 +413,8 @@ export default function DashboardScreen({ navigation }: any) {
             <View style={[s.weekCard, { backgroundColor: colors.surface }]}>
               <View style={s.weekHead}>
                 <View>
-                  <Text style={[s.weekTitle, { color: colors.text }]}>Last 7 days</Text>
-                  <Text style={[s.weekSub, { color: colors.textMuted }]}>Revenue trend</Text>
+                  <Text style={[s.weekTitle, { color: colors.text }]}>{t('last7Days')}</Text>
+                  <Text style={[s.weekSub, { color: colors.textMuted }]}>{t('revenueTrend')}</Text>
                 </View>
               </View>
               <View style={s.weekBars}>
@@ -447,8 +450,8 @@ export default function DashboardScreen({ navigation }: any) {
             <TouchableOpacity style={[s.alertCard, { backgroundColor: colors.warning + '14' }]} onPress={() => navigation.navigate('More', { screen: 'Reorder' })} activeOpacity={0.8}>
               <View style={[s.alertIcon, { backgroundColor: colors.warning + '24' }]}><Ionicons name="warning" size={18} color={colors.warning} /></View>
               <View style={{ flex: 1 }}>
-                <Text style={[s.alertTitle, { color: colors.warning }]}>{lowStockItems.length} items low on stock</Text>
-                <Text style={[s.alertSub, { color: colors.textSub }]} numberOfLines={1}>Tap to reorder · {lowStockItems.slice(0, 3).map(p => p.name).join(', ')}</Text>
+                <Text style={[s.alertTitle, { color: colors.warning }]}>{t('itemsLowStock').replace('{count}', String(lowStockItems.length))}</Text>
+                <Text style={[s.alertSub, { color: colors.textSub }]} numberOfLines={1}>{t('tapToReorder')} · {lowStockItems.slice(0, 3).map(p => p.name).join(', ')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color={colors.warning} />
             </TouchableOpacity>
@@ -461,10 +464,10 @@ export default function DashboardScreen({ navigation }: any) {
               <View style={{ flex: 1 }}>
                 <Text style={[s.alertTitle, { color: colors.danger }]}>
                   {expiredCount > 0 && expiringSoonCount > 0
-                    ? `${expiredCount} expired · ${expiringSoonCount} expiring soon`
+                    ? `${expiredCount} ${t('expired')} · ${expiringSoonCount} ${t('expiringWithin30')}`
                     : expiredCount > 0
-                      ? `${expiredCount} item${expiredCount > 1 ? 's' : ''} expired`
-                      : `${expiringSoonCount} item${expiringSoonCount > 1 ? 's' : ''} expiring within 30 days`}
+                      ? `${expiredCount} item${expiredCount > 1 ? 's' : ''} ${t('expired')}`
+                      : `${expiringSoonCount} item${expiringSoonCount > 1 ? 's' : ''} ${t('expiringWithin30')}`}
                 </Text>
                 <Text style={[s.alertSub, { color: colors.textSub }]} numberOfLines={1}>{expiringItems.slice(0, 3).map(p => p.name).join(', ')}</Text>
               </View>
@@ -474,16 +477,16 @@ export default function DashboardScreen({ navigation }: any) {
         )}
 
         {/* Quick Actions — horizontal scroll */}
-        <Text style={[s.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
+        <Text style={[s.sectionTitle, { color: colors.text }]}>{t('quickActions')}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}>
           {[
-            { label: 'New Bill',    icon: 'cart-outline' as const,        onPress: () => navigation.navigate('Billing') },
-            { label: 'Add Product', icon: 'add-circle-outline' as const,  onPress: () => navigation.navigate('Inventory') },
-            { label: 'Analytics',   icon: 'bar-chart-outline' as const,   onPress: () => navigation.navigate('More', { screen: 'Analytics' }) },
-            { label: 'Expenses',    icon: 'wallet-outline' as const,      onPress: () => navigation.navigate('More', { screen: 'Expenses' }) },
-            { label: 'Udhaar',      icon: 'book-outline' as const,        onPress: () => navigation.navigate('More', { screen: 'Udhaar' }) },
-            { label: 'Day Close',   icon: 'lock-closed-outline' as const, onPress: () => navigation.navigate('More', { screen: 'DayClose' }) },
-            { label: 'Suppliers',   icon: 'business-outline' as const,    onPress: () => navigation.navigate('More', { screen: 'Supplier' }) },
+            { label: t('newBill'),     icon: 'cart-outline' as const,        onPress: () => navigation.navigate('Billing') },
+            { label: t('addProduct'),  icon: 'add-circle-outline' as const,  onPress: () => navigation.navigate('Inventory') },
+            { label: t('analytics'),   icon: 'bar-chart-outline' as const,   onPress: () => navigation.navigate('More', { screen: 'Analytics' }) },
+            { label: t('expenses'),    icon: 'wallet-outline' as const,      onPress: () => navigation.navigate('More', { screen: 'Expenses' }) },
+            { label: 'Udhaar',         icon: 'book-outline' as const,        onPress: () => navigation.navigate('More', { screen: 'Udhaar' }) },
+            { label: t('dayClose'),    icon: 'lock-closed-outline' as const, onPress: () => navigation.navigate('More', { screen: 'DayClose' }) },
+            { label: t('suppliers'),   icon: 'business-outline' as const,    onPress: () => navigation.navigate('More', { screen: 'Supplier' }) },
           ].map((action, i) => (
             <MotiView key={action.label} from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'timing', duration: 280, delay: 150 + i * 45 }}>
               <PressableScale style={s.qaItem} onPress={action.onPress}>
@@ -499,7 +502,7 @@ export default function DashboardScreen({ navigation }: any) {
         {/* Top Selling */}
         {topSelling.length > 0 && (
           <View style={[s.section, { backgroundColor: colors.surface }]}>
-            <Text style={[s.sectionInTitle, { color: colors.text }]}>Top Selling Today</Text>
+            <Text style={[s.sectionInTitle, { color: colors.text }]}>{t('topSellingToday')}</Text>
             {topSelling.map(([name, qty], i) => (
               <MotiView key={name} from={{ opacity: 0, translateX: -10 }} animate={{ opacity: 1, translateX: 0 }}
                 transition={{ type: 'timing', duration: 300, delay: i * 50 + 400 }}
@@ -509,7 +512,7 @@ export default function DashboardScreen({ navigation }: any) {
                 </View>
                 <Text style={[s.topName, { color: colors.text }]} numberOfLines={1}>{name}</Text>
                 <View style={[s.topQtyBadge, { backgroundColor: colors.primaryLight }]}>
-                  <Text style={[s.topQty, { color: colors.primary }]}>{qty} sold</Text>
+                  <Text style={[s.topQty, { color: colors.primary }]}>{t('qSold').replace('{qty}', String(qty))}</Text>
                 </View>
               </MotiView>
             ))}
@@ -520,9 +523,9 @@ export default function DashboardScreen({ navigation }: any) {
         {todayBills.length > 0 && (
           <View style={[s.section, { backgroundColor: colors.surface }]}>
             <View style={s.sectionRow}>
-              <Text style={[s.sectionInTitle, { color: colors.text, marginBottom: 0 }]}>Recent Bills</Text>
+              <Text style={[s.sectionInTitle, { color: colors.text, marginBottom: 0 }]}>{t('recentBills')}</Text>
               <TouchableOpacity onPress={() => navigation.navigate('Records')} style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                <Text style={[s.seeAll, { color: colors.primary }]}>See all</Text>
+                <Text style={[s.seeAll, { color: colors.primary }]}>{t('seeAll')}</Text>
                 <Ionicons name="chevron-forward" size={14} color={colors.primary} />
               </TouchableOpacity>
             </View>
@@ -554,18 +557,18 @@ export default function DashboardScreen({ navigation }: any) {
             <View style={[s.emptyIcon, { backgroundColor: colors.primaryLight }]}>
               <Ionicons name="receipt-outline" size={30} color={colors.primary} />
             </View>
-            <Text style={[s.emptyTitle, { color: colors.text }]}>No sales yet today</Text>
-            <Text style={[s.emptySub, { color: colors.textMuted }]}>Create your first bill — today's earnings, top items and recent sales will show up here.</Text>
+            <Text style={[s.emptyTitle, { color: colors.text }]}>{t('noSalesToday')}</Text>
+            <Text style={[s.emptySub, { color: colors.textMuted }]}>{t('noSalesTodayDesc')}</Text>
             <PressableScale style={[s.emptyBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('Billing')}>
               <Ionicons name="add" size={18} color="#fff" />
-              <Text style={s.emptyBtnText}>New Bill</Text>
+              <Text style={s.emptyBtnText}>{t('newBill')}</Text>
             </PressableScale>
           </MotiView>
         )}
 
         {/* Brand watermark footer — shimmer sweeps through the letters */}
         <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ type: 'timing', duration: 600 }} style={s.brandWrap}>
-          <Text style={[s.brandTagline, { color: colors.textMuted }]}>RUN YOUR SHOP, BY VOICE</Text>
+          <Text style={[s.brandTagline, { color: colors.textMuted }]}>{t('runByVoice')}</Text>
           <ShimmerBrand colors={colors} />
         </MotiView>
 

@@ -12,11 +12,13 @@ import EmptyState from '../../components/common/EmptyState';
 import { SkeletonList } from '../../components/common/Skeleton';
 import CollapsibleFab, { useFabScroll } from '../../components/common/CollapsibleFab';
 import ProductCard from '../../components/inventory/ProductCard';
+import { useTranslation } from '../../hooks/useTranslation';
 
 
 
 export default function InventoryScreen({ route, navigation }: any) {
   const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const { products, deleteProduct, updateProduct, settings } = useAppStore();
   const dataReady = useAppStore(st => st.dataReady);
   const CATEGORIES = ['All', ...(settings.productCategories ?? [])];
@@ -75,9 +77,9 @@ export default function InventoryScreen({ route, navigation }: any) {
   }, [products, search, categoryFilter, sortBy]);
 
   const handleDelete = (product: Product) => {
-    Alert.alert('Delete', `Delete "${product.name}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => deleteProduct(product.id) },
+    Alert.alert(t('deleteProduct'), t('deleteProductConfirm').replace('{name}', product.name), [
+      { text: t('cancel'), style: 'cancel' },
+      { text: t('delete'), style: 'destructive', onPress: () => deleteProduct(product.id) },
     ]);
   };
 
@@ -117,12 +119,12 @@ export default function InventoryScreen({ route, navigation }: any) {
   return (
     <View style={[{ backgroundColor: colors.bg, flex: 1 }]}>
       {/* Search + Sort */}
-      <View style={[s.searchRow, {backgroundColor: colors.surface, borderBottomColor: colors.border}]}>
+      <View style={[s.searchRow, {backgroundColor: colors.surface}]}>
         <View style={[s.searchBox, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
           <Ionicons name="search-outline" size={16} color={colors.textMuted} style={{ marginRight: 6 }} />
           <TextInput
             style={[s.searchInput, { color: colors.text }]}
-            placeholder="Search products..."
+            placeholder={t('searchProducts')}
             value={search}
             onChangeText={setSearch}
             placeholderTextColor={colors.textMuted}
@@ -168,16 +170,16 @@ export default function InventoryScreen({ route, navigation }: any) {
           />
         )}
         ListEmptyComponent={
-          <EmptyState icon="cube-outline" title="No products found" subtitle="Tap + to add your first product"
-            actionLabel="Add Product" onAction={() => navigation.navigate('ProductForm', {})} />
+          <EmptyState icon="cube-outline" title={t('noProducts')} subtitle={t('tapPlusToAdd')}
+            actionLabel={t('addProduct')} onAction={() => navigation.navigate('ProductForm', {})} />
         }
       />
 
       <CollapsibleFab bottom={90} icon="add" label="Add Product" extended={extended} onPress={() => {
-        Alert.alert('Add Stock', undefined, [
-          { text: 'New Product', onPress: () => navigation.navigate('ProductForm', {}) },
-          { text: 'Receive Stock (GRN)', onPress: () => navigation.navigate('More', { screen: 'PurchaseForm', params: {} }) },
-          { text: 'Cancel', style: 'cancel' },
+        Alert.alert(t('addStock'), undefined, [
+          { text: t('newProduct'), onPress: () => navigation.navigate('ProductForm', {}) },
+          { text: t('receiveStockGrn'), onPress: () => navigation.navigate('More', { screen: 'PurchaseForm', params: {} }) },
+          { text: t('cancel'), style: 'cancel' },
         ]);
       }} />
 
@@ -195,7 +197,7 @@ export default function InventoryScreen({ route, navigation }: any) {
         android_keyboardInputMode="adjustResize"
       >
         <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
-          <Text style={[s.stockTitle, { color: colors.text }]}>Update Stock</Text>
+          <Text style={[s.stockTitle, { color: colors.text }]}>{t('updateStockLabel')}</Text>
           <Text style={[s.stockProductName, { color: colors.primary }]}>{stockProduct?.name}</Text>
           <Text style={[s.stockCurrent, { color: colors.textMuted }]}>Current: {stockProduct?.quantity} {stockProduct?.unit}</Text>
           <View style={s.stockQuickRow}>
@@ -211,23 +213,23 @@ export default function InventoryScreen({ route, navigation }: any) {
             style={[s.stockInput, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
             value={stockQty}
             onChangeText={setStockQty}
-            placeholder="Enter qty to add"
+            placeholder={t('enterQtyToAdd')}
             placeholderTextColor={colors.textMuted}
             keyboardType="numeric"
           />
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <TouchableOpacity style={[s.stockBtn, { backgroundColor: colors.surfaceHigh }]} onPress={closeStockSheet}>
-              <Text style={{ color: colors.textSub, fontFamily: fonts.semiBold }}>Cancel</Text>
+              <Text style={{ color: colors.textSub, fontFamily: fonts.semiBold }}>{t('cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[s.stockBtn, { backgroundColor: colors.primary }]}
               onPress={() => {
                 const n = parseInt(stockQty);
-                if (isNaN(n)) { Alert.alert('Error', 'Enter a valid number'); return; }
+                if (isNaN(n)) { Alert.alert(t('error'), t('enterValidNumber')); return; }
                 if (stockProduct) updateProduct({ ...stockProduct, quantity: Math.max(0, stockProduct.quantity + n), updatedAt: Date.now() });
                 closeStockSheet();
               }}>
-              <Text style={{ color: '#fff', fontFamily: fonts.bold }}>Add Stock</Text>
+              <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{t('addStock')}</Text>
             </TouchableOpacity>
           </View>
         </BottomSheetScrollView>
@@ -249,14 +251,14 @@ export default function InventoryScreen({ route, navigation }: any) {
             <View style={[s.sheetIcon, { backgroundColor: colors.primaryLight }]}>
               <Ionicons name="pencil-outline" size={20} color={colors.primary} />
             </View>
-            <Text style={[s.sheetLabel, { color: colors.text }]}>Edit product</Text>
+            <Text style={[s.sheetLabel, { color: colors.text }]}>{t('editProduct')}</Text>
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
           </TouchableOpacity>
           <TouchableOpacity style={s.sheetRow} onPress={() => { const p = menuProduct; closeMenuSheet(); if (p) handleDelete(p); }}>
             <View style={[s.sheetIcon, { backgroundColor: colors.danger + '15' }]}>
               <Ionicons name="trash-outline" size={20} color={colors.danger} />
             </View>
-            <Text style={[s.sheetLabel, { color: colors.danger }]}>Delete product</Text>
+            <Text style={[s.sheetLabel, { color: colors.danger }]}>{t('deleteProduct')}</Text>
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
           </TouchableOpacity>
           <TouchableOpacity style={[s.sheetCancel, { backgroundColor: colors.surfaceHigh }]} onPress={closeMenuSheet}>
@@ -270,7 +272,7 @@ export default function InventoryScreen({ route, navigation }: any) {
 
 const makeStyles = (c: any) => StyleSheet.create({
   // Search & filter row — cleaner
-  searchRow: { flexDirection: 'row', gap: 10, padding: 12, alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth },
+  searchRow: { flexDirection: 'row', gap: 10, padding: 12, alignItems: 'center', borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
   searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1 },
   searchInput: { flex: 1, fontSize: 14, padding: 0, fontFamily: fonts.regular },
   sortBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, justifyContent: 'center', borderWidth: 0.5 },

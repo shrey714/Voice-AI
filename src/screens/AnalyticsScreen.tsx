@@ -114,7 +114,7 @@ export default function AnalyticsScreen() {
 
 
       {/* Period filter */}
-    <View style={[s.searchRow, {backgroundColor: colors.surface, borderBottomColor: colors.border}]}>
+    <View style={[s.searchRow, {backgroundColor: colors.surface }]}>
       <View style={[s.periodRow, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
         {(['daily', 'weekly', 'monthly'] as Period[]).map(f => (
           <TouchableOpacity key={f} style={[s.periodBtn, period === f && { backgroundColor: colors.primary }]} onPress={() => setPeriod(f)}>
@@ -148,7 +148,7 @@ export default function AnalyticsScreen() {
 
       {/* 7-Day chart */}
       <View style={[s.chartCard, { backgroundColor: colors.surface }]}>
-        <Text style={[s.sectionTitle, { color: colors.text }]}>Revenue — Last 7 Days</Text>
+        <Text style={[s.sectionTitle, { color: colors.text }]}>{t('revenueLast7Days')}</Text>
         {chartData.some(v => v > 0) ? (
           <LineChart
             data={{ labels: chartLabels, datasets: [{ data: chartData }] }}
@@ -168,7 +168,7 @@ export default function AnalyticsScreen() {
           />
         ) : (
           <View style={s.noDataView}>
-            <Text style={[s.noDataText, { color: colors.textMuted }]}>No sales data yet</Text>
+            <Text style={[s.noDataText, { color: colors.textMuted }]}>{t('noSalesYet')}</Text>
           </View>
         )}
       </View>
@@ -176,8 +176,8 @@ export default function AnalyticsScreen() {
       {/* Busiest hours heatmap (weekday × hour) */}
       {heat.billCount >= 5 && (
         <View style={[s.section, { backgroundColor: colors.surface }]}>
-          <Text style={[s.sectionTitle, { color: colors.text, marginBottom: 4 }]}>Busiest Hours</Text>
-          <Text style={[s.noDataText, { color: colors.textMuted, textAlign: 'left', marginBottom: 12 }]}>Last 60 days · darker = busier</Text>
+          <Text style={[s.sectionTitle, { color: colors.text, marginBottom: 4 }]}>{t('busiestHours')}</Text>
+          <Text style={[s.noDataText, { color: colors.textMuted, textAlign: 'left', marginBottom: 12 }]}>{t('heatmapHint')}</Text>
           {heat.grid.map((row, day) => (
             <View key={day} style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 2 }}>
               <Text style={{ width: 30, fontFamily: fonts.semiBold, fontSize: 10, color: colors.textMuted }}>{DAY_LABELS[day]}</Text>
@@ -192,7 +192,7 @@ export default function AnalyticsScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: colors.primaryLight, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 11, marginTop: 14 }}>
             <Ionicons name="flame" size={13} color={colors.primary} />
             <Text style={{ fontFamily: fonts.bold, fontSize: 12.5, color: colors.primary }}>
-              Busiest: {DAY_LABELS[heatPeak.day]} {fmtH(heatPeak.hour)}–{fmtH((heatPeak.hour + 1) % 24)}
+              {t('busiest')}: {DAY_LABELS[heatPeak.day]} {fmtH(heatPeak.hour)}–{fmtH((heatPeak.hour + 1) % 24)}
             </Text>
           </View>
         </View>
@@ -221,23 +221,23 @@ export default function AnalyticsScreen() {
 
       {/* Payment breakdown */}
       <View style={[s.section, { backgroundColor: colors.surface }]}>
-        <Text style={[s.sectionTitle, { color: colors.text }]}>Payment Modes</Text>
+        <Text style={[s.sectionTitle, { color: colors.text }]}>{t('paymentModes')}</Text>
         {Object.entries(payBreakdown).map(([mode, amount]) => (
           <View key={mode} style={[s.payRow, { borderBottomColor: colors.border }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Ionicons name={mode === 'cash' ? 'cash-outline' : mode === 'upi' ? 'phone-portrait-outline' : 'document-text-outline'} size={16} color={colors.textSub} />
-              <Text style={[s.payMode, { color: colors.text }]}>{mode.charAt(0).toUpperCase() + mode.slice(1)}</Text>
+              <Text style={[s.payMode, { color: colors.text }]}>{t(mode as any)}</Text>
             </View>
             <Text style={[s.payAmt, { color: colors.primary }]}>{formatCurrency(amount, settings.currency)}</Text>
           </View>
         ))}
-        {periodBills.length === 0 && <Text style={[s.noDataText, { color: colors.textMuted }]}>No transactions</Text>}
+        {periodBills.length === 0 && <Text style={[s.noDataText, { color: colors.textMuted }]}>{t('noTransactions')}</Text>}
       </View>
 
       {/* Returns */}
       {stats.returnCount > 0 && (
         <View style={[s.section, { backgroundColor: colors.surface }]}>
-          <Text style={[s.sectionTitle, { color: colors.text }]}>Returns</Text>
+          <Text style={[s.sectionTitle, { color: colors.text }]}>{t('returnsTitle')}</Text>
           <View style={[s.payRow, { borderBottomColor: colors.border }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Ionicons name="arrow-undo-outline" size={16} color={colors.danger} />
@@ -246,7 +246,7 @@ export default function AnalyticsScreen() {
             <Text style={[s.payAmt, { color: colors.danger }]}>−{formatCurrency(stats.refunds, settings.currency)}</Text>
           </View>
           <View style={[s.payRow, { borderBottomColor: colors.border, borderBottomWidth: 0 }]}>
-            <Text style={[s.payMode, { color: colors.textSub }]}>Profit impact</Text>
+            <Text style={[s.payMode, { color: colors.textSub }]}>{t('profitImpact')}</Text>
             <Text style={[s.payAmt, { color: colors.danger }]}>−{formatCurrency(stats.profitCut, settings.currency)}</Text>
           </View>
           <Text style={{ fontFamily: fonts.regular, fontSize: 11, color: colors.textMuted, marginTop: 8 }}>
@@ -260,21 +260,21 @@ export default function AnalyticsScreen() {
         <View style={[s.section, { backgroundColor: colors.surface }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
             <Ionicons name="receipt-outline" size={18} color={colors.primary} />
-            <Text style={[s.sectionTitle, { color: colors.text, marginBottom: 0 }]}>GST Summary (Output Tax)</Text>
+            <Text style={[s.sectionTitle, { color: colors.text, marginBottom: 0 }]}>{t('gstSummaryOutput')}</Text>
           </View>
 
           {!hasGstData ? (
-            <Text style={{ color: colors.textMuted, fontFamily: fonts.regular, fontSize: 13 }}>
-              No GST transactions in this period. Add GST rates to your products to track output tax.
-            </Text>
+               <Text style={{ color: colors.textMuted, fontFamily: fonts.regular, fontSize: 13 }}>
+                {t('noGstTransactions')}
+              </Text>
           ) : (
             <>
-              {/* Slab breakdown */}
-              <View style={{ flexDirection: 'row', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 6 }}>
-                {['Rate', 'Taxable', 'CGST', 'SGST'].map(h => (
-                  <Text key={h} style={{ flex: 1, fontFamily: fonts.bold, fontSize: 12, color: colors.textSub, textAlign: h === 'Rate' ? 'left' : 'right' }}>{h}</Text>
-                ))}
-              </View>
+               {/* Slab breakdown */}
+               <View style={{ flexDirection: 'row', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 6 }}>
+                 {[t('gstTableHeaders'), t('gstTableTaxable'), t('gstTableCgst'), t('gstTableSgst')].map((h, i) => (
+                   <Text key={i} style={{ flex: 1, fontFamily: fonts.bold, fontSize: 12, color: colors.textSub, textAlign: i === 0 ? 'left' : 'right' }}>{h}</Text>
+                 ))}
+               </View>
               {gstSlabs.map(slab => (
                 <View key={slab.rate} style={{ flexDirection: 'row', paddingVertical: 7, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }}>
                   <Text style={{ flex: 1, fontFamily: fonts.semiBold, fontSize: 13, color: colors.text }}>{slab.rate}%</Text>
@@ -285,18 +285,18 @@ export default function AnalyticsScreen() {
               ))}
               {/* Totals */}
               <View style={{ flexDirection: 'row', marginTop: 10, paddingTop: 8, borderTopWidth: 1.5, borderTopColor: colors.primary + '40' }}>
-                <Text style={{ flex: 1, fontFamily: fonts.extraBold, fontSize: 13, color: colors.text }}>Total</Text>
+                <Text style={{ flex: 1, fontFamily: fonts.extraBold, fontSize: 13, color: colors.text }}>{t('total')}</Text>
                 <Text style={{ flex: 1, fontFamily: fonts.extraBold, fontSize: 13, color: colors.primary, textAlign: 'right' }}>{formatCurrency(totalOutputTaxable, settings.currency)}</Text>
                 <Text style={{ flex: 1, fontFamily: fonts.extraBold, fontSize: 13, color: colors.primary, textAlign: 'right' }}>{formatCurrency(totalOutputCgst, settings.currency)}</Text>
                 <Text style={{ flex: 1, fontFamily: fonts.extraBold, fontSize: 13, color: colors.primary, textAlign: 'right' }}>{formatCurrency(totalOutputSgst, settings.currency)}</Text>
               </View>
               <View style={[{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, backgroundColor: colors.primaryLight, borderRadius: 10, padding: 12 }]}>
-                <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: colors.primary }}>Total GST Payable</Text>
+                <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: colors.primary }}>{t('totalGstPayable')}</Text>
                 <Text style={{ fontFamily: fonts.extraBold, fontSize: 16, color: colors.primary }}>{formatCurrency(totalOutputGst, settings.currency)}</Text>
               </View>
-              <Text style={{ fontFamily: fonts.regular, fontSize: 11, color: colors.textMuted, marginTop: 8 }}>
-                This is output GST collected from customers. Subtract ITC (input tax from purchases) to get net payable.
-              </Text>
+               <Text style={{ fontFamily: fonts.regular, fontSize: 11, color: colors.textMuted, marginTop: 8 }}>
+                 {t('outputGstInfo')}
+               </Text>
             </>
           )}
         </View>
@@ -307,7 +307,7 @@ export default function AnalyticsScreen() {
         <View style={[s.section, { backgroundColor: colors.surface }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
             <Ionicons name="business-outline" size={18} color={colors.danger} />
-            <Text style={[s.sectionTitle, { color: colors.text, marginBottom: 0 }]}>Supplier Payables</Text>
+            <Text style={[s.sectionTitle, { color: colors.text, marginBottom: 0 }]}>{t('supplierPayables')}</Text>
           </View>
           {supplierPayables.map(({ supplier, outstanding }) => (
             <View key={supplier.id} style={[s.payRow, { borderBottomColor: colors.border }]}>
@@ -316,7 +316,7 @@ export default function AnalyticsScreen() {
             </View>
           ))}
           <View style={[{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, backgroundColor: colors.danger + '12', borderRadius: 10, padding: 12 }]}>
-            <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: colors.danger }}>Total Outstanding</Text>
+            <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: colors.danger }}>{t('totalOutstanding')}</Text>
             <Text style={{ fontFamily: fonts.extraBold, fontSize: 16, color: colors.danger }}>{formatCurrency(totalPayables, settings.currency)}</Text>
           </View>
         </View>
@@ -325,12 +325,12 @@ export default function AnalyticsScreen() {
       {/* Low Stock */}
       {lowStock.length > 0 && (
         <View style={[s.section, { backgroundColor: colors.surface }]}>
-          <Text style={[s.sectionTitle, { color: colors.text }]}>{t('lowStock')} Items</Text>
+          <Text style={[s.sectionTitle, { color: colors.text }]}>{t('lowStockItems')}</Text>
           {lowStock.slice(0, 8).map(p => (
             <View key={p.id} style={[s.payRow, { borderBottomColor: colors.border }]}>
               <Text style={[s.payMode, { color: colors.text }]} numberOfLines={1}>{p.name}</Text>
               <Text style={{ fontFamily: fonts.semiBold, fontSize: 13, color: p.quantity === 0 ? colors.danger : colors.warning }}>
-                {p.quantity === 0 ? 'Out of stock' : `${p.quantity} left`}
+                {p.quantity === 0 ? t('outOfStock') : `${p.quantity} ${t('left')}`}
               </Text>
             </View>
           ))}
@@ -339,12 +339,12 @@ export default function AnalyticsScreen() {
 
       {/* Summary stats */}
       <View style={[s.section, { backgroundColor: colors.surface }]}>
-        <Text style={[s.sectionTitle, { color: colors.text }]}>Summary</Text>
+        <Text style={[s.sectionTitle, { color: colors.text }]}>{t('summary')}</Text>
         {[
-          ['Total Bills', stats.fullyReturnedCount > 0 ? `${stats.billCount}  (${stats.fullyReturnedCount} returned)` : String(stats.billCount)],
-          ['Avg Bill', stats.netBillCount > 0 ? formatCurrency(revenue / stats.netBillCount, settings.currency) : '—'],
-          ['Total Products', String(products.length)],
-          ['Profit Margin', revenue > 0 ? `${((profit / revenue) * 100).toFixed(1)}%` : '—'],
+          [t('totalBills'), stats.fullyReturnedCount > 0 ? `${stats.billCount}  (${stats.fullyReturnedCount} ${t('returned')})` : String(stats.billCount)],
+          [t('avgBill'), stats.netBillCount > 0 ? formatCurrency(revenue / stats.netBillCount, settings.currency) : '—'],
+          [t('totalProducts'), String(products.length)],
+          [t('profitMargin'), revenue > 0 ? `${((profit / revenue) * 100).toFixed(1)}%` : '—'],
         ].map(([label, value]) => (
           <View key={label} style={[s.payRow, { borderBottomColor: colors.border }]}>
             <Text style={[s.payMode, { color: colors.textSub }]}>{label}</Text>
@@ -367,7 +367,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   periodBtnText: { fontFamily: fonts.bold, fontSize: 13 },
 
   // period filter
-  searchRow: { flexDirection: 'row', gap: 10, padding: 8.5, alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth },
+  searchRow: { flexDirection: 'row', gap: 10, padding: 8.5, alignItems: 'center', borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
 
   // Stat cards grid — 2x2 with better spacing
   cardsGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 14, gap: 12, marginBottom: 12 },

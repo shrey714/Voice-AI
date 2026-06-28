@@ -12,6 +12,7 @@ import { ThreadPrimitive, ActionBarPrimitive, MessageByIndexProvider, useAui, us
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
 import { useAppStore } from '../stores/useAppStore';
+import { useTranslation } from '../hooks/useTranslation';
 import { transcribeWithGroq } from '../services/groq';
 import { toast } from '../utils/toast';
 import { startNewAiChat, useAiWidgets } from '../services/aiRuntime';
@@ -96,7 +97,7 @@ function StreamingText({ text, style }: { text: string; style: any }) {
 // One chat turn. Reads its message from the assistant-ui context (provided by
 // MessageByIndexProvider) so ActionBar copy/regenerate work. User → right bubble;
 // assistant → full-width (ChatGPT/Claude style) with avatar, cards, and actions.
-const Bubble = React.memo(function Bubble({ colors, s }: { colors: any; s: any }) {
+const Bubble = React.memo(function Bubble({ colors, s, t }: { colors: any; s: any; t: (k: any) => string }) {
   const role = useAuiState((st: any) => st.message.role);
   const content = useAuiState((st: any) => st.message.content);
   const id = useAuiState((st: any) => st.message.id);
@@ -120,7 +121,7 @@ const Bubble = React.memo(function Bubble({ colors, s }: { colors: any; s: any }
         <Ionicons name="sparkles" size={13} color="#fff" />
       </LinearGradient>
       <View style={{ flex: 1, gap: 8 }}>
-        <Text style={s.aiName}>Shopkeeper AI</Text>
+         <Text style={s.aiName}>{t('shopkeeperAi')}</Text>
         {text
           ? (streaming ? <StreamingText text={text} style={s.aiText} /> : <Text style={s.aiText}>{text}</Text>)
           : <TypingDots color={colors.textMuted} />}
@@ -129,13 +130,13 @@ const Bubble = React.memo(function Bubble({ colors, s }: { colors: any; s: any }
           <View style={s.actionsRow}>
             <ActionBarPrimitive.Reload style={s.actionBtn}>
               <Ionicons name="refresh" size={13} color={colors.textMuted} />
-              <Text style={s.actionText}>Regenerate</Text>
+              <Text style={s.actionText}>{t('regenerate')}</Text>
             </ActionBarPrimitive.Reload>
             <ActionBarPrimitive.Copy style={s.actionBtn} copyToClipboard={(t: string) => { try { Clipboard.setStringAsync(t)?.catch(() => {}); } catch { /* clipboard needs a rebuild */ } }}>
               {({ isCopied }: { isCopied: boolean }) => (
                 <>
                   <Ionicons name={isCopied ? 'checkmark' : 'copy-outline'} size={13} color={colors.textMuted} />
-                  <Text style={s.actionText}>{isCopied ? 'Copied' : 'Copy'}</Text>
+                  <Text style={s.actionText}>{isCopied ? t('copied') : t('copy')}</Text>
                 </>
               )}
             </ActionBarPrimitive.Copy>
@@ -148,7 +149,7 @@ const Bubble = React.memo(function Bubble({ colors, s }: { colors: any; s: any }
 
 // Self-owned message list so we control the FlatList ref → auto-scroll to bottom
 // (the library's ThreadPrimitive.Messages forwards no ref and never auto-scrolls).
-function MessageList({ colors, s, bottomPad }: { colors: any; s: any; bottomPad: number }) {
+function MessageList({ colors, s, bottomPad, t }: { colors: any; s: any; bottomPad: number; t: (k: any) => string }) {
   const messages = useAuiState((st: any) => st.thread.messages);
 
   // Inverted list = always pinned to the bottom with zero scroll timing. data[0]
@@ -157,7 +158,7 @@ function MessageList({ colors, s, bottomPad }: { colors: any; s: any; bottomPad:
   const data = useMemo(() => messages.slice().reverse(), [messages]);
   const renderItem = useCallback(({ index }: any) => (
     <MessageByIndexProvider index={messages.length - 1 - index}>
-      <Bubble colors={colors} s={s} />
+      <Bubble colors={colors} s={s} t={t} />
     </MessageByIndexProvider>
   ), [colors, s, messages.length]);
 
@@ -179,7 +180,7 @@ function MessageList({ colors, s, bottomPad }: { colors: any; s: any; bottomPad:
 
 // Custom composer: a LOCAL-state TextInput (instant, no per-keystroke round-trip to
 // the runtime store — that was the lag) that pushes to the runtime only on send.
-function Composer({ colors, s, insets, isDark }: { colors: any; s: any; insets: any; isDark: boolean }) {
+function Composer({ colors, s, insets, isDark, t }: { colors: any; s: any; insets: any; isDark: boolean; t: (k: any) => string }) {
   const aui = useAui();
   const isRunning = useAuiState((st: any) => st.thread.isRunning);
   const language = useAppStore((st: any) => st.settings.language);
@@ -204,12 +205,12 @@ function Composer({ colors, s, insets, isDark }: { colors: any; s: any; insets: 
   const startRec = useCallback(async () => {
     try {
       const { granted } = await AudioModule.requestRecordingPermissionsAsync();
-      if (!granted) { toast.error('Microphone permission needed'); return; }
+      if (!granted) { toast.error(t('micPermissionNeeded')); return; }
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       await recorder.prepareToRecordAsync(RecordingPresets.HIGH_QUALITY);
       recorder.record();
       setRecording(true);
-    } catch { toast.error("Couldn't start recording"); }
+    } catch { toast.error(t('couldntStartRecording')); }
   }, [recorder]);
 
   const stopRec = useCallback(async () => {
@@ -222,7 +223,7 @@ function Composer({ colors, s, insets, isDark }: { colors: any; s: any; insets: 
     const res = await transcribeWithGroq(uri, language);
     setTranscribing(false);
     if (res.ok && res.text.trim()) sendText(res.text);          // auto-send
-    else if (!res.ok) toast.error(res.error || "Couldn't transcribe");
+    else if (!res.ok) toast.error(res.error || t('couldntTranscribe'));
   }, [recorder, language, sendText]);
 
   // Stop any in-flight recording if the screen unmounts.
@@ -251,7 +252,7 @@ function Composer({ colors, s, insets, isDark }: { colors: any; s: any; insets: 
           style={s.input}
           value={text}
           onChangeText={setText}
-          placeholder={recording ? 'Listening…' : transcribing ? 'Transcribing…' : 'Ask anything about your shop…'}
+          placeholder={recording ? t('speaking') : transcribing ? t('transcribing') : t('askAnything')}
           placeholderTextColor={colors.textMuted}
           multiline
           textAlignVertical="center"
@@ -279,6 +280,7 @@ function Composer({ colors, s, insets, isDark }: { colors: any; s: any; insets: 
 
 export default function AskAiScreen({ navigation }: any) {
   const { colors, isDark } = useAppTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const s = useMemo(() => makeStyles(colors), [colors]);
@@ -302,7 +304,7 @@ export default function AskAiScreen({ navigation }: any) {
       headerRight: () => (
         <TouchableOpacity onPress={startNewAiChat} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 4 }} hitSlop={8}>
           <Ionicons name="create-outline" size={18} color={colors.primary} />
-          <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: colors.primary }}>New</Text>
+          <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: colors.primary }}>{t('newChat')}</Text>
         </TouchableOpacity>
       ),
     });
@@ -319,8 +321,8 @@ export default function AskAiScreen({ navigation }: any) {
                 <LinearGradient colors={[colors.primary, colors.primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.heroIcon}>
                   <Ionicons name="sparkles" size={26} color="#fff" />
                 </LinearGradient>
-                <Text style={[s.heroTitle, { color: colors.text }]}>Ask about your shop</Text>
-                <Text style={[s.heroSub, { color: colors.textMuted }]}>Instant answers from your own sales, stock, expenses and udhaar.</Text>
+                <Text style={[s.heroTitle, { color: colors.text }]}>{t('askAboutShop')}</Text>
+                <Text style={[s.heroSub, { color: colors.textMuted }]}>{t('askAboutShopSub')}</Text>
                 <View style={{ gap: 10, marginTop: 6 }}>
                   {SUGGESTED_QUESTIONS.map((q) => (
                     <ThreadPrimitive.Suggestion key={q} prompt={q} send style={[s.chip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -338,11 +340,11 @@ export default function AskAiScreen({ navigation }: any) {
 
           {/* Message list (only when there are messages) */}
           <ThreadPrimitive.If empty={false}>
-            <MessageList colors={colors} s={s} bottomPad={composerH + 8} />
+            <MessageList colors={colors} s={s} bottomPad={composerH + 8} t={t} />
           </ThreadPrimitive.If>
         </ThreadPrimitive.Root>
 
-        <Composer colors={colors} s={s} insets={insets} isDark={isDark} />
+        <Composer colors={colors} s={s} insets={insets} isDark={isDark} t={t} />
       </KeyboardAvoidingView>
     </View>
   );

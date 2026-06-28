@@ -6,9 +6,11 @@ import { exportBackup, importBackup } from '../services/backup';
 import BackupSection from '../components/settings/BackupSection';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
+import { useTranslation } from '../hooks/useTranslation';
 
 export default function BackupRestoreScreen() {
   const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const [backupWorking, setBackupWorking] = useState(false);
   const s = makeStyles(colors);
 
@@ -16,7 +18,7 @@ export default function BackupRestoreScreen() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>
         <Text style={[s.lead, { color: colors.textMuted }]}>
-          Keep your shop data safe. Cloud backup syncs across devices; file backup saves a copy you control.
+          {t('keepDataSafe')}
         </Text>
 
         {/* Cloud backup (phone login + full snapshot incl. images) */}
@@ -24,36 +26,36 @@ export default function BackupRestoreScreen() {
 
         {/* Local file backup */}
         <View style={[s.section, { backgroundColor: colors.surface }]}>
-          <Text style={[s.title, { color: colors.text }]}>File Backup</Text>
-          <Text style={[s.hint, { color: colors.textMuted }]}>Export all data as a JSON file you can share or store yourself.</Text>
+          <Text style={[s.title, { color: colors.text }]}>{t('fileBackup')}</Text>
+          <Text style={[s.hint, { color: colors.textMuted }]}>{t('fileBackupDesc')}</Text>
           <TouchableOpacity style={[s.btn, { backgroundColor: colors.primary, opacity: backupWorking ? 0.6 : 1 }]}
             disabled={backupWorking}
             onPress={async () => {
               setBackupWorking(true);
               try { await exportBackup(); }
-              catch { Alert.alert('Error', 'Export failed'); }
+              catch { Alert.alert(t('error'), t('exportFailed')); }
               finally { setBackupWorking(false); }
             }}>
             <Ionicons name="download-outline" size={18} color="#fff" />
-            <Text style={s.btnText}>Export to file</Text>
+            <Text style={s.btnText}>{t('exportToFile')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[s.btn, { backgroundColor: colors.warning, opacity: backupWorking ? 0.6 : 1 }]}
             disabled={backupWorking}
             onPress={async () => {
-              Alert.alert('Import Backup', 'This will ADD data (no duplicates). Continue?', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Import', onPress: async () => {
+              Alert.alert(t('importBackup'), t('importBackupConfirm'), [
+                { text: t('cancel'), style: 'cancel' },
+                { text: t('importWord'), onPress: async () => {
                   setBackupWorking(true);
                   try {
                     const result = await importBackup();
-                    if (result) Alert.alert('Import Complete', `Products: ${result.products}\nBills: ${result.bills}\nExpenses: ${result.expenses}\nCustomers: ${result.customers}\nSuppliers: ${result.suppliers}`);
+                    if (result) Alert.alert(t('importComplete'), `Products: ${result.products}\nBills: ${result.bills}\nExpenses: ${result.expenses}\nCustomers: ${result.customers}\nSuppliers: ${result.suppliers}`);
                   } catch (e: any) { Alert.alert('Error', e.message || 'Import failed'); }
                   finally { setBackupWorking(false); }
                 }},
               ]);
             }}>
             <Ionicons name="cloud-upload-outline" size={18} color="#fff" />
-            <Text style={s.btnText}>Import from file</Text>
+            <Text style={s.btnText}>{t('importFromFile')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

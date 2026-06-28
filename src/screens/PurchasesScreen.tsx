@@ -4,6 +4,7 @@ import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { useAppStore } from '../stores/useAppStore';
+import { useTranslation } from '../hooks/useTranslation';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
 import { formatCurrency } from '../utils/helpers';
@@ -17,6 +18,7 @@ function formatDate(ts: number) {
 
 export default function PurchasesScreen({ navigation }: any) {
   const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const { purchases, suppliers, settings } = useAppStore();
   const [search, setSearch] = useState('');
   const [filterSupplierId, setFilterSupplierId] = useState<string | null>(null);
@@ -52,7 +54,7 @@ export default function PurchasesScreen({ navigation }: any) {
             <View style={{ flex: 1 }}>
               <Text style={[s.cardDate, { color: colors.textMuted }]}>{formatDate(purchase.createdAt)}</Text>
               <Text style={[s.cardSupplier, { color: colors.text }]}>
-                {purchase.supplierName || 'No supplier'}
+                {purchase.supplierName || t('noSupplier')}
                 {purchase.invoiceNumber ? <Text style={{ color: colors.textMuted }}> · #{purchase.invoiceNumber}</Text> : null}
               </Text>
               <Text style={[s.cardItems, { color: colors.textSub }]}>
@@ -69,12 +71,12 @@ export default function PurchasesScreen({ navigation }: any) {
                 </View>
               ) : purchase.paidAmount >= purchase.totalAmount ? (
                 <View style={[s.badge, { backgroundColor: colors.success + '18' }]}>
-                  <Text style={[s.badgeText, { color: colors.success }]}>Paid</Text>
+                  <Text style={[s.badgeText, { color: colors.success }]}>{t('paid')}</Text>
                 </View>
               ) : (
                 <View style={[s.badge, { backgroundColor: colors.danger + '18' }]}>
                   <Text style={[s.badgeText, { color: colors.danger }]}>
-                    Unpaid {formatCurrency(outstanding, settings.currency)}
+                    {t('unpaid')} {formatCurrency(outstanding, settings.currency)}
                   </Text>
                 </View>
               )}
@@ -99,12 +101,12 @@ export default function PurchasesScreen({ navigation }: any) {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       {/* Search */}
-      <View style={[s.searchRow, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View style={[s.searchRow, { backgroundColor: colors.surface }]}>
         <View style={[s.searchBox, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
           <Ionicons name="search-outline" size={16} color={colors.textMuted} style={{ marginRight: 6 }} />
           <TextInput
             style={[s.searchInput, { color: colors.text }]}
-            placeholder="Search purchases..."
+            placeholder={t('searchPurchases')}
             placeholderTextColor={colors.textMuted}
             value={search}
             onChangeText={setSearch}
@@ -123,7 +125,7 @@ export default function PurchasesScreen({ navigation }: any) {
           <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
-            data={[{ id: null, name: 'All' } as any, ...suppliers]}
+            data={[{ id: null, name: t('all') } as any, ...suppliers]}
             keyExtractor={item => item.id ?? 'all'}
             contentContainerStyle={{ paddingHorizontal: 10, paddingVertical: 8, gap: 8 }}
             renderItem={({ item }) => {
@@ -146,7 +148,7 @@ export default function PurchasesScreen({ navigation }: any) {
         <View style={[s.summaryBanner, { backgroundColor: colors.warning + '12', borderBottomColor: colors.warning + '30' }]}>
           <Ionicons name="alert-circle-outline" size={15} color={colors.warning} />
           <Text style={[s.summaryText, { color: colors.warning }]}>
-            Total outstanding: {formatCurrency(totalOutstanding, settings.currency)}
+            {t('totalOutstandingLabel')}: {formatCurrency(totalOutstanding, settings.currency)}
           </Text>
         </View>
       )}
@@ -161,9 +163,9 @@ export default function PurchasesScreen({ navigation }: any) {
         ListEmptyComponent={
           <EmptyState
             icon="receipt-outline"
-            title="No purchases yet"
-            subtitle="Log a stock receipt to track what you owe suppliers"
-            actionLabel="New Purchase"
+            title={t('noPurchasesYet')}
+            subtitle={t('noPurchasesDesc')}
+            actionLabel={t('newPurchase')}
             onAction={() => navigation.navigate('PurchaseForm', {})}
           />
         }
@@ -172,7 +174,7 @@ export default function PurchasesScreen({ navigation }: any) {
       <CollapsibleFab
         bottom={90}
         icon="add"
-        label="New Purchase"
+        label={t('newPurchase')}
         extended={extended}
         onPress={() => navigation.navigate('PurchaseForm', {})}
       />
@@ -181,7 +183,7 @@ export default function PurchasesScreen({ navigation }: any) {
 }
 
 const makeStyles = (c: any) => StyleSheet.create({
-  searchRow: { paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  searchRow: { paddingHorizontal: 12, paddingVertical: 12, borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
   searchBox: { flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1 },
   searchInput: { flex: 1, fontSize: 14, padding: 0, fontFamily: fonts.regular },
   chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },

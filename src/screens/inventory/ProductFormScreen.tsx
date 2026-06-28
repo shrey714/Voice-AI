@@ -86,16 +86,16 @@ export default function ProductFormScreen({ route, navigation }: any) {
     const barcode = form.barcode.trim();
 
     // Required + sanity validation
-    if (!name) { Alert.alert('Error', 'Product name is required'); return; }
-    if (sellingPrice <= 0) { Alert.alert('Error', 'Selling price must be greater than 0'); return; }
+    if (!name) { Alert.alert(t('error'), t('productNameRequired')); return; }
+    if (sellingPrice <= 0) { Alert.alert(t('error'), t('sellingPriceMustBeGreaterThanZero')); return; }
     if (costPrice < 0 || quantity < 0 || lowStockThreshold < 0) {
-      Alert.alert('Error', 'Prices and quantity cannot be negative'); return;
+      Alert.alert(t('error'), t('pricesCannotBeNegative')); return;
     }
 
     // Barcode must be unique across products
     if (barcode) {
       const clash = products.find(p => p.barcode === barcode && p.id !== editingProduct?.id);
-      if (clash) { Alert.alert('Duplicate barcode', `This barcode is already used by "${clash.name}". Each product needs a unique barcode.`); return; }
+      if (clash) { Alert.alert(t('duplicateBarcode'), `This barcode is already used by "${clash.name}". Each product needs a unique barcode.`); return; }
     }
 
     // Parse expiry date — all three fields must be present if any is filled
@@ -108,12 +108,12 @@ export default function ProductFormScreen({ route, navigation }: any) {
       if (!form.expiryDay || !form.expiryMonth || form.expiryYear.length < 4 ||
           isNaN(d) || isNaN(m) || isNaN(y) ||
           d < 1 || d > 31 || m < 1 || m > 12 || y < 2000) {
-        Alert.alert('Invalid Date', 'Enter a complete expiry date (DD / MM / YYYY)');
+        Alert.alert(t('invalidDate'), 'Enter a complete expiry date (DD / MM / YYYY)');
         return;
       }
       const parsed = new Date(y, m - 1, d);
       if (isNaN(parsed.getTime()) || parsed.getDate() !== d) {
-        Alert.alert('Invalid Date', `${form.expiryDay}/${form.expiryMonth}/${form.expiryYear} is not a valid date`);
+        Alert.alert(t('invalidDate'), `${form.expiryDay}/${form.expiryMonth}/${form.expiryYear} is not a valid date`);
         return;
       }
       expiryDate = parsed.getTime();
@@ -138,11 +138,11 @@ export default function ProductFormScreen({ route, navigation }: any) {
     // Warn (don't block) when selling below cost — it might be an intentional clearance.
     if (costPrice > 0 && sellingPrice < costPrice) {
       Alert.alert(
-        'Selling below cost',
+        t('sellingBelowCost'),
         `Selling price (${formatCurrency(sellingPrice, settings.currency)}) is below cost (${formatCurrency(costPrice, settings.currency)}). You'll lose money on each sale.`,
         [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Save anyway', style: 'destructive', onPress: () => doSave(data) },
+          { text: t('cancel'), style: 'cancel' },
+          { text: t('saveAnyway'), style: 'destructive', onPress: () => doSave(data) },
         ]
       );
       return;
@@ -160,29 +160,29 @@ export default function ProductFormScreen({ route, navigation }: any) {
       const result = await identifyProductFromImage(uri, visionKey);
       if (!result.ok) { Alert.alert('Vision API Error', result.error); return; }
       const { name, category, labels, rawTexts } = result;
-      if (!name) { Alert.alert('Nothing Identified', 'Try a clearer photo.'); return; }
-      Alert.alert('Product Identified', `Name: "${name}"\nCategory: ${category}\n\nApply?`, [
-        { text: 'Apply', onPress: () => setForm(f => ({ ...f, name, category })) },
-        { text: 'Skip', style: 'cancel' },
+      if (!name) { Alert.alert(t('nothingIdentified'), t('tryClearerPhoto')); return; }
+      Alert.alert(t('productIdentified'), `Name: "${name}"\nCategory: ${category}\n\nApply?`, [
+        { text: t('apply'), onPress: () => setForm(f => ({ ...f, name, category })) },
+        { text: t('skip'), style: 'cancel' },
       ]);
     } finally { setVisionLoading(false); }
   };
 
   const pickImage = () => {
-    Alert.alert('Product Photo', 'Choose source', [
+    Alert.alert(t('productPhoto'), t('chooseSource'), [
       {
-        text: 'Take Photo', onPress: async () => {
+        text: t('takePhoto'), onPress: async () => {
           const r = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.5 });
           if (!r.canceled && r.assets[0]) await handleImagePicked(r.assets[0].uri);
         }
       },
       {
-        text: 'Gallery', onPress: async () => {
+        text: t('galleryLabel'), onPress: async () => {
           const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.5 });
           if (!r.canceled && r.assets[0]) await handleImagePicked(r.assets[0].uri);
         }
       },
-      { text: 'Cancel', style: 'cancel' },
+      { text: t('cancel'), style: 'cancel' },
     ]);
   };
 
@@ -224,13 +224,13 @@ export default function ProductFormScreen({ route, navigation }: any) {
             : (
               <View style={{ alignItems: 'center', gap: 8 }}>
                 <Ionicons name="camera-outline" size={32} color={colors.textMuted} />
-                <Text style={{ color: colors.textMuted, fontSize: 13, fontFamily: fonts.regular }}>Add Photo (AI identify)</Text>
+                <Text style={{ color: colors.textMuted, fontSize: 13, fontFamily: fonts.regular }}>{t('addPhotoAi')}</Text>
               </View>
             )}
           {visionLoading && (
             <View style={s.visionOverlay}>
               <ActivityIndicator color="#fff" size="small" />
-              <Text style={{ color: '#fff', fontFamily: fonts.semiBold, fontSize: 12, marginTop: 6 }}>Identifying...</Text>
+              <Text style={{ color: '#fff', fontFamily: fonts.semiBold, fontSize: 12, marginTop: 6 }}>{t('identifying')}</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -309,13 +309,13 @@ export default function ProductFormScreen({ route, navigation }: any) {
         </View>
 
         {/* Barcode */}
-        <Field label="Barcode (optional)" colors={colors}>
+        <Field label={t('barcodeOptional')} colors={colors}>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <TextInput
               style={[s.input, { flex: 1, backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
               value={form.barcode}
               onChangeText={v => setForm(f => ({ ...f, barcode: v }))}
-              placeholder="Scan or type barcode"
+              placeholder={t('scanOrTypeBarcode')}
               placeholderTextColor={colors.textMuted}
             />
             <TouchableOpacity
@@ -336,7 +336,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
                   style={[s.chip, { flex: 1, alignItems: 'center', borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary : colors.surface }]}
                   onPress={() => setForm(f => ({ ...f, gstRate: rate }))}>
                   <Text style={{ color: active ? '#fff' : colors.textSub, fontFamily: fonts.semiBold, fontSize: 13 }}>
-                    {rate === 0 ? 'NIL' : `${rate}%`}
+                    {rate === 0 ? t('nil') : `${rate}%`}
                   </Text>
                 </TouchableOpacity>
               );
@@ -355,7 +355,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
         </Field>
 
         {/* HSN Code */}
-        <Field label="HSN / SAC Code (optional)" colors={colors}>
+        <Field label={t('hsnSacOptional')} colors={colors}>
           <TextInput
             style={[s.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
             value={form.hsnCode}
@@ -367,12 +367,12 @@ export default function ProductFormScreen({ route, navigation }: any) {
         </Field>
 
         {/* Supplier */}
-        <Field label="Supplier (optional)" colors={colors}>
+        <Field label={t('supplierOptional')} colors={colors}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
             <TouchableOpacity
               style={[s.chip, { borderColor: !form.supplierId ? colors.primary : colors.border, backgroundColor: !form.supplierId ? colors.primary : colors.surface }]}
               onPress={() => setForm(f => ({ ...f, supplierId: '' }))}>
-              <Text style={{ color: !form.supplierId ? '#fff' : colors.textSub, fontFamily: fonts.semiBold, fontSize: 13 }}>None</Text>
+              <Text style={{ color: !form.supplierId ? '#fff' : colors.textSub, fontFamily: fonts.semiBold, fontSize: 13 }}>{t('noneLabel')}</Text>
             </TouchableOpacity>
             {suppliers.map(sup => {
               const active = form.supplierId === sup.id;
@@ -398,7 +398,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
         </Field>
 
         {/* Expiry date */}
-        <Field label="Expiry Date (optional)" colors={colors}>
+        <Field label={t('expiryDateOptional')} colors={colors}>
           <TouchableOpacity
             style={[s.input, { backgroundColor: colors.surface, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
             onPress={() => expiryPickerRef.current?.open()}
@@ -407,7 +407,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
             <Text style={{ fontFamily: fonts.regular, fontSize: 15, color: (form.expiryDay && form.expiryMonth && form.expiryYear) ? colors.text : colors.textMuted }}>
               {(form.expiryDay && form.expiryMonth && form.expiryYear)
                 ? `${form.expiryDay}/${form.expiryMonth}/${form.expiryYear}`
-                : 'Tap to select expiry date'}
+                : t('tapToSelectExpiry')}
             </Text>
             {(form.expiryDay || form.expiryMonth || form.expiryYear) ? (
               <TouchableOpacity onPress={() => setForm(f => ({ ...f, expiryDay: '', expiryMonth: '', expiryYear: '' }))} hitSlop={8}>

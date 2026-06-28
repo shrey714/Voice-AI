@@ -7,6 +7,7 @@ import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
 import { BUILTIN_EXPENSE_CATEGORIES, LOCKED_CATEGORIES, LOCKED_UNITS } from '../constants/options';
 import SettingInput from '../components/settings/SettingInput';
+import { useTranslation } from '../hooks/useTranslation';
 
 const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 
@@ -19,6 +20,7 @@ function OptionGroup({
   onAdd: (v: string) => void; onRemove: (v: string) => void;
   placeholder: string; colors: any;
 }) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState('');
   const s = makeStyles(colors);
 
@@ -26,7 +28,7 @@ function OptionGroup({
     const v = draft.trim();
     if (!v) return;
     const exists = [...readonly, ...items].some(x => x.toLowerCase() === v.toLowerCase());
-    if (exists) { Alert.alert('Already exists', `"${v}" is already in the list.`); return; }
+    if (exists) { Alert.alert(t('alreadyExists'), `"${v}" is already in the list.`); return; }
     onAdd(v);
     setDraft('');
   };
@@ -83,6 +85,7 @@ function OptionGroup({
 
 export default function ManageOptionsScreen() {
   const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const { settings, updateSettings } = useAppStore();
   const s = makeStyles(colors);
 
@@ -91,46 +94,42 @@ export default function ManageOptionsScreen() {
   const customExpense = settings.expenseCategories ?? [];
 
   const [gstRegistered, setGstRegistered] = useState(settings.gstRegistered || false);
-  const [gstin, setGstin] = useState(settings.gstin || '');
-  const [lowStock, setLowStock] = useState(String(settings.lowStockThreshold));
-  const [dailyGoal, setDailyGoal] = useState(settings.dailyGoal ? String(settings.dailyGoal) : '');
   const [btEnabled, setBtEnabled] = useState(settings.btScannerEnabled !== false);
   const toggleBt = (val: boolean) => { setBtEnabled(val); updateSettings({ btScannerEnabled: val }); };
-  const saveDailyGoal = () => updateSettings({ dailyGoal: parseInt(dailyGoal) || 0 });
 
   const toggleGst = (val: boolean) => { setGstRegistered(val); updateSettings({ gstRegistered: val }); };
-  const saveGstin = () => {
-    const v = gstin.trim().toUpperCase();
-    if (v && !GSTIN_RE.test(v)) { Alert.alert('Invalid GSTIN', 'GSTIN must be 15 characters, e.g. 22AAAAA0000A1Z5'); return; }
-    setGstin(v);
-    updateSettings({ gstin: v });
+  const saveGstin = (v: string) => {
+    const upper = v.trim().toUpperCase();
+    if (upper && !GSTIN_RE.test(upper)) { Alert.alert('Invalid GSTIN', 'GSTIN must be 15 characters, e.g. 22AAAAA0000A1Z5'); return; }
+    updateSettings({ gstin: upper });
   };
-  const saveLowStock = () => updateSettings({ lowStockThreshold: parseInt(lowStock) || 5 });
+  const saveLowStock = (v: string) => updateSettings({ lowStockThreshold: parseInt(v) || 5 });
+  const saveDailyGoal = (v: string) => updateSettings({ dailyGoal: parseInt(v) || 0 });
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={{ padding: 8, paddingBottom: 140 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Text style={[s.lead, { color: colors.textMuted }]}>
-          Customize how the app works for your shop. Changes save automatically.
+          {t('customizeApp')}
         </Text>
 
         {/* GST */}
         <View style={[s.section, { backgroundColor: colors.surface }]}>
           <View style={s.sectionHead}>
             <Ionicons name="document-text-outline" size={18} color={colors.primary} />
-            <Text style={[s.sectionTitle, { color: colors.text }]}>GST Settings</Text>
+            <Text style={[s.sectionTitle, { color: colors.text }]}>{t('gstSettings')}</Text>
           </View>
           <View style={[s.toggleRow, { borderBottomColor: colors.border }]}>
             <View style={{ flex: 1, paddingRight: 12 }}>
-              <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: colors.text }}>GST Registered</Text>
-              <Text style={[s.hint, { color: colors.textMuted, marginTop: 2 }]}>Show CGST+SGST breakdown on invoices</Text>
+              <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: colors.text }}>{t('gstRegistered')}</Text>
+              <Text style={[s.hint, { color: colors.textMuted, marginTop: 2 }]}>{t('showCgstSgst')}</Text>
             </View>
             <Switch value={gstRegistered} onValueChange={toggleGst} trackColor={{ true: colors.primary }} thumbColor="#fff" />
           </View>
           {gstRegistered ? (
-            <SettingInput label="GSTIN" value={gstin} onChangeText={(v: string) => setGstin(v.toUpperCase())} onBlur={saveGstin} placeholder="22AAAAA0000A1Z5" colors={colors} />
+            <SettingInput label="GSTIN" value={settings.gstin || ''} onBlur={saveGstin} placeholder="22AAAAA0000A1Z5" colors={colors} autoCapitalize="characters" />
           ) : (
-            <Text style={[s.hint, { color: colors.textMuted }]}>Enable if you are registered under GST. Bills become a "Tax Invoice" with CGST+SGST split.</Text>
+            <Text style={[s.hint, { color: colors.textMuted }]}>{t('enableGstHint')}</Text>
           )}
         </View>
 
@@ -138,40 +137,40 @@ export default function ManageOptionsScreen() {
         <View style={[s.section, { backgroundColor: colors.surface }]}>
           <View style={s.sectionHead}>
             <Ionicons name="notifications-outline" size={18} color={colors.primary} />
-            <Text style={[s.sectionTitle, { color: colors.text }]}>Alerts</Text>
+            <Text style={[s.sectionTitle, { color: colors.text }]}>{t('alertsSection')}</Text>
           </View>
-          <SettingInput label="Low Stock Alert Threshold" value={lowStock} onChangeText={setLowStock} onBlur={saveLowStock} keyboardType="numeric" placeholder="5" colors={colors} />
-          <Text style={[s.hint, { color: colors.textMuted }]}>Get notified when a product's stock falls to or below this number.</Text>
+          <SettingInput label={t('lowStockAlertThreshold')} value={String(settings.lowStockThreshold ?? 5)} onBlur={saveLowStock} keyboardType="numeric" placeholder="5" colors={colors} />
+          <Text style={[s.hint, { color: colors.textMuted }]}>{t('lowStockAlertHint')}</Text>
         </View>
 
         {/* Goals */}
         <View style={[s.section, { backgroundColor: colors.surface }]}>
           <View style={s.sectionHead}>
             <Ionicons name="flag-outline" size={18} color={colors.primary} />
-            <Text style={[s.sectionTitle, { color: colors.text }]}>Daily Goal</Text>
+            <Text style={[s.sectionTitle, { color: colors.text }]}>{t('dailyGoal')}</Text>
           </View>
-          <SettingInput label="Daily Sales Target (₹)" value={dailyGoal} onChangeText={setDailyGoal} onBlur={saveDailyGoal} keyboardType="numeric" placeholder="e.g. 10000" colors={colors} />
-          <Text style={[s.hint, { color: colors.textMuted }]}>Shows a progress ring on the home screen. Leave empty to hide it.</Text>
+          <SettingInput label={`${t('dailySalesTarget')} (₹)`} value={settings.dailyGoal ? String(settings.dailyGoal) : ''} onBlur={saveDailyGoal} keyboardType="numeric" placeholder="e.g. 10000" colors={colors} />
+          <Text style={[s.hint, { color: colors.textMuted }]}>{t('goalProgressHint')}</Text>
         </View>
 
         {/* Billing */}
         <View style={[s.section, { backgroundColor: colors.surface }]}>
           <View style={s.sectionHead}>
             <Ionicons name="bluetooth-outline" size={18} color={colors.primary} />
-            <Text style={[s.sectionTitle, { color: colors.text }]}>Billing</Text>
+            <Text style={[s.sectionTitle, { color: colors.text }]}>{t('billingSection')}</Text>
           </View>
           <View style={[s.toggleRow, { borderBottomColor: colors.border }]}>
             <View style={{ flex: 1, paddingRight: 12 }}>
-              <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: colors.text }}>Bluetooth Scanner</Text>
-              <Text style={[s.hint, { color: colors.textMuted, marginTop: 2 }]}>Capture barcodes from a Bluetooth HID scanner while billing</Text>
+              <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: colors.text }}>{t('bluetoothScanner')}</Text>
+              <Text style={[s.hint, { color: colors.textMuted, marginTop: 2 }]}>{t('bluetoothScannerHint')}</Text>
             </View>
             <Switch value={btEnabled} onValueChange={toggleBt} trackColor={{ true: colors.primary }} thumbColor="#fff" />
           </View>
-          <Text style={[s.hint, { color: colors.textMuted }]}>Turn off if you don't use a hardware scanner — the billing screen won't keep the keyboard input focused.</Text>
+          <Text style={[s.hint, { color: colors.textMuted }]}>{t('bluetoothScannerHint')}</Text>
         </View>
 
         <OptionGroup
-          title="Product Categories" icon="pricetags-outline"
+          title={t('category')} icon="pricetags-outline"
           hint="Used when adding products and filtering inventory."
           items={cats} locked={LOCKED_CATEGORIES}
           onAdd={(v) => updateSettings({ productCategories: [...cats, v] })}
@@ -180,8 +179,8 @@ export default function ManageOptionsScreen() {
         />
 
         <OptionGroup
-          title="Units" icon="cube-outline"
-          hint="Measurement units for products (pcs, kg, litre…)."
+          title={t('unitsLabel')} icon="cube-outline"
+          hint={t('unitsHint')}
           items={units} locked={LOCKED_UNITS}
           onAdd={(v) => updateSettings({ units: [...units, v] })}
           onRemove={(v) => updateSettings({ units: units.filter(u => u !== v) })}
@@ -189,8 +188,8 @@ export default function ManageOptionsScreen() {
         />
 
         <OptionGroup
-          title="Expense Categories" icon="wallet-outline"
-          hint="Built-in categories are fixed; add your own below."
+          title={t('expenseCategories')} icon="wallet-outline"
+          hint={t('builtInFixed')}
           items={customExpense}
           readonly={BUILTIN_EXPENSE_CATEGORIES.map(c => c.label)}
           onAdd={(v) => updateSettings({ expenseCategories: [...customExpense, v] })}

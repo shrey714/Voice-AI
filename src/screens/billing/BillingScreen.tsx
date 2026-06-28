@@ -112,15 +112,15 @@ export default function BillingScreen({ navigation }: any) {
         addToCart(product, ti.quantity);
       });
       if (skipped.length > 0) {
-        Alert.alert('Some items unavailable', `Skipped: ${skipped.join(', ')}`);
+        Alert.alert(t('someItemsUnavailable'), t('skippedItems').replace('{items}', skipped.join(', ')));
       }
     };
 
     if (cart.length > 0) {
-      Alert.alert(`Load "${template.name}"`, 'What should happen to the current cart?', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Add to cart', onPress: () => doLoad(true) },
-        { text: 'Replace cart', style: 'destructive', onPress: () => doLoad(false) },
+      Alert.alert(t('loadTemplate').replace('{name}', template.name), t('whatShouldHappenToCart'), [
+        { text: t('cancel'), style: 'cancel' },
+        { text: t('addToCart'), onPress: () => doLoad(true) },
+        { text: t('replaceCart'), style: 'destructive', onPress: () => doLoad(false) },
       ]);
     } else {
       doLoad(false);
@@ -128,9 +128,9 @@ export default function BillingScreen({ navigation }: any) {
   }, [cart, products, clearCart, addToCart]);
 
   const handleDeleteTemplate = useCallback((id: string, name: string) => {
-    Alert.alert(`Delete "${name}"?`, 'This template will be permanently removed.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => deleteTemplate(id) },
+    Alert.alert(t('deleteTemplateConfirm').replace('{name}', name), t('permanentlyRemoved'), [
+      { text: t('cancel'), style: 'cancel' },
+      { text: t('delete'), style: 'destructive', onPress: () => deleteTemplate(id) },
     ]);
   }, [deleteTemplate]);
 
@@ -164,7 +164,7 @@ export default function BillingScreen({ navigation }: any) {
       ? `whatsapp://send?phone=${digits.length === 10 ? '91' + digits : digits}&text=${encoded}`
       : `whatsapp://send?text=${encoded}`;
     Linking.openURL(url).catch(() =>
-      Alert.alert('WhatsApp not found', 'Please install WhatsApp to share bills.')
+      Alert.alert(t('whatsappNotFound'), t('installWhatsappShareBills'))
     );
   }, [settings.shopName, settings.currency]);
 
@@ -199,17 +199,17 @@ export default function BillingScreen({ navigation }: any) {
     if (!product) {
       console.log('[BT] product NOT found for barcode:', barcode);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.error(`Not in inventory: ${barcode}`);
+      toast.error(t('notInInventory').replace('{barcode}', barcode));
     } else if (product.quantity <= 0) {
       console.log('[BT] product out of stock:', product.name);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.error(`${product.name} — out of stock`);
+      toast.error(t('outOfStockItem').replace('{name}', product.name));
     } else {
       const cartQty = cart.find(ci => ci.product.id === product.id)?.quantity ?? 0;
       if (cartQty >= product.quantity) {
         console.log('[BT] already at max stock:', product.name);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        toast.warning(`${product.name} — only ${product.quantity} in stock`);
+        toast.warning(t('onlyInStock').replace('{name}', product.name).replace('{qty}', String(product.quantity)));
       } else {
         console.log('[BT] adding to cart:', product.name);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -249,12 +249,12 @@ export default function BillingScreen({ navigation }: any) {
     if (product) {
       if (product.quantity <= 0) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        toast.error(`${product.name} — out of stock`);
+        toast.error(t('outOfStockItem').replace('{name}', product.name));
       } else {
         const cartQty = cart.find(ci => ci.product.id === product.id)?.quantity ?? 0;
         if (cartQty >= product.quantity) {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          toast.warning(`${product.name} — only ${product.quantity} in stock`);
+        toast.warning(t('onlyInStock').replace('{name}', product.name).replace('{qty}', String(product.quantity)));
         } else {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           addToCart(product);
@@ -264,12 +264,12 @@ export default function BillingScreen({ navigation }: any) {
       refocusBtInput();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.error(`Not in inventory: ${barcode}`);
+      toast.error(t('notInInventory').replace('{barcode}', barcode));
       // Delay Alert until the full-screen modal has fully closed, otherwise it conflicts on Android
       setTimeout(() => {
-        Alert.alert('Add to Inventory?', `No product with barcode "${barcode}". Create one now?`, [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Create', onPress: () => navigation.navigate('Inventory', { screen: 'InventoryMain', params: { openAdd: true, prefillBarcode: barcode } }) },
+        Alert.alert(t('addToInventory'), t('noProductWithBarcode').replace('{barcode}', barcode), [
+          { text: t('cancel'), style: 'cancel' },
+          { text: t('create'), onPress: () => navigation.navigate('Inventory', { screen: 'InventoryMain', params: { openAdd: true, prefillBarcode: barcode } }) },
         ]);
       }, 500);
     }
@@ -279,7 +279,7 @@ export default function BillingScreen({ navigation }: any) {
     if (cart.length === 0) return;
     // Credit sales must be attributable to someone, or the debt is untrackable.
     if (paymentMode === 'credit' && !customerName.trim() && !customerPhone.trim()) {
-      Alert.alert('Customer needed for credit', 'Enter a customer name or phone for credit sales so you can track who owes you.');
+      Alert.alert(t('customerNeededForCredit'), t('customerNeededForCreditMsg'));
       return;
     }
     setProcessing(true);
@@ -304,12 +304,12 @@ export default function BillingScreen({ navigation }: any) {
   return (
     <View style={[s.container, { backgroundColor: colors.bg }]}>
       {/* Top bar */}
-      <View style={[s.topBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View style={[s.topBar, { backgroundColor: colors.surface }]}>
         <View style={[s.searchBox, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
           <Ionicons name="search-outline" size={16} color={colors.textMuted} style={{ marginRight: 6 }} />
           <TextInput
             style={[s.searchInput, { color: colors.text }]}
-            placeholder={`${t('search')} products...`}
+            placeholder={t('searchProducts')}
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholderTextColor={colors.textMuted}
@@ -335,7 +335,7 @@ export default function BillingScreen({ navigation }: any) {
       {/* Quick chips or search results */}
       {searchQuery.length === 0 ? (
         <View>
-          <Text style={[s.sectionLabel, { color: colors.textMuted }]}>Quick Add</Text>
+          <Text style={[s.sectionLabel, { color: colors.textMuted }]}>{t('quickAdd')}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', paddingBottom: 8 }}>
             {/* Fixed Templates access button — NOT in scroll */}
             <TouchableOpacity
@@ -403,8 +403,8 @@ export default function BillingScreen({ navigation }: any) {
           ListEmptyComponent={
             <EmptyState
               icon="search-outline"
-              title="No products found"
-              subtitle="Try a different name or barcode"
+              title={t('noProductsFound')}
+              subtitle={t('tryDifferentNameOrBarcode')}
             />
           }
         />
@@ -415,7 +415,7 @@ export default function BillingScreen({ navigation }: any) {
         <View style={[s.cartHeader, { borderBottomColor: colors.border }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Ionicons name="cart" size={18} color={colors.primary} />
-            <Text style={[s.cartTitle, { color: colors.text }]}>Cart</Text>
+            <Text style={[s.cartTitle, { color: colors.text }]}>{t('cart')}</Text>
             {cart.length > 0 && (
               <MotiView key={cart.length} from={{ scale: 1.25, opacity: 0.5 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'timing', duration: 200 }}
                 style={[s.cartBadge, { backgroundColor: colors.primary }]}>
@@ -431,7 +431,7 @@ export default function BillingScreen({ navigation }: any) {
               </TouchableOpacity>
               <TouchableOpacity onPress={clearCart} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                 <Ionicons name="trash-outline" size={14} color={colors.danger} />
-                <Text style={{ color: colors.danger, fontFamily: fonts.semiBold, fontSize: 12 }}>Clear</Text>
+                <Text style={{ color: colors.danger, fontFamily: fonts.semiBold, fontSize: 12 }}>{t('clear')}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -440,8 +440,8 @@ export default function BillingScreen({ navigation }: any) {
         {cart.length === 0 ? (
           <EmptyState
             icon="cart-outline"
-            title="Cart is empty"
-            subtitle="Scan a barcode or search for items"
+            title={t('cartIsEmpty')}
+            subtitle={t('scanBarcodeOrSearchForItems')}
           />
         ) : (
           <ScrollView style={s.cartItems} nestedScrollEnabled>
@@ -451,7 +451,7 @@ export default function BillingScreen({ navigation }: any) {
                 <View style={[s.cartItem, { borderBottomColor: colors.border }]}>
                   <View style={{ flex: 1 }}>
                     <Text style={[s.cartItemName, { color: colors.text }]} numberOfLines={1}>{item.product.name}</Text>
-                    <Text style={[s.cartItemPrice, { color: colors.textMuted }]}>{formatCurrency(item.product.sellingPrice, settings.currency)} each</Text>
+                    <Text style={[s.cartItemPrice, { color: colors.textMuted }]}>{formatCurrency(item.product.sellingPrice, settings.currency)} {t('each')}</Text>
                   </View>
                   <View style={s.qtyRow}>
                     <TouchableOpacity style={[s.qtyBtn, { backgroundColor: colors.surfaceHigh }]} onPress={() => updateCartQuantity(item.product.id, item.quantity - 1)}>
@@ -520,10 +520,10 @@ export default function BillingScreen({ navigation }: any) {
               <Ionicons name="logo-whatsapp" size={22} color="#fff" />
               <Text style={s.waBtnText}>
                 {lastBill.customerName
-                  ? `Send to ${lastBill.customerName}`
-                  : lastBill.customerPhone
-                  ? `Send to ${lastBill.customerPhone}`
-                  : 'Share via WhatsApp'}
+                   ? t('sendTo').replace('{name}', lastBill.customerName)
+                   : lastBill.customerPhone
+                   ? t('sendToPhone').replace('{phone}', lastBill.customerPhone)
+                   : t('shareViaWhatsapp')}
               </Text>
             </TouchableOpacity>
             {!!settings.upiId && (
@@ -533,11 +533,11 @@ export default function BillingScreen({ navigation }: any) {
                 activeOpacity={0.85}
               >
                 <Ionicons name="qr-code-outline" size={20} color={colors.primary} />
-                <Text style={[s.upiBtnText, { color: colors.primary }]}>Show UPI QR</Text>
+                 <Text style={[s.upiBtnText, { color: colors.primary }]}>{t('showUpiQr')}</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity style={s.doneBtn} onPress={closeCheckout}>
-              <Text style={[s.doneLink, { color: colors.textMuted }]}>Done</Text>
+              <Text style={[s.doneLink, { color: colors.textMuted }]}>{t('done')}</Text>
             </TouchableOpacity>
           </MotiView>
         ) : null}
@@ -545,28 +545,28 @@ export default function BillingScreen({ navigation }: any) {
         <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
           <Text style={[s.modalTitle, { color: colors.text }]}>{t('generateBill')}</Text>
 
-          <Text style={[s.modalLabel, { color: colors.textSub }]}>Customer name</Text>
+          <Text style={[s.modalLabel, { color: colors.textSub }]}>{t('customerName')}</Text>
           <BottomSheetTextInput
             style={[s.modalInput, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
-            placeholder="Optional" value={customerName} onChangeText={setCustomerName}
+            placeholder={t('optional')} value={customerName} onChangeText={setCustomerName}
             placeholderTextColor={colors.textMuted}
           />
 
-          <Text style={[s.modalLabel, { color: colors.textSub }]}>Phone number</Text>
+          <Text style={[s.modalLabel, { color: colors.textSub }]}>{t('phoneNumber')}</Text>
           <BottomSheetTextInput
             style={[s.modalInput, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
-            placeholder="Optional" value={customerPhone} onChangeText={setCustomerPhone}
+            placeholder={t('optional')} value={customerPhone} onChangeText={setCustomerPhone}
             keyboardType="phone-pad" placeholderTextColor={colors.textMuted}
           />
           {paymentMode === 'credit' && (
             <Text style={{ color: colors.textMuted, fontFamily: fonts.regular, fontSize: 12, marginTop: 4 }}>
-              Credit sales are added to this customer's Udhaar (credit book).
+              {t('creditSalesAddedToUdhaar')}
             </Text>
           )}
 
           {settings.gstRegistered && (
-            <>
-              <Text style={[s.modalLabel, { color: colors.textSub }]}>Customer GSTIN (optional)</Text>
+             <>
+               <Text style={[s.modalLabel, { color: colors.textSub }]}>{t('customerGstin')}</Text>
               <BottomSheetTextInput
                 style={[s.modalInput, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
                 placeholder="22AAAAA0000A1Z5" value={customerGstin} onChangeText={setCustomerGstin}
@@ -581,7 +581,7 @@ export default function BillingScreen({ navigation }: any) {
             value={discount} onChangeText={setDiscount} keyboardType="numeric" placeholderTextColor={colors.textMuted}
           />
 
-          <Text style={[s.modalLabel, { color: colors.textSub }]}>Payment Mode</Text>
+          <Text style={[s.modalLabel, { color: colors.textSub }]}>{t('paymentMode')}</Text>
           <View style={s.paymentRow}>
             {(['cash', 'upi', 'credit'] as const).map(mode => {
               const active = paymentMode === mode;
@@ -591,7 +591,7 @@ export default function BillingScreen({ navigation }: any) {
                   onPress={() => setPaymentMode(mode)}>
                   <Ionicons name={mode === 'cash' ? 'cash-outline' : mode === 'upi' ? 'phone-portrait-outline' : 'document-text-outline'} size={15} color={active ? '#fff' : mc} />
                   <Text style={{ color: active ? '#fff' : mc, fontFamily: fonts.bold, fontSize: 12 }}>
-                    {mode === 'cash' ? 'Cash' : mode === 'upi' ? 'UPI' : 'Credit'}
+                    {mode === 'cash' ? t('cash') : mode === 'upi' ? t('upi') : t('credit')}
                   </Text>
                 </TouchableOpacity>
               );
@@ -610,7 +610,7 @@ export default function BillingScreen({ navigation }: any) {
               <View style={[s.summaryBox, { backgroundColor: colors.surfaceHigh }]}>
                 <View style={s.summaryRow}>
                   <Text style={{ color: colors.textSub, fontFamily: fonts.regular, fontSize: 14 }}>
-                    {settings.gstRegistered ? 'Taxable Value' : 'Subtotal'}
+                     {settings.gstRegistered ? t('taxableValue') : t('subtotal')}
                   </Text>
                   <Text style={{ color: colors.text, fontFamily: fonts.regular, fontSize: 14 }}>
                     {formatCurrency(settings.gstRegistered ? totalTaxable : cartTotal, settings.currency)}
@@ -619,11 +619,11 @@ export default function BillingScreen({ navigation }: any) {
                 {settings.gstRegistered && totalGstAmt > 0 && (
                   <>
                     <View style={s.summaryRow}>
-                      <Text style={{ color: colors.textSub, fontFamily: fonts.regular, fontSize: 13 }}>CGST</Text>
+                      <Text style={{ color: colors.textSub, fontFamily: fonts.regular, fontSize: 13 }}>{t('cgst')}</Text>
                       <Text style={{ color: colors.textSub, fontFamily: fonts.regular, fontSize: 13 }}>{formatCurrency(totalGstAmt / 2, settings.currency)}</Text>
                     </View>
                     <View style={s.summaryRow}>
-                      <Text style={{ color: colors.textSub, fontFamily: fonts.regular, fontSize: 13 }}>SGST</Text>
+                       <Text style={{ color: colors.textSub, fontFamily: fonts.regular, fontSize: 13 }}>{t('sgst')}</Text>
                       <Text style={{ color: colors.textSub, fontFamily: fonts.regular, fontSize: 13 }}>{formatCurrency(totalGstAmt / 2, settings.currency)}</Text>
                     </View>
                   </>
@@ -663,7 +663,7 @@ export default function BillingScreen({ navigation }: any) {
           <Pressable style={[s.qrCard, { backgroundColor: colors.surface }]} onPress={() => {}}>
             {/* Header */}
             <View style={s.qrCardHeader}>
-              <Text style={[s.qrCardTitle, { color: colors.text }]}>UPI Payment</Text>
+              <Text style={[s.qrCardTitle, { color: colors.text }]}>{t('upiPayment')}</Text>
               <TouchableOpacity onPress={() => setShowUpiQr(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
                 <Ionicons name="close" size={22} color={colors.textSub} />
               </TouchableOpacity>
@@ -690,7 +690,7 @@ export default function BillingScreen({ navigation }: any) {
               {settings.upiId}
             </Text>
             <Text style={[s.qrScanHint, { color: colors.textSub }]}>
-              Scan with any UPI app to pay
+              {t('scanWithUpi')}
             </Text>
           </Pressable>
         </Pressable>
@@ -710,10 +710,10 @@ export default function BillingScreen({ navigation }: any) {
           {/* Header */}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
             <View>
-              <Text style={[s.modalTitle, { color: colors.text }]}>Templates</Text>
-              <Text style={{ fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted, marginTop: 3 }}>
-                {templates.length === 0 ? 'No templates yet' : `${templates.length} saved template${templates.length !== 1 ? 's' : ''}`}
-              </Text>
+               <Text style={[s.modalTitle, { color: colors.text }]}>{t('templates')}</Text>
+               <Text style={{ fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted, marginTop: 3 }}>
+                 {templates.length === 0 ? t('noTemplatesYet') : templates.length === 1 ? t('savedTemplate').replace('{count}', String(templates.length)) : t('savedTemplatePlural').replace('{count}', String(templates.length))}
+               </Text>
             </View>
             <TouchableOpacity onPress={closeTemplatesSheet} style={{ padding: 4 }}>
               <Ionicons name="close" size={22} color={colors.textSub} />
@@ -725,10 +725,10 @@ export default function BillingScreen({ navigation }: any) {
               <View style={[s.emptyIconBox, { backgroundColor: colors.primaryLight }]}>
                 <Ionicons name="bookmark-outline" size={32} color={colors.primary} />
               </View>
-              <Text style={{ fontFamily: fonts.bold, fontSize: 15, color: colors.text }}>No templates yet</Text>
-              <Text style={{ fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted, textAlign: 'center', maxWidth: 240 }}>
-                Build a cart, then tap the bookmark icon next to "Clear" to save it as a template.
-              </Text>
+               <Text style={{ fontFamily: fonts.bold, fontSize: 15, color: colors.text }}>{t('noTemplatesYet')}</Text>
+               <Text style={{ fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted, textAlign: 'center', maxWidth: 240 }}>
+                 {t('buildCartToSaveTemplate')}
+               </Text>
             </View>
           ) : (
             templates.map(tmpl => {
@@ -828,12 +828,12 @@ export default function BillingScreen({ navigation }: any) {
       >
         <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-            <Text style={[s.modalTitle, { color: colors.text }]}>Rename Template</Text>
+            <Text style={[s.modalTitle, { color: colors.text }]}>{t('renameTemplate')}</Text>
             <TouchableOpacity onPress={closeRenameSheet}>
               <Ionicons name="close" size={22} color={colors.textSub} />
             </TouchableOpacity>
           </View>
-          <Text style={[s.modalLabel, { color: colors.textSub }]}>New name</Text>
+          <Text style={[s.modalLabel, { color: colors.textSub }]}>{t('newName')}</Text>
           <BottomSheetTextInput
             style={[s.modalInput, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
             value={renameName}
@@ -847,8 +847,8 @@ export default function BillingScreen({ navigation }: any) {
             onPress={handleRename}
             disabled={!renameName.trim() || renameSaving}
           >
-            <Text style={{ color: '#fff', fontFamily: fonts.extraBold, fontSize: 15 }}>
-              {renameSaving ? 'Saving…' : 'Save Name'}
+             <Text style={{ color: '#fff', fontFamily: fonts.extraBold, fontSize: 15 }}>
+               {renameSaving ? t('saving') : t('saveName')}
             </Text>
           </TouchableOpacity>
         </BottomSheetScrollView>
@@ -869,23 +869,23 @@ export default function BillingScreen({ navigation }: any) {
       >
         <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-            <Text style={[s.modalTitle, { color: colors.text }]}>Save as Template</Text>
+             <Text style={[s.modalTitle, { color: colors.text }]}>{t('saveAsTemplate')}</Text>
             <TouchableOpacity onPress={closeSaveSheet}>
               <Ionicons name="close" size={22} color={colors.textSub} />
             </TouchableOpacity>
           </View>
-          <Text style={[s.modalLabel, { color: colors.textSub }]}>Template name</Text>
-          <BottomSheetTextInput
-            style={[s.modalInput, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
-            placeholder="e.g. Regular Ramesh order"
-            placeholderTextColor={colors.textMuted}
-            value={templateName}
-            onChangeText={setTemplateName}
-            returnKeyType="done"
-            onSubmitEditing={handleSaveTemplate}
-          />
+           <Text style={[s.modalLabel, { color: colors.textSub }]}>{t('templateName')}</Text>
+           <BottomSheetTextInput
+             style={[s.modalInput, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
+             placeholder={t('templatePlaceholder')}
+             placeholderTextColor={colors.textMuted}
+             value={templateName}
+             onChangeText={setTemplateName}
+             returnKeyType="done"
+             onSubmitEditing={handleSaveTemplate}
+           />
           <Text style={[{ color: colors.textMuted, fontFamily: fonts.regular, fontSize: 12, marginBottom: 16 }]}>
-            {cart.length} item{cart.length !== 1 ? 's' : ''} will be saved · Long-press a template chip to delete it
+            {cart.length === 1 ? t('itemWillBeSaved').replace('{count}', String(cart.length)) : t('itemsWillBeSaved').replace('{count}', String(cart.length))}
           </Text>
           <TouchableOpacity
             style={[s.confirmBtn, { backgroundColor: templateName.trim() ? colors.primary : colors.border }]}
@@ -893,7 +893,7 @@ export default function BillingScreen({ navigation }: any) {
             disabled={!templateName.trim() || savingTemplate}
           >
             <Text style={{ color: '#fff', fontFamily: fonts.extraBold, fontSize: 15 }}>
-              {savingTemplate ? 'Saving…' : 'Save Template'}
+              {savingTemplate ? t('saving') : t('saveTemplate')}
             </Text>
           </TouchableOpacity>
         </BottomSheetScrollView>
@@ -951,7 +951,7 @@ export default function BillingScreen({ navigation }: any) {
 
 const makeStyles = (c: any) => StyleSheet.create({
   container: { flex: 1 },
-  topBar: { flexDirection: 'row', padding: 12, gap: 10, alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth },
+  topBar: { flexDirection: 'row', padding: 12, gap: 10, alignItems: 'center', borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
   searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1 },
   searchInput: { flex: 1, fontSize: 14, padding: 0, fontFamily: fonts.regular },
   iconBtn: { alignItems: 'center', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, justifyContent: 'center', borderWidth: 0.5 },

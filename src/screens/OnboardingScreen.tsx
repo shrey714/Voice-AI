@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useAppStore } from '../stores/useAppStore';
 import { fonts } from '../theme/typography';
+import { useTranslation } from '../hooks/useTranslation';
 
 const SAGE = '#5B7567';
 const SAGE_DARK = '#3E4F44';
@@ -54,19 +55,20 @@ function BrandBadge() {
 type StepKey = 'welcome' | 'shop' | 'contact' | 'upi' | 'gst' | 'goal';
 const ORDER: StepKey[] = ['welcome', 'shop', 'contact', 'upi', 'gst', 'goal'];
 
-const COPY: Record<StepKey, { tag?: string; icon?: string; title: string; sub: string }> = {
-  welcome: { title: "Let's set up your shop", sub: 'A minute now, and every bill, report, and payment is ready to roll.' },
-  shop:    { tag: 'STEP 1', icon: 'storefront-outline', title: 'Tell us about your shop', sub: 'This shows on your bills and your UPI payment QR.' },
-  contact: { tag: 'STEP 2', icon: 'call-outline', title: 'How can people reach you?', sub: 'Printed on bills so customers can contact you. All optional.' },
-  upi:     { tag: 'STEP 3', icon: 'qr-code-outline', title: 'Get paid in seconds', sub: 'Add your UPI ID to show a scan-and-pay QR at checkout.' },
-  gst:     { tag: 'STEP 4', icon: 'document-text-outline', title: 'Do you bill with GST?', sub: 'Turn it on to print proper tax invoices with CGST + SGST.' },
-  goal:    { tag: 'STEP 5', icon: 'flag-outline', title: 'Set a daily goal', sub: 'Track your progress with a goal ring on the home screen. You can change it anytime.' },
-};
-
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const { settings, updateSettings } = useAppStore();
+  const { t } = useTranslation();
   const [step, setStep] = useState(0);
+
+  const COPY: Record<StepKey, { tag?: string; icon?: string; title: string; sub: string }> = {
+    welcome: { title: t('letsSetUpShop'), sub: t('onboardingLead') },
+    shop:    { tag: t('stepN').replace('{n}', '1'), icon: 'storefront-outline', title: t('tellUsAboutShop'), sub: t('showsOnBillsUpi') },
+    contact: { tag: t('stepN').replace('{n}', '2'), icon: 'call-outline', title: t('howCanPeopleReach'), sub: t('printedOnBills') },
+    upi:     { tag: t('stepN').replace('{n}', '3'), icon: 'qr-code-outline', title: t('getPaidInSeconds'), sub: t('addUpiForQr') },
+    gst:     { tag: t('stepN').replace('{n}', '4'), icon: 'document-text-outline', title: t('doBillWithGst'), sub: t('enableGstForInvoice') },
+    goal:    { tag: t('stepN').replace('{n}', '5'), icon: 'flag-outline', title: t('setDailyGoalStep'), sub: t('trackGoalRing') },
+  };
 
   // Pre-fill from existing settings (so "Run setup again" shows current values).
   const [shopName, setShopName] = useState(settings.shopName === 'My Shop' ? '' : settings.shopName);
@@ -83,16 +85,16 @@ export default function OnboardingScreen() {
   const tap = () => Haptics.selectionAsync().catch(() => {});
 
   const isLast = step === ORDER.length - 1;
-  const primaryLabel = step === 0 ? 'Get Started' : isLast ? 'Finish setup' : 'Continue';
+  const primaryLabel = step === 0 ? t('getStarted') : isLast ? t('finishSetup') : t('continueBtn');
   const primaryIcon = isLast ? 'checkmark' : 'arrow-forward';
   const primaryDisabled = key === 'shop' && !shopName.trim();
   const showSkip = step < ORDER.length - 1;
-  const skipLabel = step === 0 ? 'Skip for now' : 'Skip this step';
+  const skipLabel = step === 0 ? t('skipForNow') : t('skipThisStep');
 
   const persist = async (done: boolean) => {
     const g = gstin.trim().toUpperCase();
     if (done && gstRegistered && g && !GSTIN_RE.test(g)) {
-      Alert.alert('Invalid GSTIN', 'GSTIN must be 15 characters, e.g. 22AAAAA0000A1Z5');
+      Alert.alert(t('invalidGstin'), t('gstinMustBe15'));
       return false;
     }
     await updateSettings({
@@ -160,25 +162,25 @@ export default function OnboardingScreen() {
 
               {key === 'shop' && (
                 <View style={{ marginTop: 22 }}>
-                  <Field label="Shop name *"><TextInput style={s.input} value={shopName} onChangeText={setShopName} placeholder="e.g. Sharma General Store" placeholderTextColor="rgba(255,255,255,0.5)" returnKeyType="next" /></Field>
-                  <Field label="Owner name"><TextInput style={s.input} value={ownerName} onChangeText={setOwnerName} placeholder="Your name" placeholderTextColor="rgba(255,255,255,0.5)" returnKeyType="done" /></Field>
+                  <Field label={`${t('shopName')} *`}><TextInput style={s.input} value={shopName} onChangeText={setShopName} placeholder="e.g. Sharma General Store" placeholderTextColor="rgba(255,255,255,0.5)" returnKeyType="next" /></Field>
+                  <Field label={t('ownerName')}><TextInput style={s.input} value={ownerName} onChangeText={setOwnerName} placeholder={t('yourName')} placeholderTextColor="rgba(255,255,255,0.5)" returnKeyType="done" /></Field>
                 </View>
               )}
               {key === 'contact' && (
                 <View style={{ marginTop: 22 }}>
-                  <Field label="Phone"><TextInput style={s.input} value={phone} onChangeText={setPhone} placeholder="+91 XXXXX XXXXX" placeholderTextColor="rgba(255,255,255,0.5)" keyboardType="phone-pad" /></Field>
-                  <Field label="Shop address"><TextInput style={[s.input, { height: 88, textAlignVertical: 'top' }]} value={address} onChangeText={setAddress} placeholder="Street, area, city" placeholderTextColor="rgba(255,255,255,0.5)" multiline /></Field>
+                  <Field label={t('phone')}><TextInput style={s.input} value={phone} onChangeText={setPhone} placeholder="+91 XXXXX XXXXX" placeholderTextColor="rgba(255,255,255,0.5)" keyboardType="phone-pad" /></Field>
+                  <Field label={t('address')}><TextInput style={[s.input, { height: 88, textAlignVertical: 'top' }]} value={address} onChangeText={setAddress} placeholder={t('streetAreaCity')} placeholderTextColor="rgba(255,255,255,0.5)" multiline /></Field>
                 </View>
               )}
               {key === 'upi' && (
                 <View style={{ marginTop: 22 }}>
-                  <Field label="UPI ID"><TextInput style={s.input} value={upiId} onChangeText={setUpiId} placeholder="yourname@upi" placeholderTextColor="rgba(255,255,255,0.5)" autoCapitalize="none" keyboardType="email-address" /></Field>
+                  <Field label={t('upiId')}><TextInput style={s.input} value={upiId} onChangeText={setUpiId} placeholder="yourname@upi" placeholderTextColor="rgba(255,255,255,0.5)" autoCapitalize="none" keyboardType="email-address" /></Field>
                 </View>
               )}
               {key === 'gst' && (
                 <View style={{ marginTop: 22 }}>
                   <View style={s.toggleRow}>
-                    <Text style={s.toggleLabel}>I'm registered under GST</Text>
+                    <Text style={s.toggleLabel}>{t('registeredUnderGst')}</Text>
                     <Switch value={gstRegistered} onValueChange={(v) => { tap(); setGstRegistered(v); }} trackColor={{ true: CREAM, false: 'rgba(255,255,255,0.25)' }} thumbColor={gstRegistered ? SAGE : '#fff'} />
                   </View>
                   {gstRegistered && (
@@ -190,7 +192,7 @@ export default function OnboardingScreen() {
               )}
               {key === 'goal' && (
                 <View style={{ marginTop: 22 }}>
-                  <Field label="Daily sales target (₹)"><TextInput style={s.input} value={dailyGoal} onChangeText={setDailyGoal} placeholder="e.g. 10000" placeholderTextColor="rgba(255,255,255,0.5)" keyboardType="number-pad" /></Field>
+                  <Field label={`${t('dailySalesTarget')} (₹)`}><TextInput style={s.input} value={dailyGoal} onChangeText={setDailyGoal} placeholder="e.g. 10000" placeholderTextColor="rgba(255,255,255,0.5)" keyboardType="number-pad" /></Field>
                 </View>
               )}
             </MotiView>

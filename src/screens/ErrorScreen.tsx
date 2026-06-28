@@ -6,8 +6,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView } from 'moti';
 import { fonts } from '../theme/typography';
 import { BRAND, BrandDecorations } from '../components/common/brandKit';
+import { useTranslation } from '../hooks/useTranslation';
 
 export default function ErrorScreen({ message, onRetry }: { message?: string; onRetry?: () => void }) {
+  const { t } = useTranslation();
   return (
     <LinearGradient colors={[BRAND.sage, BRAND.sageDark]} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }} style={s.fill}>
       <BrandDecorations />
@@ -16,13 +18,13 @@ export default function ErrorScreen({ message, onRetry }: { message?: string; on
           <View style={s.iconCircle}>
             <Ionicons name="cloud-offline-outline" size={44} color={BRAND.cream} />
           </View>
-          <Text style={s.title}>Something went wrong</Text>
-          <Text style={s.sub}>{message || "We couldn't load your shop data. Please check your connection and try again."}</Text>
+          <Text style={s.title}>{t('somethingWentWrong')}</Text>
+          <Text style={s.sub}>{message || t('couldntLoadData')}</Text>
 
           {onRetry && (
             <TouchableOpacity style={s.btn} onPress={onRetry} activeOpacity={0.85}>
               <Ionicons name="refresh" size={18} color={BRAND.sageDark} />
-              <Text style={s.btnText}>Try again</Text>
+              <Text style={s.btnText}>{t('tryAgain')}</Text>
             </TouchableOpacity>
           )}
         </MotiView>

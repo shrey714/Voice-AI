@@ -8,42 +8,44 @@ import { useAppTheme } from "../theme";
 import { fonts } from "../theme/typography";
 import { formatCurrency, startOfDay, endOfDay } from "../utils/helpers";
 import { computeSalesStats, makeCostOf } from "../utils/stats";
+import { useTranslation } from "../hooks/useTranslation";
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
 
 type Item = { label: string; sub: string; icon: IoniconsName; screen: string };
 
-const SECTIONS: { title: string; items: Item[] }[] = [
-  {
-    title: "BUSINESS",
-    items: [
-      { label: "Analytics", sub: "Revenue & profit charts", icon: "bar-chart-outline", screen: "Analytics" },
-      { label: "Expenses", sub: "Track shop costs", icon: "wallet-outline", screen: "Expenses" },
-      { label: "Day Close", sub: "Count cash & reconcile drawer", icon: "lock-closed-outline", screen: "DayClose" },
-      { label: "Udhaar", sub: "Customer credit book", icon: "book-outline", screen: "Udhaar" },
-    ],
-  },
-  {
-    title: "STOCK & SUPPLIERS",
-    items: [
-      { label: "Suppliers", sub: "Manage your vendors", icon: "business-outline", screen: "Supplier" },
-      { label: "Purchases", sub: "Stock receipts & payables", icon: "receipt-outline", screen: "Purchases" },
-      { label: "Reorder Stock", sub: "Restock low items via WhatsApp", icon: "refresh-outline", screen: "Reorder" },
-      { label: "Stock Take", sub: "Count shelves & fix discrepancies", icon: "checkmark-circle-outline", screen: "StockTake" },
-      { label: "Quick Edit", sub: "Swipe to update prices & stock fast", icon: "albums-outline", screen: "QuickEdit" },
-    ],
-  },
-  {
-    title: "APP",
-    items: [
-      { label: "Settings", sub: "Shop info, preferences & backup", icon: "settings-outline", screen: "Settings" },
-    ],
-  },
-];
-
 export default function MenuScreen({ navigation }: any) {
   const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const { bills, products, returns, settings } = useAppStore();
+
+  const SECTIONS: { title: string; items: Item[] }[] = [
+    {
+      title: t('business').toUpperCase(),
+      items: [
+        { label: t('analytics'), sub: t('revenueAndProfitCharts'), icon: "bar-chart-outline", screen: "Analytics" },
+        { label: t('expenses'), sub: t('trackShopCosts'), icon: "wallet-outline", screen: "Expenses" },
+        { label: t('dayClose'), sub: t('countCashReconcile'), icon: "lock-closed-outline", screen: "DayClose" },
+        { label: 'Udhaar', sub: t('customerCreditBook'), icon: "book-outline", screen: "Udhaar" },
+      ],
+    },
+    {
+      title: t('stockAndSuppliers').toUpperCase(),
+      items: [
+        { label: t('suppliers'), sub: t('manageVendors'), icon: "business-outline", screen: "Supplier" },
+        { label: 'Purchases', sub: t('stockReceiptsPayables'), icon: "receipt-outline", screen: "Purchases" },
+        { label: 'Reorder Stock', sub: t('restockViaWhatsapp'), icon: "refresh-outline", screen: "Reorder" },
+        { label: 'Stock Take', sub: t('countShelvesDiscrepancies'), icon: "checkmark-circle-outline", screen: "StockTake" },
+        { label: t('quickEdit'), sub: t('swipeUpdateFast'), icon: "albums-outline", screen: "QuickEdit" },
+      ],
+    },
+    {
+      title: t('app').toUpperCase(),
+      items: [
+        { label: t('settings'), sub: t('shopInfoPrefsBackup'), icon: "settings-outline", screen: "Settings" },
+      ],
+    },
+  ];
   const s = makeStyles(colors);
 
   const todayRevenue = computeSalesStats({
@@ -72,27 +74,24 @@ export default function MenuScreen({ navigation }: any) {
     <View style={{ backgroundColor: colors.bg, flex: 1 }}>
 
         {/* Stats card */}
-        <MotiView
-          from={{ opacity: 0, translateY: -10 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: "timing", duration: 320 }}
-          style={[s.statsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        <View
+          style={[s.statsCard, { backgroundColor: colors.surface }]}
         >
           <View style={s.statItem}>
             <Text style={[s.statVal, { color: colors.primary }]}>{products.length}</Text>
-            <Text style={[s.statLbl, { color: colors.textMuted }]}>Products</Text>
+            <Text style={[s.statLbl, { color: colors.textMuted }]}>{t('products')}</Text>
           </View>
           <View style={[s.statDivider, { backgroundColor: colors.border }]} />
           <View style={s.statItem}>
             <Text style={[s.statVal, { color: colors.success }]}>{formatCurrency(todayRevenue, settings.currency)}</Text>
-            <Text style={[s.statLbl, { color: colors.textMuted }]}>Today</Text>
+            <Text style={[s.statLbl, { color: colors.textMuted }]}>{t('today')}</Text>
           </View>
           <View style={[s.statDivider, { backgroundColor: colors.border }]} />
           <View style={s.statItem}>
             <Text style={[s.statVal, { color: lowStock > 0 ? colors.warning : colors.success }]}>{lowStock}</Text>
-            <Text style={[s.statLbl, { color: colors.textMuted }]}>Low Stock</Text>
+            <Text style={[s.statLbl, { color: colors.textMuted }]}>{t('lowStock')}</Text>
           </View>
-        </MotiView>
+        </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
 
@@ -123,7 +122,8 @@ const makeStyles = (c: any) =>
       flexDirection: "row",
       paddingHorizontal: 18,
       paddingVertical: 11,
-      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomLeftRadius: 18,
+      borderBottomRightRadius: 18
     },
     statItem: { flex: 1, alignItems: "center" },
     statVal: { fontFamily: fonts.display, fontSize: 18 },

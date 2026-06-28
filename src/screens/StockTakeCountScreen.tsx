@@ -9,6 +9,7 @@ import { useAppStore } from '../stores/useAppStore';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
 import { StockTakeItem } from '../types';
+import { useTranslation } from '../hooks/useTranslation';
 
 interface Section {
   title: string;
@@ -17,6 +18,7 @@ interface Section {
 
 export default function StockTakeCountScreen({ navigation }: any) {
   const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const { stockTakeItems, activeStockTake, updateStockTakeCount } = useAppStore();
 
   // Local string values for controlled inputs — avoids setState cascade on every keystroke
@@ -60,7 +62,7 @@ export default function StockTakeCountScreen({ navigation }: any) {
 
   const handleReview = () => {
     if (countedCount === 0) {
-      Alert.alert('Nothing Counted', 'Enter at least one product count before reviewing.');
+      Alert.alert(t('nothingCounted'), t('enterAtLeastOneCount'));
       return;
     }
     navigation.navigate('StockTakeReview');
@@ -135,9 +137,9 @@ export default function StockTakeCountScreen({ navigation }: any) {
 
       {/* Column labels */}
       <View style={[s.colHeader, { backgroundColor: colors.surfaceHigh, borderBottomColor: colors.border }]}>
-        <Text style={[s.colLabel, { color: colors.textMuted, flex: 1 }]}>PRODUCT</Text>
-        <Text style={[s.colLabel, { color: colors.textMuted, width: 64, textAlign: 'center' }]}>COUNT</Text>
-        <Text style={[s.colLabel, { color: colors.textMuted, width: 50, textAlign: 'center' }]}>DIFF</Text>
+        <Text style={[s.colLabel, { color: colors.textMuted, flex: 1 }]}>{t('product').toUpperCase()}</Text>
+        <Text style={[s.colLabel, { color: colors.textMuted, width: 64, textAlign: 'center' }]}>{t('count').toUpperCase()}</Text>
+        <Text style={[s.colLabel, { color: colors.textMuted, width: 50, textAlign: 'center' }]}>{t('diff').toUpperCase()}</Text>
       </View>
 
       <SectionList
@@ -160,7 +162,7 @@ export default function StockTakeCountScreen({ navigation }: any) {
         >
           <Ionicons name="eye-outline" size={18} color={countedCount > 0 ? '#fff' : colors.textMuted} />
           <Text style={[s.reviewBtnText, { color: countedCount > 0 ? '#fff' : colors.textMuted }]}>
-            {countedCount > 0 ? `Review ${countedCount} counted` : 'Count some products first'}
+            {countedCount > 0 ? `Review ${countedCount} counted` : t('countProductsFirst')}
           </Text>
         </TouchableOpacity>
       </View>

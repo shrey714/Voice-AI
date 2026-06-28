@@ -7,9 +7,11 @@ import { useAppStore } from '../stores/useAppStore';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
 import { StockTakeItem } from '../types';
+import { useTranslation } from '../hooks/useTranslation';
 
 export default function StockTakeReviewScreen({ navigation }: any) {
   const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const { stockTakeItems, commitStockTake, cancelStockTake } = useAppStore();
   const [showAll, setShowAll] = useState(false);
   const [committing, setCommitting] = useState(false);
@@ -37,16 +39,16 @@ export default function StockTakeReviewScreen({ navigation }: any) {
 
   const handleCommit = () => {
     if (countedItems.length === 0) {
-      Alert.alert('Nothing to Commit', 'No products have been counted yet.');
+      Alert.alert(t('nothingToCommit'), t('noProductsCountedYet'));
       return;
     }
     Alert.alert(
-      'Confirm Stock Update',
+      t('confirmStockUpdate'),
       `This will update quantities for ${countedItems.length} product${countedItems.length !== 1 ? 's' : ''} to match your counts. ${summary.skipped > 0 ? `${summary.skipped} skipped products will not be changed.` : ''}\n\nThis cannot be undone.`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'Confirm & Update',
+          text: t('confirmAndUpdate'),
           style: 'destructive',
           onPress: async () => {
             setCommitting(true);
@@ -56,13 +58,13 @@ export default function StockTakeReviewScreen({ navigation }: any) {
               // Show success on the landing screen via a small alert
               setTimeout(() => {
                 Alert.alert(
-                  'Stock Take Complete',
+                  t('stockTakeComplete'),
                   `${summary.counted} products updated.\n${summary.short} short · ${summary.over} over · ${summary.exact} exact${summary.skipped > 0 ? ` · ${summary.skipped} skipped` : ''}`,
                   [{ text: 'Done' }]
                 );
               }, 400);
             } catch {
-              Alert.alert('Error', 'Failed to update inventory. Please try again.');
+              Alert.alert('Error', t('failedToUpdate'));
             } finally {
               setCommitting(false);
             }
@@ -87,12 +89,12 @@ export default function StockTakeReviewScreen({ navigation }: any) {
           </View>
           <View style={s.qtyGroup}>
             <View style={s.qtyCol}>
-              <Text style={[s.qtyLabel, { color: colors.textMuted }]}>Was</Text>
+              <Text style={[s.qtyLabel, { color: colors.textMuted }]}>{t('wasSt')}</Text>
               <Text style={[s.qtyVal, { color: colors.textSub }]}>{item.systemQty}</Text>
             </View>
             <Ionicons name="arrow-forward" size={14} color={colors.textMuted} style={{ marginTop: 14 }} />
             <View style={s.qtyCol}>
-              <Text style={[s.qtyLabel, { color: colors.textMuted }]}>Now</Text>
+              <Text style={[s.qtyLabel, { color: colors.textMuted }]}>{t('nowSt')}</Text>
               <Text style={[s.qtyVal, { color: colors.text }]}>{item.countedQty}</Text>
             </View>
           </View>
@@ -122,8 +124,8 @@ export default function StockTakeReviewScreen({ navigation }: any) {
       <View style={[s.summaryRow, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         {[
           { label: 'Counted', value: summary.counted, color: colors.primary },
-          { label: 'Short', value: summary.short, color: summary.short > 0 ? colors.danger : colors.textMuted },
-          { label: 'Over', value: summary.over, color: summary.over > 0 ? colors.success : colors.textMuted },
+          { label: t('short'), value: summary.short, color: summary.short > 0 ? colors.danger : colors.textMuted },
+          { label: t('over'), value: summary.over, color: summary.over > 0 ? colors.success : colors.textMuted },
           { label: 'Skipped', value: summary.skipped, color: colors.textMuted },
         ].map((stat, i) => (
           <React.Fragment key={stat.label}>
@@ -148,7 +150,7 @@ export default function StockTakeReviewScreen({ navigation }: any) {
             color={summary.netAdj < 0 ? colors.danger : colors.success}
           />
           <Text style={{ fontFamily: fonts.semiBold, fontSize: 13, color: summary.netAdj < 0 ? colors.danger : colors.success }}>
-            Net adjustment: {summary.netAdj > 0 ? '+' : ''}{summary.netAdj} units across all products
+            {t('netAdjustment')}: {summary.netAdj > 0 ? '+' : ''}{summary.netAdj} {t('unitsAcrossProducts')}
           </Text>
         </View>
       )}
@@ -160,7 +162,7 @@ export default function StockTakeReviewScreen({ navigation }: any) {
           onPress={() => setShowAll(false)}
         >
           <Text style={[s.filterChipText, { color: !showAll ? '#fff' : colors.textSub }]}>
-            Discrepancies ({discrepancies.length})
+            {t('discrepancies')} ({discrepancies.length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -168,7 +170,7 @@ export default function StockTakeReviewScreen({ navigation }: any) {
           onPress={() => setShowAll(true)}
         >
           <Text style={[s.filterChipText, { color: showAll ? '#fff' : colors.textSub }]}>
-            All counted ({countedItems.length})
+            {t('allCountedLabel')} ({countedItems.length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -182,10 +184,10 @@ export default function StockTakeReviewScreen({ navigation }: any) {
           <View style={{ alignItems: 'center', paddingTop: 60, gap: 10 }}>
             <Ionicons name="checkmark-circle-outline" size={48} color={colors.success} />
             <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.text }}>
-              {showAll ? 'Nothing counted yet' : 'No discrepancies'}
+              {showAll ? t('nothingCountedYet') : t('noDiscrepancies')}
             </Text>
             <Text style={{ fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted, textAlign: 'center', paddingHorizontal: 40 }}>
-              {showAll ? 'Go back and enter some counts.' : 'Every counted product matches the system.'}
+              {showAll ? t('goBackEnterCounts') : t('everyProductMatches')}
             </Text>
           </View>
         }
@@ -203,7 +205,7 @@ export default function StockTakeReviewScreen({ navigation }: any) {
         >
           <Ionicons name="checkmark-done-outline" size={18} color={countedItems.length > 0 ? '#fff' : colors.textMuted} />
           <Text style={[s.commitBtnText, { color: countedItems.length > 0 ? '#fff' : colors.textMuted }]}>
-            {committing ? 'Updating inventory...' : `Confirm & Update ${countedItems.length} Product${countedItems.length !== 1 ? 's' : ''}`}
+            {committing ? 'Updating inventory...' : `${t('confirmAndUpdate')} ${countedItems.length} Product${countedItems.length !== 1 ? 's' : ''}`}
           </Text>
         </TouchableOpacity>
       </View>

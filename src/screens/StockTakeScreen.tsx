@@ -6,6 +6,7 @@ import { MotiView } from 'moti';
 import { useAppStore } from '../stores/useAppStore';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
+import { useTranslation } from '../hooks/useTranslation';
 
 function formatDate(ts: number) {
   return new Date(ts).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -13,6 +14,7 @@ function formatDate(ts: number) {
 
 export default function StockTakeScreen({ navigation }: any) {
   const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const { activeStockTake, stockTakeItems, products, startStockTake, cancelStockTake, settings } = useAppStore();
   const CATEGORIES = ['All', ...(settings.productCategories ?? [])];
   const [scope, setScope] = useState('all');
@@ -24,12 +26,12 @@ export default function StockTakeScreen({ navigation }: any) {
 
   const handleStart = async () => {
     if (products.length === 0) {
-      Alert.alert('No Products', 'Add products to your inventory before starting a stock take.');
+      Alert.alert(t('noProductsAlert'), t('addProductsBeforeStockTake'));
       return;
     }
     const inScope = scope === 'all' ? products : products.filter(p => p.category === scope);
     if (inScope.length === 0) {
-      Alert.alert('No Products', `No products in the "${scope}" category.`);
+      Alert.alert(t('noProductsAlert'), `No products in the "${scope}" category.`);
       return;
     }
     setStarting(true);
@@ -43,11 +45,11 @@ export default function StockTakeScreen({ navigation }: any) {
 
   const handleDiscard = () => {
     Alert.alert(
-      'Discard Stock Take?',
-      'All counts entered so far will be lost. Inventory will not be updated.',
+      t('discardStockTake'),
+      t('discardStockTakeMsg'),
       [
-        { text: 'Keep Counting', style: 'cancel' },
-        { text: 'Discard', style: 'destructive', onPress: cancelStockTake },
+        { text: t('keepCounting'), style: 'cancel' },
+        { text: t('discard'), style: 'destructive', onPress: cancelStockTake },
       ]
     );
   };
@@ -64,7 +66,7 @@ export default function StockTakeScreen({ navigation }: any) {
         activeOpacity={0.75}
       >
         <Ionicons name="time-outline" size={17} color={colors.primary} />
-        <Text style={[s.historyBtnText, { color: colors.primary }]}>View Past Stock Takes</Text>
+        <Text style={[s.historyBtnText, { color: colors.primary }]}>{t('viewPastStockTakes')}</Text>
         <Ionicons name="chevron-forward" size={16} color={colors.textMuted} style={{ marginLeft: 'auto' }} />
       </TouchableOpacity>
 
@@ -75,9 +77,9 @@ export default function StockTakeScreen({ navigation }: any) {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
               <Ionicons name="time-outline" size={22} color={colors.primary} />
               <View style={{ flex: 1 }}>
-                <Text style={[s.resumeTitle, { color: colors.primary }]}>Stock take in progress</Text>
+                <Text style={[s.resumeTitle, { color: colors.primary }]}>{t('stockTakeInProgress')}</Text>
                 <Text style={[s.resumeSub, { color: colors.textMuted }]}>
-                  Started {formatDate(activeStockTake.startedAt)} · Scope: {activeStockTake.scope === 'all' ? 'All products' : activeStockTake.scope}
+                  Started {formatDate(activeStockTake.startedAt)} · {t('scope')}: {activeStockTake.scope === 'all' ? 'All products' : activeStockTake.scope}
                 </Text>
               </View>
             </View>
@@ -87,7 +89,7 @@ export default function StockTakeScreen({ navigation }: any) {
               <View style={[s.progressFill, { backgroundColor: colors.primary, width: `${Math.round(progress * 100)}%` as any }]} />
             </View>
             <Text style={[s.progressLabel, { color: colors.textSub }]}>
-              {countedCount} of {totalCount} products counted
+              {countedCount} of {totalCount} {t('productsCountedOf')}
             </Text>
 
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
@@ -96,13 +98,13 @@ export default function StockTakeScreen({ navigation }: any) {
                 onPress={() => navigation.navigate('StockTakeCount')}
               >
                 <Ionicons name="play" size={16} color="#fff" />
-                <Text style={[s.btnText, { color: '#fff' }]}>Resume Counting</Text>
+                <Text style={[s.btnText, { color: '#fff' }]}>{t('resumeCounting')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.btn, { backgroundColor: colors.danger + '15', borderWidth: 1, borderColor: colors.danger + '40', flex: 1 }]}
                 onPress={handleDiscard}
               >
-                <Text style={[s.btnText, { color: colors.danger }]}>Discard</Text>
+                <Text style={[s.btnText, { color: colors.danger }]}>{t('discard')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -114,15 +116,13 @@ export default function StockTakeScreen({ navigation }: any) {
         <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 350, delay: 100 }}>
           {/* What is stock take */}
           <View style={[s.infoCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[s.infoTitle, { color: colors.text }]}>What is Stock Take?</Text>
-            <Text style={[s.infoBody, { color: colors.textSub }]}>
-              Walk your shelves, count each product physically, and enter what you see. The app shows where your actual stock differs from the system — then bulk-updates everything in one go.
-            </Text>
+            <Text style={[s.infoTitle, { color: colors.text }]}>{t('whatIsStockTake')}</Text>
+            <Text style={[s.infoBody, { color: colors.textSub }]}>{t('stockTakeExplain')}</Text>
             <View style={{ flexDirection: 'row', gap: 16, marginTop: 12 }}>
               {[
                 { icon: 'cube-outline', label: `${products.length} products` },
-                { icon: 'time-outline', label: '~20–40 min' },
-                { icon: 'shield-checkmark-outline', label: 'Undo-safe' },
+                { icon: 'time-outline', label: '~20-40 min' },
+                { icon: 'shield-checkmark-outline', label: t('undoSafe') },
               ].map(item => (
                 <View key={item.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                   <Ionicons name={item.icon as any} size={14} color={colors.primary} />
@@ -133,7 +133,7 @@ export default function StockTakeScreen({ navigation }: any) {
           </View>
 
           {/* Scope selector */}
-          <Text style={[s.sectionLabel, { color: colors.textSub }]}>SCOPE</Text>
+          <Text style={[s.sectionLabel, { color: colors.textSub }]}>{t('scope').toUpperCase()}</Text>
           <View style={s.scopeGrid}>
             {CATEGORIES.map(cat => {
               const key = cat === 'All' ? 'all' : cat;
@@ -160,7 +160,7 @@ export default function StockTakeScreen({ navigation }: any) {
           >
             <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
             <Text style={[s.btnText, { color: '#fff', fontSize: 16 }]}>
-              {starting ? 'Starting...' : 'Start Stock Take'}
+              {starting ? t('starting') : t('startStockTake')}
             </Text>
           </TouchableOpacity>
         </MotiView>
@@ -168,7 +168,7 @@ export default function StockTakeScreen({ navigation }: any) {
 
       {/* Tips */}
       <View style={[s.tipsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Text style={[s.tipsTitle, { color: colors.textSub }]}>TIPS</Text>
+        <Text style={[s.tipsTitle, { color: colors.textSub }]}>{t('tipsLabel').toUpperCase()}</Text>
         {[
           'Count is saved automatically — safe to close the app and resume later',
           'Leave a product blank if you\'re skipping it — it won\'t be updated',

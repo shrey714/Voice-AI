@@ -9,6 +9,7 @@ import { buildReorderMessage, whatsappUrl } from '../utils/reminder';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
 import EmptyState from '../components/common/EmptyState';
+import { useTranslation } from '../hooks/useTranslation';
 
 const NO_SUPPLIER = '__none__';
 // Suggested reorder qty: refill to 2× the low-stock threshold.
@@ -16,6 +17,7 @@ const suggestQty = (p: Product) => Math.max(1, p.lowStockThreshold * 2 - p.quant
 
 export default function ReorderScreen({ navigation }: any) {
   const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const { products, suppliers, settings } = useAppStore();
   const s = makeStyles(colors);
 
@@ -42,14 +44,14 @@ export default function ReorderScreen({ navigation }: any) {
   const whatsappReorder = (key: string, items: Product[]) => {
     const supplier = supplierFor(key);
     const msg = buildReorderMessage({
-      shop: settings.shopName || 'our shop',
+      shop: settings.shopName || t('ourShop'),
       lang: settings.reorderLang || 'hinglish',
       template: settings.reorderTemplate,
       supplier: supplier?.name,
       items: items.map(p => ({ name: p.name, qty: getQty(p), unit: p.unit })),
     });
     Linking.openURL(whatsappUrl(supplier?.phone, msg)).catch(() =>
-      Alert.alert('WhatsApp not found', 'Please install WhatsApp to send reorders.'));
+      Alert.alert(t('whatsappNotFound'), t('installWhatsappMsg')));
   };
 
   const draftPurchase = (key: string, items: Product[]) => {
@@ -62,7 +64,7 @@ export default function ReorderScreen({ navigation }: any) {
   if (lowStock.length === 0) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
-        <EmptyState icon="checkmark-circle-outline" title="Stock looks healthy" subtitle="No items are below their low-stock level right now." />
+        <EmptyState icon="checkmark-circle-outline" title={t('stockLooksHealthy')} subtitle={t('noItemsBelowLevel')} />
       </View>
     );
   }
@@ -71,12 +73,12 @@ export default function ReorderScreen({ navigation }: any) {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 12, paddingBottom: 130 }}>
         <Text style={[s.intro, { color: colors.textMuted }]}>
-          {lowStock.length} item{lowStock.length > 1 ? 's' : ''} low on stock, grouped by supplier. Adjust quantities, then send a WhatsApp reorder or create a draft purchase.
+          {t('itemsLowOnStockIntro').replace('{count}', String(lowStock.length)).replace('{plural}', lowStock.length > 1 ? 's' : '')}
         </Text>
 
         {groups.map(([key, items], gi) => {
           const supplier = supplierFor(key);
-          const name = supplier?.name || 'No supplier assigned';
+          const name = supplier?.name || t('noSupplierAssigned');
           return (
             <MotiView key={key} from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 280, delay: gi * 60 }}
               style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -88,7 +90,7 @@ export default function ReorderScreen({ navigation }: any) {
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={[s.supName, { color: colors.text }]} numberOfLines={1}>{name}</Text>
                   <Text style={[s.supSub, { color: colors.textMuted }]}>
-                    {items.length} item{items.length > 1 ? 's' : ''}{supplier?.phone ? ` · ${supplier.phone}` : !supplier ? ' · pick contact in WhatsApp' : ' · no phone'}
+                    {items.length} item{items.length > 1 ? 's' : ''}{supplier?.phone ? ` · ${supplier.phone}` : !supplier ? ` · ${t('pickContactInWhatsApp')}` : ` · ${t('noPhone')}`}
                   </Text>
                 </View>
               </View>
@@ -98,7 +100,7 @@ export default function ReorderScreen({ navigation }: any) {
                 <View key={p.id} style={[s.itemRow, { borderTopColor: colors.border }]}>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={[s.itemName, { color: colors.text }]} numberOfLines={1}>{p.name}</Text>
-                    <Text style={[s.itemSub, { color: colors.textMuted }]}>In stock: {p.quantity} {p.unit} · alert ≤ {p.lowStockThreshold}</Text>
+                    <Text style={[s.itemSub, { color: colors.textMuted }]}>{t('instockLabel')} {p.quantity} {p.unit} · {t('alertLabel')} {p.lowStockThreshold}</Text>
                   </View>
                   <View style={s.stepper}>
                     <TouchableOpacity onPress={() => setQty(p.id, getQty(p) - 1)} style={[s.stepBtn, { backgroundColor: colors.surfaceHigh }]}>
@@ -122,11 +124,11 @@ export default function ReorderScreen({ navigation }: any) {
               <View style={s.actions}>
                 <TouchableOpacity style={[s.actionBtn, { backgroundColor: '#25D366' }]} onPress={() => whatsappReorder(key, items)} activeOpacity={0.85}>
                   <Ionicons name="logo-whatsapp" size={16} color="#fff" />
-                  <Text style={s.actionText}>WhatsApp reorder</Text>
+                  <Text style={s.actionText}>{t('whatsappReorder')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[s.actionBtn, { backgroundColor: colors.primary }]} onPress={() => draftPurchase(key, items)} activeOpacity={0.85}>
                   <Ionicons name="document-text-outline" size={16} color="#fff" />
-                  <Text style={s.actionText}>Draft purchase</Text>
+                  <Text style={s.actionText}>{t('draftPurchase')}</Text>
                 </TouchableOpacity>
               </View>
             </MotiView>

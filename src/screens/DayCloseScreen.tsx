@@ -9,13 +9,16 @@ import { formatCurrency, startOfDay, endOfDay, generateId } from '../utils/helpe
 import { toast } from '../utils/toast';
 import * as db from '../db/database';
 import { DayClose } from '../types';
+import { useTranslation } from '../hooks/useTranslation';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
 
 const DENOMS = [500, 200, 100, 50, 20, 10, 5, 2, 1];
+const localeMap: Record<string, string> = { en: 'en-IN', hi: 'hi-IN', kn: 'kn-IN', gu: 'gu-IN', hinglish: 'en-IN' };
 
 export default function DayCloseScreen() {
   const { colors } = useAppTheme();
+  const { t, language } = useTranslation();
   const { bills, returns, expenses, products, settings } = useAppStore();
   const s = makeStyles(colors);
 
@@ -63,7 +66,7 @@ export default function DayCloseScreen() {
   const denomTotal = DENOMS.reduce((sum, d) => sum + d * (parseInt(denoms[d] || '0') || 0), 0);
 
   const diffColor = Math.abs(diff) < 0.5 ? colors.textMuted : diff > 0 ? colors.success : colors.danger;
-  const diffLabel = Math.abs(diff) < 0.5 ? 'Tallied ✓' : diff > 0 ? 'Over (extra cash)' : 'Short';
+  const diffLabel = Math.abs(diff) < 0.5 ? `${t('tallied')} ✓` : diff > 0 ? t('overExtraCash') : t('short');
 
   const onSave = async () => {
     const dc: DayClose = {
@@ -71,7 +74,7 @@ export default function DayCloseScreen() {
       expected, counted: countedNum, difference: diff, note: note.trim() || undefined, createdAt: Date.now(),
     };
     await db.upsertDayClose(dc);
-    toast.success('Day closed', { description: Math.abs(diff) < 0.5 ? 'Drawer tallied perfectly.' : `${diff > 0 ? 'Over' : 'Short'} by ${formatCurrency(Math.abs(diff), settings.currency)}` });
+    toast.success(t('dayClosed'), { description: Math.abs(diff) < 0.5 ? t('drawerTallied') : `${diff > 0 ? t('overBy') : t('shortBy')} ${formatCurrency(Math.abs(diff), settings.currency)}` });
     setHistory(await db.getAllDayCloses());
   };
 
@@ -84,29 +87,28 @@ export default function DayCloseScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 14, paddingBottom: 130 }} keyboardShouldPersistTaps="handled">
-
         {/* Expected drawer hero */}
-        <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300 }}
-          style={[s.hero, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[s.heroLbl, { color: colors.textMuted }]}>EXPECTED IN DRAWER</Text>
+        <View style={[s.hero, { backgroundColor: colors.surface }]}>
+          <Text style={[s.heroLbl, { color: colors.textMuted }]}>{t('expectedInDrawer').toUpperCase()}</Text>
           <Text style={[s.heroAmt, { color: colors.primary }]}>{formatCurrency(expected, settings.currency)}</Text>
-          <Text style={[s.heroSub, { color: colors.textMuted }]}>Opening + cash sales − cash out</Text>
-        </MotiView>
+          <Text style={[s.heroSub, { color: colors.textMuted }]}>{t('openingPlusCashFormula')}</Text>
+        </View>
+      
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 14, paddingBottom: 130 }} keyboardShouldPersistTaps="handled">
 
         {/* Inputs */}
         <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={s.inRow}>
-            <Text style={[s.inLabel, { color: colors.text }]}>Opening cash</Text>
+            <Text style={[s.inLabel, { color: colors.text }]}>{t('openingCash')}</Text>
             <TextInput style={[s.inField, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceHigh }]}
               value={openingCash} onChangeText={setOpeningCash} keyboardType="numeric" selectTextOnFocus placeholder="0" placeholderTextColor={colors.textMuted} />
           </View>
           <View style={[s.inRow, { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
-            <Text style={[s.inLabel, { color: colors.text }]}>Cash sales <Text style={{ color: colors.textMuted, fontSize: 11 }}>(auto)</Text></Text>
+            <Text style={[s.inLabel, { color: colors.text }]}>{t('cashSales')} <Text style={{ color: colors.textMuted, fontSize: 11 }}>({t('auto')})</Text></Text>
             <Text style={[s.inAuto, { color: colors.success }]}>+{formatCurrency(cashSales, settings.currency)}</Text>
           </View>
           <View style={[s.inRow, { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
-            <Text style={[s.inLabel, { color: colors.text }]}>Cash paid out</Text>
+            <Text style={[s.inLabel, { color: colors.text }]}>{t('cashPaidOut')}</Text>
             <TextInput style={[s.inField, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceHigh }]}
               value={cashOut} onChangeText={setCashOut} keyboardType="numeric" selectTextOnFocus placeholder="0" placeholderTextColor={colors.textMuted} />
           </View>
@@ -115,13 +117,13 @@ export default function DayCloseScreen() {
         {/* Counted */}
         <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={s.inRow}>
-            <Text style={[s.inLabel, { color: colors.text }]}>Counted cash</Text>
+            <Text style={[s.inLabel, { color: colors.text }]}>{t('countedCash')}</Text>
             <TextInput style={[s.inField, { color: colors.text, borderColor: colors.primary, backgroundColor: colors.surfaceHigh, fontFamily: fonts.bold }]}
-              value={counted} onChangeText={setCounted} keyboardType="numeric" selectTextOnFocus placeholder="enter total" placeholderTextColor={colors.textMuted} />
+              value={counted} onChangeText={setCounted} keyboardType="numeric" selectTextOnFocus placeholder={t('enterTotal')} placeholderTextColor={colors.textMuted} />
           </View>
           <TouchableOpacity style={s.denomToggle} onPress={() => setShowDenom(v => !v)}>
             <Ionicons name="calculator-outline" size={15} color={colors.primary} />
-            <Text style={[s.denomToggleText, { color: colors.primary }]}>{showDenom ? 'Hide' : 'Count by'} denominations</Text>
+            <Text style={[s.denomToggleText, { color: colors.primary }]}>{showDenom ? t('hideDenominations') : t('countByDenominations')}</Text>
             <Ionicons name={showDenom ? 'chevron-up' : 'chevron-down'} size={15} color={colors.primary} />
           </TouchableOpacity>
           {showDenom && (
@@ -137,7 +139,7 @@ export default function DayCloseScreen() {
                 </View>
               ))}
               <TouchableOpacity style={[s.denomApply, { backgroundColor: colors.primaryLight }]} onPress={() => setCounted(String(denomTotal))}>
-                <Text style={[s.denomApplyText, { color: colors.primary }]}>Use total {formatCurrency(denomTotal, settings.currency)}</Text>
+                <Text style={[s.denomApplyText, { color: colors.primary }]}>{t('useTotal')} {formatCurrency(denomTotal, settings.currency)}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -153,33 +155,33 @@ export default function DayCloseScreen() {
         </View>
 
         <TextInput style={[s.noteField, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]}
-          value={note} onChangeText={setNote} placeholder="Note (optional) — e.g. reason for shortfall" placeholderTextColor={colors.textMuted} multiline />
+          value={note} onChangeText={setNote} placeholder={t('notePlaceholderDayClose')} placeholderTextColor={colors.textMuted} multiline />
 
         {/* Reference */}
         <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border, paddingVertical: 4 }]}>
-          <Text style={[s.refHead, { color: colors.textMuted }]}>TODAY · FOR REFERENCE</Text>
-          <Row label="Total sales (net)" value={formatCurrency(today.stats.revenue, settings.currency)} />
-          <Row label="UPI sales" value={formatCurrency(today.stats.paymentSplit.upi, settings.currency)} />
-          <Row label="Credit given (udhaar)" value={formatCurrency(today.stats.paymentSplit.credit, settings.currency)} />
-          <Row label="Bills" value={String(today.stats.billCount)} />
+          <Text style={[s.refHead, { color: colors.textMuted }]}>{t('todayForReference').toUpperCase()}</Text>
+          <Row label={t('totalSalesNet')} value={formatCurrency(today.stats.revenue, settings.currency)} />
+          <Row label={t('upiSales')} value={formatCurrency(today.stats.paymentSplit.upi, settings.currency)} />
+          <Row label={t('creditGivenUdhaar')} value={formatCurrency(today.stats.paymentSplit.credit, settings.currency)} />
+          <Row label={t('bills')} value={String(today.stats.billCount)} />
         </View>
 
         <TouchableOpacity style={[s.saveBtn, { backgroundColor: colors.primary }]} onPress={onSave} activeOpacity={0.9}>
           <Ionicons name="lock-closed-outline" size={18} color="#fff" />
-          <Text style={s.saveText}>{history.some(c => c.id === todayId) ? 'Update day close' : 'Close the day'}</Text>
+          <Text style={s.saveText}>{history.some(c => c.id === todayId) ? t('updateDayClose') : t('closeTheDay')}</Text>
         </TouchableOpacity>
 
         {/* History */}
         {history.length > 0 && (
           <View style={{ marginTop: 24 }}>
-            <Text style={[s.refHead, { color: colors.textMuted, marginLeft: 4 }]}>PAST CLOSES</Text>
+            <Text style={[s.refHead, { color: colors.textMuted, marginLeft: 4 }]}>{t('pastCloses').toUpperCase()}</Text>
             {history.slice(0, 30).map(c => {
               const col = Math.abs(c.difference) < 0.5 ? colors.textMuted : c.difference > 0 ? colors.success : colors.danger;
               return (
                 <View key={c.id} style={[s.histRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                   <View style={{ flex: 1 }}>
-                    <Text style={[s.histDate, { color: colors.text }]}>{new Date(c.date).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</Text>
-                    <Text style={[s.histSub, { color: colors.textMuted }]}>Counted {formatCurrency(c.counted, settings.currency)} · expected {formatCurrency(c.expected, settings.currency)}</Text>
+                     <Text style={[s.histDate, { color: colors.text }]}>{new Date(c.date).toLocaleDateString(localeMap[language] || 'en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</Text>
+                    <Text style={[s.histSub, { color: colors.textMuted }]}>{t('counted')} {formatCurrency(c.counted, settings.currency)} · {t('expected')} {formatCurrency(c.expected, settings.currency)}</Text>
                   </View>
                   <Text style={[s.histDiff, { color: col }]}>{Math.abs(c.difference) < 0.5 ? '✓' : `${c.difference > 0 ? '+' : '−'}${formatCurrency(Math.abs(c.difference), settings.currency)}`}</Text>
                 </View>
@@ -193,7 +195,7 @@ export default function DayCloseScreen() {
 }
 
 const makeStyles = (c: any) => StyleSheet.create({
-  hero: { borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, padding: 18, alignItems: 'center', marginBottom: 14 },
+  hero: { padding: 18, alignItems: 'center', borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
   heroLbl: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 1 },
   heroAmt: { fontFamily: fonts.display, fontSize: 34, marginTop: 6 },
   heroSub: { fontFamily: fonts.medium, fontSize: 11.5, marginTop: 4 },

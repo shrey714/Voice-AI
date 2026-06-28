@@ -6,6 +6,7 @@ import { MotiView } from 'moti';
 import BottomSheet, { BottomSheetScrollView, BottomSheetTextInput, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { useNavigation } from '@react-navigation/native';
 import { useAppStore } from '../stores/useAppStore';
+import { useTranslation } from '../hooks/useTranslation';
 import { Product, Supplier } from '../types';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
@@ -14,16 +15,17 @@ import EmptyState from '../components/common/EmptyState';
 import CollapsibleFab, { useFabScroll } from '../components/common/CollapsibleFab';
 import ProductCard from '../components/inventory/ProductCard';
 
-const PAYMENT_MODES = [
-  { key: 'cash', label: 'Cash', icon: 'cash-outline' },
-  { key: 'upi',  label: 'UPI',  icon: 'phone-portrait-outline' },
-  { key: 'bank', label: 'Bank', icon: 'card-outline' },
+const PAYMENT_MODES_KEYS = [
+  { key: 'cash', tKey: 'cash' as const, icon: 'cash-outline' },
+  { key: 'upi',  tKey: 'upi' as const,  icon: 'phone-portrait-outline' },
+  { key: 'bank', tKey: 'bank' as const, icon: 'card-outline' },
 ] as const;
 
 const emptyForm = { name: '', phone: '', email: '', address: '', notes: '' };
 
 export default function SupplierScreen() {
   const { colors: c } = useAppTheme();
+  const { t } = useTranslation();
   const { suppliers, products, expenses, supplierLedger, purchases, settings, addSupplier, updateSupplier, deleteSupplier, updateProduct, deleteProduct, recordSupplierPayment } = useAppStore();
   const navigation = useNavigation<any>();
 
@@ -86,7 +88,7 @@ export default function SupplierScreen() {
   };
 
   const save = async () => {
-    if (!form.name.trim()) { Alert.alert('Error', 'Supplier name is required'); return; }
+    if (!form.name.trim()) { Alert.alert(t('error'), t('supplierNameRequired')); return; }
     if (editing) {
       await updateSupplier({ ...editing, ...form, name: form.name.trim() });
     } else {
@@ -100,7 +102,7 @@ export default function SupplierScreen() {
     const msg = linkedCount > 0
       ? `Remove ${supplier.name}? ${linkedCount} product${linkedCount > 1 ? 's' : ''} will be unlinked but NOT deleted.`
       : `Remove ${supplier.name}?`;
-    Alert.alert('Delete Supplier', msg, [
+    Alert.alert(t('deleteSupplier'), msg, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => { await deleteSupplier(supplier.id); closeDetailSheet(); } },
     ]);
@@ -116,7 +118,7 @@ export default function SupplierScreen() {
 
   const savePayment = async () => {
     const amount = parseFloat(paymentAmount);
-    if (!amount || amount <= 0) { Alert.alert('Error', 'Enter a valid amount'); return; }
+    if (!amount || amount <= 0) { Alert.alert(t('error'), t('enterValidAmount')); return; }
     if (!paymentSupplier) return;
     const outstanding = getOutstanding(paymentSupplier.id);
     if (amount > outstanding + 0.01) {
@@ -128,7 +130,7 @@ export default function SupplierScreen() {
       await recordSupplierPayment(paymentSupplier.id, amount, paymentMode, paymentNote.trim() || undefined);
       paymentSheetRef.current?.close();
     } catch {
-      Alert.alert('Error', 'Failed to record payment');
+      Alert.alert(t('error'), 'Failed to record payment');
     } finally {
       setSavingPayment(false);
     }
@@ -169,8 +171,8 @@ export default function SupplierScreen() {
 
   const confirmDeleteProduct = (product: Product) => {
     Alert.alert(
-      'Delete Product',
-      `Delete "${product.name}" from inventory? This cannot be undone.`,
+      t('deleteProduct'),
+      t('deleteProductConfirm').replace('{name}', product.name),
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete', style: 'destructive', onPress: () => deleteProduct(product.id) },
@@ -183,12 +185,12 @@ export default function SupplierScreen() {
   return (
     <View style={[s.container, { backgroundColor: c.bg }]}>
       {/* Search bar */}
-      <View style={[s.searchRow, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
+      <View style={[s.searchRow, { backgroundColor: c.surface }]}>
         <View style={[s.searchBox, { backgroundColor: c.surfaceHigh, borderColor: c.border }]}>
           <Ionicons name="search-outline" size={16} color={c.textMuted} style={{ marginRight: 6 }} />
           <TextInput
             style={[s.searchInput, { color: c.text }]}
-            placeholder="Search suppliers..."
+            placeholder={t('searchSuppliers')}
             placeholderTextColor={c.textMuted}
             value={search}
             onChangeText={setSearch}
@@ -256,11 +258,11 @@ export default function SupplierScreen() {
         ListEmptyComponent={
           search.trim()
             ? <EmptyState icon="search-outline" title="No results" subtitle={`No suppliers match "${search}"`} />
-            : <EmptyState icon="business-outline" title="No suppliers yet" subtitle="Track your suppliers here" actionLabel="Add Supplier" onAction={openAdd} />
+            : <EmptyState icon="business-outline" title={t('noSuppliersYet')} subtitle={t('trackSuppliersHere')} actionLabel={t('addSupplier')} onAction={openAdd} />
         }
       />
 
-      <CollapsibleFab bottom={90} icon="add" label="Add Supplier" extended={extended} onPress={openAdd} />
+      <CollapsibleFab bottom={90} icon="add" label={t('addSupplier')} extended={extended} onPress={openAdd} />
 
       {/* Add/Edit Supplier Form Sheet */}
       <BottomSheet
@@ -276,13 +278,13 @@ export default function SupplierScreen() {
         android_keyboardInputMode="adjustResize"
       >
         <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
-          <Text style={[s.modalTitle, { color: c.text }]}>{editing ? 'Edit Supplier' : 'Add Supplier'}</Text>
+          <Text style={[s.modalTitle, { color: c.text }]}>{editing ? t('editSupplier') : t('addSupplier')}</Text>
           {([
-            { key: 'name', label: 'Business Name *', placeholder: 'e.g. Sharma Traders', keyboard: 'default' },
-            { key: 'phone', label: 'Phone', placeholder: '+91 XXXXX XXXXX', keyboard: 'phone-pad' },
-            { key: 'email', label: 'Email', placeholder: 'supplier@email.com', keyboard: 'email-address' },
-            { key: 'address', label: 'Address', placeholder: 'Shop / city', keyboard: 'default' },
-            { key: 'notes', label: 'Notes', placeholder: 'What they supply, payment terms, etc.', keyboard: 'default' },
+            { key: 'name', label: `${t('businessName')} *`, placeholder: 'e.g. Sharma Traders', keyboard: 'default' },
+            { key: 'phone', label: t('phone'), placeholder: '+91 XXXXX XXXXX', keyboard: 'phone-pad' },
+            { key: 'email', label: t('email'), placeholder: 'supplier@email.com', keyboard: 'email-address' },
+            { key: 'address', label: t('address'), placeholder: 'Shop / city', keyboard: 'default' },
+            { key: 'notes', label: t('notes'), placeholder: 'What they supply, payment terms, etc.', keyboard: 'default' },
           ] as const).map(field => (
             <View key={field.key} style={{ marginBottom: 8, paddingHorizontal: 8 }}>
               <Text style={[s.fieldLabel, { color: c.textSub }]}>{field.label}</Text>
@@ -303,10 +305,10 @@ export default function SupplierScreen() {
           ))}
           <View style={s.btnRow}>
             <TouchableOpacity style={[s.cancelBtn, { borderColor: c.border }]} onPress={closeFormSheet}>
-              <Text style={{ color: c.textSub, fontFamily: fonts.semiBold }}>Cancel</Text>
+              <Text style={{ color: c.textSub, fontFamily: fonts.semiBold }}>{t('cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[s.primaryBtn, { backgroundColor: c.primary }]} onPress={save}>
-              <Text style={{ color: '#fff', fontFamily: fonts.bold }}>Save</Text>
+              <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{t('save')}</Text>
             </TouchableOpacity>
           </View>
         </BottomSheetScrollView>
@@ -327,25 +329,25 @@ export default function SupplierScreen() {
         onClose={() => { setPaymentSupplier(null); setPaymentAmount(''); setPaymentNote(''); }}
       >
         <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 60 }}>
-          <Text style={[s.modalTitle, { color: c.text }]}>Record Payment</Text>
+          <Text style={[s.modalTitle, { color: c.text }]}>{t('recordPayment')}</Text>
           {paymentSupplier && (
             <Text style={{ fontFamily: fonts.medium, fontSize: 14, color: c.textSub, marginBottom: 14, marginTop: -10 }}>
-              to {paymentSupplier.name}
+              {t('toWord')} {paymentSupplier.name}
             </Text>
           )}
-          <Text style={[s.fieldLabel, { color: c.textSub, paddingLeft: 0 }]}>Amount</Text>
+          <Text style={[s.fieldLabel, { color: c.textSub, paddingLeft: 0 }]}>{t('amount')}</Text>
           <BottomSheetTextInput
             style={[s.input, { backgroundColor: c.surfaceHigh, color: c.text, borderColor: c.border, marginBottom: 12 }]}
             value={paymentAmount}
             onChangeText={v => setPaymentAmount(v.replace(/[^0-9.]/g, ''))}
-            placeholder="Enter amount"
+            placeholder={t('enterAmount')}
             placeholderTextColor={c.textMuted}
             keyboardType="decimal-pad"
             selectTextOnFocus
           />
-          <Text style={[s.fieldLabel, { color: c.textSub, paddingLeft: 0, marginBottom: 8 }]}>Payment Mode</Text>
+          <Text style={[s.fieldLabel, { color: c.textSub, paddingLeft: 0, marginBottom: 8 }]}>{t('paymentMode')}</Text>
           <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
-            {PAYMENT_MODES.map(m => {
+            {PAYMENT_MODES_KEYS.map(m => {
               const active = paymentMode === m.key;
               return (
                 <TouchableOpacity
@@ -354,12 +356,12 @@ export default function SupplierScreen() {
                   onPress={() => setPaymentMode(m.key)}
                 >
                   <Ionicons name={m.icon as any} size={16} color={active ? '#fff' : c.textSub} />
-                  <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: active ? '#fff' : c.textSub }}>{m.label}</Text>
+                  <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: active ? '#fff' : c.textSub }}>{t(m.tKey)}</Text>
                 </TouchableOpacity>
               );
             })}
           </View>
-          <Text style={[s.fieldLabel, { color: c.textSub, paddingLeft: 0 }]}>Note (optional)</Text>
+          <Text style={[s.fieldLabel, { color: c.textSub, paddingLeft: 0 }]}>{t('noteOptional')}</Text>
           <BottomSheetTextInput
             style={[s.input, { backgroundColor: c.surfaceHigh, color: c.text, borderColor: c.border, marginBottom: 16 }]}
             value={paymentNote}
@@ -369,10 +371,10 @@ export default function SupplierScreen() {
           />
           <View style={s.btnRow}>
             <TouchableOpacity style={[s.cancelBtn, { borderColor: c.border }]} onPress={() => paymentSheetRef.current?.close()}>
-              <Text style={{ color: c.textSub, fontFamily: fonts.semiBold }}>Cancel</Text>
+              <Text style={{ color: c.textSub, fontFamily: fonts.semiBold }}>{t('cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[s.primaryBtn, { backgroundColor: c.success }]} onPress={savePayment} disabled={savingPayment}>
-              <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{savingPayment ? 'Saving...' : 'Save Payment'}</Text>
+              <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{savingPayment ? t('savingDots') : t('savePayment')}</Text>
             </TouchableOpacity>
           </View>
         </BottomSheetScrollView>
@@ -409,7 +411,7 @@ export default function SupplierScreen() {
                 phone
                   ? `whatsapp://send?phone=91${phone}&text=${encodeURIComponent(msg)}`
                   : `whatsapp://send?text=${encodeURIComponent(msg)}`
-              ).catch(() => Alert.alert('WhatsApp not installed'));
+              ).catch(() => Alert.alert(t('whatsappNotFound'), t('installWhatsappMsg')));
             };
 
             const outstanding = getOutstanding(selectedSupplier.id);
@@ -465,7 +467,7 @@ export default function SupplierScreen() {
                     onPress={() => handleReceiveStock(selectedSupplier)}
                   >
                     <Ionicons name="arrow-down-circle-outline" size={18} color="#fff" />
-                    <Text style={[s.actionWideBtnText, { color: '#fff' }]}>Receive Stock</Text>
+                    <Text style={[s.actionWideBtnText, { color: '#fff' }]}>{t('receiveStock')}</Text>
                   </TouchableOpacity>
                   {outstanding > 0 && (
                     <TouchableOpacity
@@ -477,7 +479,7 @@ export default function SupplierScreen() {
                       }}
                     >
                       <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
-                      <Text style={[s.actionWideBtnText, { color: '#fff' }]}>Record Payment</Text>
+                      <Text style={[s.actionWideBtnText, { color: '#fff' }]}>{t('recordPayment')}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -507,12 +509,12 @@ export default function SupplierScreen() {
                 {ledgerEntries.length > 0 && (
                   <>
                     <View style={s.sectionHeader}>
-                      <Text style={[s.sectionTitle, { color: c.textSub }]}>Recent Ledger</Text>
+                      <Text style={[s.sectionTitle, { color: c.textSub }]}>{t('recentLedger')}</Text>
                       <TouchableOpacity
                         style={[s.addProductBtn, { backgroundColor: c.primaryLight }]}
                         onPress={() => { closeDetailSheet(); navigation.navigate('Purchases'); }}
                       >
-                        <Text style={[s.addProductBtnText, { color: c.primary }]}>All Purchases</Text>
+                        <Text style={[s.addProductBtnText, { color: c.primary }]}>{t('allPurchases')}</Text>
                       </TouchableOpacity>
                     </View>
                     <View style={[s.productsListContainer, { backgroundColor: c.surfaceHigh, paddingTop: 0 }]}>
@@ -554,7 +556,7 @@ export default function SupplierScreen() {
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <Ionicons name="alert-circle-outline" size={18} color={c.warning} />
                       <Text style={[s.reorderTitle, { color: c.warning }]}>
-                        {lowStockProducts.length} item{lowStockProducts.length > 1 ? 's' : ''} need reorder
+                        {t('itemsNeedReorder').replace('{count}', String(lowStockProducts.length))}
                       </Text>
                     </View>
                     {lowStockProducts.map(p => (
@@ -567,27 +569,27 @@ export default function SupplierScreen() {
                       onPress={() => openWhatsApp(reorderMsg)}
                     >
                       <Ionicons name="logo-whatsapp" size={16} color="#fff" />
-                      <Text style={[s.reorderBtnText, { color: '#fff' }]}>WhatsApp Reorder</Text>
+                      <Text style={[s.reorderBtnText, { color: '#fff' }]}>{t('whatsappReorder')}</Text>
                     </TouchableOpacity>
                   </View>
                 )}
 
                 {/* Linked Products section */}
                   <View style={s.sectionHeader}>
-                    <Text style={[s.sectionTitle, { color: c.textSub }]}>Products</Text>
+                    <Text style={[s.sectionTitle, { color: c.textSub }]}>{t('products')}</Text>
                     <TouchableOpacity
                       style={[s.addProductBtn, { backgroundColor: c.primaryLight }]}
                       onPress={() => handleAddProduct(selectedSupplier)}
                     >
                       <Ionicons name="add" size={15} color={c.primary} />
-                      <Text style={[s.addProductBtnText, { color: c.primary }]}>Add Product</Text>
+                      <Text style={[s.addProductBtnText, { color: c.primary }]}>{t('addProduct')}</Text>
                     </TouchableOpacity>
                   </View>
 
                 <View style={[s.productsListContainer, {backgroundColor: c.surfaceHigh}]}>
                   {linkedProducts.length === 0 ? (
                     <Text style={{ color: c.textMuted, fontFamily: fonts.regular, fontSize: 13, fontStyle: 'italic', padding: 8, alignSelf:'center', paddingBottom: 16 }}>
-                      No products linked yet. Tap "Add Product" to create one.
+                      {t('noProductsLinked')} {t('addToStock')}
                     </Text>
                   ) : (
                     linkedProducts.map(p => (
@@ -601,9 +603,9 @@ export default function SupplierScreen() {
                           onAddStock={() => editingStockId === p.id ? setEditingStockId(null) : startEditStock(p)}
                           onMenu={() =>
                             Alert.alert(p.name, undefined, [
-                              { text: 'Edit Product', onPress: () => handleEditProduct(p) },
-                              { text: 'Delete Product', style: 'destructive', onPress: () => confirmDeleteProduct(p) },
-                              { text: 'Cancel', style: 'cancel' },
+                              { text: t('edit') + ' ' + t('product'), onPress: () => handleEditProduct(p) },
+                              { text: t('deleteProduct'), style: 'destructive', onPress: () => confirmDeleteProduct(p) },
+                              { text: t('cancel'), style: 'cancel' },
                             ])
                           }
                         />
@@ -617,7 +619,7 @@ export default function SupplierScreen() {
                             style={[s.stockEditor, { backgroundColor: c.surfaceHigh, borderColor: c.border }]}
                           >
                             <Text style={[s.stockEditorLabel, { color: c.textSub }]}>
-                              Add to stock — current: {p.quantity} {p.unit}
+                              {t('addToStock')} — {t('current')}: {p.quantity} {p.unit}
                             </Text>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 }}>
                               {[1, 5, 10, 25].map(n => (
@@ -636,7 +638,7 @@ export default function SupplierScreen() {
                                 value={stockInput}
                                 onChangeText={setStockInput}
                                 keyboardType="numeric"
-                                placeholder="qty to add"
+                                placeholder={t('qtyToAdd')}
                                 placeholderTextColor={c.textMuted}
                                 selectTextOnFocus
                               />
@@ -667,7 +669,7 @@ export default function SupplierScreen() {
 
 const makeStyles = (c: any) => StyleSheet.create({
   container: { flex: 1 },
-  searchRow: { paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  searchRow: { paddingHorizontal: 12, paddingVertical: 12, borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
   searchBox: { flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1 },
   searchInput: { flex: 1, fontSize: 14, padding: 0, fontFamily: fonts.regular },
   card: { flexDirection: 'row', borderRadius: 10, padding: 12, marginBottom: 8, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, gap: 12 },

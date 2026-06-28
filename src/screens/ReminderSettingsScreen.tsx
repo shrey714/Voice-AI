@@ -7,23 +7,26 @@ import { ReminderLang, ReminderTone } from '../types';
 import { buildReminderMessage, buildReorderMessage } from '../utils/reminder';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
+import { useTranslation } from '../hooks/useTranslation';
 
 const LANGS: { key: ReminderLang; label: string }[] = [
   { key: 'hi', label: 'हिन्दी' },
   { key: 'hinglish', label: 'Hinglish' },
   { key: 'en', label: 'English' },
 ];
-const TONES: { key: ReminderTone; label: string; sub: string }[] = [
-  { key: 'polite', label: 'Polite', sub: 'Friendly nudge' },
-  { key: 'firm', label: 'Firm', sub: 'Pay soon' },
-];
 
 export default function ReminderSettingsScreen() {
   const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const { settings, updateSettings } = useAppStore();
   const s = makeStyles(colors);
   const [template, setTemplate] = useState(settings.reminderTemplate || '');
   const [reorderTpl, setReorderTpl] = useState(settings.reorderTemplate || '');
+
+  const TONES: { key: ReminderTone; label: string; sub: string }[] = [
+    { key: 'polite', label: t('polite'), sub: t('friendlyNudge') },
+    { key: 'firm', label: t('firm'), sub: t('paySoon') },
+  ];
 
   // Live preview with a sample customer + balance.
   const preview = buildReminderMessage({
@@ -47,28 +50,28 @@ export default function ReminderSettingsScreen() {
 
         <View style={s.sectionHead}>
           <Ionicons name="cash-outline" size={18} color={colors.primary} />
-          <Text style={[s.sectionTitle, { color: colors.text }]}>Payment reminder</Text>
+          <Text style={[s.sectionTitle, { color: colors.text }]}>{t('paymentReminder')}</Text>
         </View>
 
         {/* Language */}
-        <Text style={[s.group, { color: colors.textMuted }]}>LANGUAGE</Text>
-        <View style={[s.card, { backgroundColor: colors.surface }]}>
-          <View style={s.segRow}>
-            {LANGS.map(l => {
-              const active = (settings.reminderLang || 'hinglish') === l.key;
-              return (
-                <TouchableOpacity key={l.key}
-                  style={[s.seg, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary : colors.surfaceHigh }]}
-                  onPress={() => updateSettings({ reminderLang: l.key })}>
-                  <Text style={[s.segText, { color: active ? '#fff' : colors.text }]}>{l.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
+         <Text style={[s.group, { color: colors.textMuted }]}>{t('language')}</Text>
+         <View style={[s.card, { backgroundColor: colors.surface }]}>
+           <View style={s.segRow}>
+             {LANGS.map(l => {
+               const active = (settings.reminderLang || 'hinglish') === l.key;
+               return (
+                 <TouchableOpacity key={l.key}
+                   style={[s.seg, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary : colors.surfaceHigh }]}
+                   onPress={() => updateSettings({ reminderLang: l.key })}>
+                   <Text style={[s.segText, { color: active ? '#fff' : colors.text }]}>{l.label}</Text>
+                 </TouchableOpacity>
+               );
+             })}
+           </View>
+         </View>
 
-        {/* Tone */}
-        <Text style={[s.group, { color: colors.textMuted }]}>TONE</Text>
+         {/* Tone */}
+         <Text style={[s.group, { color: colors.textMuted }]}>{t('tone')}</Text>
         <View style={[s.card, { backgroundColor: colors.surface }]}>
           <View style={s.segRow}>
             {TONES.map(tn => {
@@ -85,16 +88,16 @@ export default function ReminderSettingsScreen() {
           </View>
         </View>
 
-        {/* UPI */}
-        <Text style={[s.group, { color: colors.textMuted }]}>PAYMENT</Text>
-        <View style={[s.card, { backgroundColor: colors.surface, paddingHorizontal: 16 }]}>
-          <View style={s.switchRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={[s.rowLabel, { color: colors.text }]}>Include UPI pay line</Text>
-              <Text style={[s.rowSub, { color: colors.textMuted }]}>
-                {settings.upiId ? `Adds "Pay via UPI: ${settings.upiId}"` : 'Set your UPI ID in Shop Information first'}
-              </Text>
-            </View>
+         {/* UPI */}
+         <Text style={[s.group, { color: colors.textMuted }]}>{t('payment')}</Text>
+         <View style={[s.card, { backgroundColor: colors.surface, paddingHorizontal: 16 }]}>
+           <View style={s.switchRow}>
+             <View style={{ flex: 1 }}>
+               <Text style={[s.rowLabel, { color: colors.text }]}>{t('includeUpiPayLine')}</Text>
+               <Text style={[s.rowSub, { color: colors.textMuted }]}>
+                 {settings.upiId ? t('addsUpiLine').replace('{upi}', settings.upiId) : t('setUpiIdFirst')}
+               </Text>
+             </View>
             <Switch
               value={settings.reminderIncludeUpi && !!settings.upiId}
               disabled={!settings.upiId}
@@ -104,45 +107,45 @@ export default function ReminderSettingsScreen() {
           </View>
         </View>
 
-        {/* Custom template */}
-        <Text style={[s.group, { color: colors.textMuted }]}>CUSTOM MESSAGE (OPTIONAL)</Text>
-        <View style={[s.card, { backgroundColor: colors.surface, padding: 16 }]}>
-          <Text style={[s.rowSub, { color: colors.textMuted, marginBottom: 10 }]}>
-            Leave empty to use the preset above. Placeholders: {'{name}'} {'{shop}'} {'{amount}'} {'{upi}'}
-          </Text>
-          <TextInput
-            style={[s.template, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
-            value={template}
-            onChangeText={setTemplate}
-            onEndEditing={() => updateSettings({ reminderTemplate: template.trim() })}
-            placeholder="e.g. Namaste {name}, {shop} ka {amount} baaki hai…"
-            placeholderTextColor={colors.textMuted}
-            multiline
-          />
+         {/* Custom template */}
+         <Text style={[s.group, { color: colors.textMuted }]}>{t('customMessageOptional')}</Text>
+         <View style={[s.card, { backgroundColor: colors.surface, padding: 16 }]}>
+           <Text style={[s.rowSub, { color: colors.textMuted, marginBottom: 10 }]}>
+             {t('leaveEmptyForPreset')}
+           </Text>
+           <TextInput
+             style={[s.template, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
+             value={template}
+             onChangeText={setTemplate}
+             onEndEditing={() => updateSettings({ reminderTemplate: template.trim() })}
+             placeholder="e.g. Namaste {name}, {shop} ka {amount} baaki hai…"
+             placeholderTextColor={colors.textMuted}
+             multiline
+           />
           {template.trim().length > 0 && (
             <TouchableOpacity onPress={() => { setTemplate(''); updateSettings({ reminderTemplate: '' }); }} style={{ alignSelf: 'flex-start', marginTop: 10 }}>
-              <Text style={{ fontFamily: fonts.semiBold, fontSize: 13, color: colors.primary }}>Reset to preset</Text>
+               <Text style={{ fontFamily: fonts.semiBold, fontSize: 13, color: colors.primary }}>{t('resetToPreset')}</Text>
             </TouchableOpacity>
           )}
         </View>
 
         {/* Live preview */}
-        <Text style={[s.group, { color: colors.textMuted }]}>PREVIEW</Text>
+         <Text style={[s.group, { color: colors.textMuted }]}>{t('preview')}</Text>
         <View style={[s.card, { backgroundColor: colors.surface, padding: 16 }]}>
           <View style={[s.bubble, { backgroundColor: '#DCF8C6' }]}>
             <Text style={s.bubbleText}>{preview}</Text>
           </View>
-          <Text style={[s.rowSub, { color: colors.textMuted, marginTop: 10 }]}>Sample: Ramesh owes ₹1,250</Text>
-        </View>
+           <Text style={[s.rowSub, { color: colors.textMuted, marginTop: 10 }]}>{t('sampleRameshOwes')}</Text>
+         </View>
 
         {/* ── Stock reorder ── */}
         <View style={[s.sectionHead, { marginTop: 28 }]}>
           <Ionicons name="cube-outline" size={18} color={colors.primary} />
-          <Text style={[s.sectionTitle, { color: colors.text }]}>Stock reorder</Text>
+           <Text style={[s.sectionTitle, { color: colors.text }]}>{t('stockReorder')}</Text>
         </View>
 
-        {/* Reorder language */}
-        <Text style={[s.group, { color: colors.textMuted }]}>LANGUAGE</Text>
+         {/* Reorder language */}
+         <Text style={[s.group, { color: colors.textMuted }]}>{t('language')}</Text>
         <View style={[s.card, { backgroundColor: colors.surface }]}>
           <View style={s.segRow}>
             {LANGS.map(l => {
@@ -158,36 +161,36 @@ export default function ReminderSettingsScreen() {
           </View>
         </View>
 
-        {/* Reorder custom template */}
-        <Text style={[s.group, { color: colors.textMuted }]}>CUSTOM MESSAGE (OPTIONAL)</Text>
-        <View style={[s.card, { backgroundColor: colors.surface, padding: 16 }]}>
-          <Text style={[s.rowSub, { color: colors.textMuted, marginBottom: 10 }]}>
-            Leave empty to use the preset. Placeholders: {'{shop}'} {'{supplier}'} {'{items}'} (the item list)
-          </Text>
+         {/* Reorder custom template */}
+         <Text style={[s.group, { color: colors.textMuted }]}>{t('customMessageOptional')}</Text>
+         <View style={[s.card, { backgroundColor: colors.surface, padding: 16 }]}>
+           <Text style={[s.rowSub, { color: colors.textMuted, marginBottom: 10 }]}>
+             {t('leaveEmptyForReorderPreset')}
+           </Text>
           <TextInput
             style={[s.template, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
             value={reorderTpl}
             onChangeText={setReorderTpl}
             onEndEditing={() => updateSettings({ reorderTemplate: reorderTpl.trim() })}
-            placeholder={'e.g. {shop} ke liye bhej dijiye:\n{items}'}
-            placeholderTextColor={colors.textMuted}
-            multiline
-          />
-          {reorderTpl.trim().length > 0 && (
-            <TouchableOpacity onPress={() => { setReorderTpl(''); updateSettings({ reorderTemplate: '' }); }} style={{ alignSelf: 'flex-start', marginTop: 10 }}>
-              <Text style={{ fontFamily: fonts.semiBold, fontSize: 13, color: colors.primary }}>Reset to preset</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+             placeholder={t('reorderPlaceholderExample')}
+             placeholderTextColor={colors.textMuted}
+             multiline
+           />
+           {reorderTpl.trim().length > 0 && (
+             <TouchableOpacity onPress={() => { setReorderTpl(''); updateSettings({ reorderTemplate: '' }); }} style={{ alignSelf: 'flex-start', marginTop: 10 }}>
+               <Text style={{ fontFamily: fonts.semiBold, fontSize: 13, color: colors.primary }}>{t('resetToPreset')}</Text>
+             </TouchableOpacity>
+           )}
+         </View>
 
-        {/* Reorder preview */}
-        <Text style={[s.group, { color: colors.textMuted }]}>PREVIEW</Text>
-        <View style={[s.card, { backgroundColor: colors.surface, padding: 16 }]}>
-          <View style={[s.bubble, { backgroundColor: '#DCF8C6' }]}>
-            <Text style={s.bubbleText}>{reorderPreview}</Text>
-          </View>
-          <Text style={[s.rowSub, { color: colors.textMuted, marginTop: 10 }]}>Sample: 2 items for Verma Traders</Text>
-        </View>
+         {/* Reorder preview */}
+         <Text style={[s.group, { color: colors.textMuted }]}>{t('preview')}</Text>
+         <View style={[s.card, { backgroundColor: colors.surface, padding: 16 }]}>
+           <View style={[s.bubble, { backgroundColor: '#DCF8C6' }]}>
+             <Text style={s.bubbleText}>{reorderPreview}</Text>
+           </View>
+           <Text style={[s.rowSub, { color: colors.textMuted, marginTop: 10 }]}>{t('sampleItemsForSupplier')}</Text>
+         </View>
       </ScrollView>
     </View>
   );

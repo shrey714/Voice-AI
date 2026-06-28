@@ -10,6 +10,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { useAppStore } from '../stores/useAppStore';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
+import { useTranslation } from '../hooks/useTranslation';
 import { formatCurrency, formatDate, startOfDay, endOfDay, startOfWeek, startOfMonth } from '../utils/helpers';
 import { Bill, Expense, Product } from '../types';
 
@@ -216,10 +217,10 @@ function generateInventoryCsv(d: ReturnType<typeof computeInventory>, cur: strin
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 const PERIODS: { key: Period; label: string }[] = [
-  { key: 'today',     label: 'Today' },
-  { key: 'week',      label: 'This Week' },
-  { key: 'month',     label: 'This Month' },
-  { key: 'lastMonth', label: 'Last Month' },
+  { key: 'today',     label: '' },
+  { key: 'week',      label: '' },
+  { key: 'month',     label: '' },
+  { key: 'lastMonth', label: '' },
 ];
 
 const REPORT_TYPES: { key: ReportType; label: string; icon: any }[] = [
@@ -230,6 +231,7 @@ const REPORT_TYPES: { key: ReportType; label: string; icon: any }[] = [
 
 export default function ExportsScreen() {
   const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const { bills, expenses, products, settings } = useAppStore();
   const [period, setPeriod] = useState<Period>('month');
   const [report, setReport] = useState<ReportType>('pl');
@@ -238,6 +240,18 @@ export default function ExportsScreen() {
   const cur = settings.currency;
   const { start, end, label: periodLabel } = useMemo(() => getPeriodRange(period), [period]);
 
+  const PERIODS: { key: Period; label: string }[] = [
+    { key: 'today',     label: t('today') },
+    { key: 'week',      label: t('thisWeek') },
+    { key: 'month',     label: t('thisMonth') },
+    { key: 'lastMonth', label: t('lastMonth') },
+  ];
+
+  const REPORT_TYPES: { key: ReportType; label: string; icon: any }[] = [
+    { key: 'pl',        label: t('profitLoss'), icon: 'trending-up-outline' },
+    { key: 'gst',       label: t('gstReport'),  icon: 'receipt-outline' },
+    { key: 'inventory', label: t('inventoryReport'), icon: 'cube-outline' },
+  ];
   const plData        = useMemo(() => computePL(bills, expenses, start, end), [bills, expenses, start, end]);
   const gstData       = useMemo(() => computeGST(bills, start, end),          [bills, start, end]);
   const inventoryData = useMemo(() => computeInventory(products),              [products]);
@@ -261,7 +275,7 @@ export default function ExportsScreen() {
       const { uri } = await Print.printToFileAsync({ html });
       await Sharing.shareAsync(uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf', dialogTitle: `Share ${filename}` });
     } catch (e) {
-      Alert.alert('Export failed', 'Could not generate PDF. Please try again.');
+      Alert.alert(t('exportFailed'), t('couldNotGeneratePdf'));
     } finally {
       setExporting(false);
     }
@@ -287,7 +301,7 @@ export default function ExportsScreen() {
       await FileSystem.writeAsStringAsync(path, csv, { encoding: FileSystem.EncodingType.UTF8 });
       await Sharing.shareAsync(path, { mimeType: 'text/csv', UTI: 'public.comma-separated-values-text', dialogTitle: `Share ${filename}` });
     } catch (e) {
-      Alert.alert('Export failed', 'Could not generate CSV. Please try again.');
+      Alert.alert(t('exportFailed'), t('couldNotGenerateCsv'));
     } finally {
       setExporting(false);
     }
@@ -299,7 +313,7 @@ export default function ExportsScreen() {
     <View style={[{ backgroundColor: colors.bg, flex: 1 }]}>
 
       {/* Report type tabs */}
-      <View style={[s.searchRow, {backgroundColor: colors.surface, borderBottomColor: colors.border}]}>
+      <View style={[s.searchRow, {backgroundColor: colors.surface}]}>
         <View style={[s.tabRow, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
           {REPORT_TYPES.map(rt => (
             <TouchableOpacity
@@ -317,7 +331,7 @@ export default function ExportsScreen() {
       {/* Period chips */}
       {report !== 'inventory' && (
         <View style={s.section}>
-          <Text style={[s.sectionLabel, { color: colors.textSub }]}>PERIOD</Text>
+          <Text style={[s.sectionLabel, { color: colors.textSub }]}>{t('period').toUpperCase()}</Text>
           <View style={s.chipRow}>
             {PERIODS.map(p => (
               <TouchableOpacity
@@ -335,9 +349,9 @@ export default function ExportsScreen() {
     <ScrollView contentContainerStyle={{ paddingBottom: 120, flexGrow: 1, marginTop: 12, paddingHorizontal: 12 }}>
 
       {/* Preview */}
-      {report === 'pl' && <PLPreview data={plData} cur={cur} colors={colors} />}
-      {report === 'gst' && <GSTPreview data={gstData} cur={cur} colors={colors} settings={settings} />}
-      {report === 'inventory' && <InventoryPreview data={inventoryData} cur={cur} colors={colors} />}
+      {report === 'pl' && <PLPreview data={plData} cur={cur} colors={colors} t={t} />}
+      {report === 'gst' && <GSTPreview data={gstData} cur={cur} colors={colors} settings={settings} t={t} />}
+      {report === 'inventory' && <InventoryPreview data={inventoryData} cur={cur} colors={colors} t={t} />}
 
       {/* Export buttons */}
       <View style={s.exportRow}>
@@ -347,7 +361,7 @@ export default function ExportsScreen() {
           disabled={exporting}
         >
           {exporting ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="document-text-outline" size={18} color="#fff" />}
-          <Text style={s.exportBtnText}>Export PDF</Text>
+          <Text style={s.exportBtnText}>{t('exportPdf')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[s.exportBtn, { backgroundColor: colors.success, opacity: exporting ? 0.6 : 1 }]}
@@ -355,7 +369,7 @@ export default function ExportsScreen() {
           disabled={exporting}
         >
           {exporting ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="grid-outline" size={18} color="#fff" />}
-          <Text style={s.exportBtnText}>Export CSV</Text>
+          <Text style={s.exportBtnText}>{t('exportCsv')}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -365,13 +379,13 @@ export default function ExportsScreen() {
 
 // ─── Preview components ───────────────────────────────────────────────────────
 
-function PLPreview({ data: d, cur, colors }: any) {
+function PLPreview({ data: d, cur, colors, t }: any) {
   const rows = [
-    { label: `Revenue (${d.billCount} bills)`, value: d.revenue, color: colors.text },
-    { label: 'Cost of Goods Sold',             value: d.cogs,    color: colors.textSub },
-    { label: `Gross Profit · ${d.grossMargin.toFixed(1)}%`, value: d.grossProfit, color: d.grossProfit >= 0 ? colors.success : colors.danger },
-    { label: 'Total Expenses',                  value: d.totalExp, color: colors.warning ?? colors.danger },
-    { label: `Net Profit · ${d.netMargin.toFixed(1)}%`,    value: d.netProfit,   color: d.netProfit >= 0 ? colors.success : colors.danger, bold: true },
+    { label: `${t('totalBills')} (${d.billCount})`, value: d.revenue, color: colors.text },
+    { label: t('costOfGoodsSold'), value: d.cogs, color: colors.textSub },
+    { label: `${t('grossProfit')} · ${d.grossMargin.toFixed(1)}%`, value: d.grossProfit, color: d.grossProfit >= 0 ? colors.success : colors.danger },
+    { label: t('totalExpenses'), value: d.totalExp, color: colors.warning ?? colors.danger },
+    { label: `${t('netProfit')} · ${d.netMargin.toFixed(1)}%`, value: d.netProfit, color: d.netProfit >= 0 ? colors.success : colors.danger, bold: true },
   ];
   return (
     <View style={[previewCard.wrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -385,13 +399,13 @@ function PLPreview({ data: d, cur, colors }: any) {
   );
 }
 
-function GSTPreview({ data: d, cur, colors, settings }: any) {
+function GSTPreview({ data: d, cur, colors, settings, t }: any) {
   if (!settings.gstRegistered) {
     return (
       <View style={[previewCard.wrap, { backgroundColor: colors.surface, borderColor: colors.border, alignItems: 'center', paddingVertical: 28 }]}>
         <Ionicons name="information-circle-outline" size={32} color={colors.textMuted} />
         <Text style={{ fontFamily: fonts.semiBold, fontSize: 13, color: colors.textMuted, marginTop: 8, textAlign: 'center' }}>
-          GST tracking is off.{'\n'}Enable it in Settings → GST.
+          {t('gstTrackingOff')}{'\n'}{t('enableInSettingsGst')}
         </Text>
       </View>
     );
@@ -399,16 +413,16 @@ function GSTPreview({ data: d, cur, colors, settings }: any) {
   if (d.rows.length === 0) {
     return (
       <View style={[previewCard.wrap, { backgroundColor: colors.surface, borderColor: colors.border, alignItems: 'center', paddingVertical: 28 }]}>
-        <Text style={{ fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted }}>No GST transactions in this period.</Text>
+        <Text style={{ fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted }}>{t('noGstTransactionsInPeriod')}</Text>
       </View>
     );
   }
   return (
     <View style={[previewCard.wrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={[previewCard.row, { backgroundColor: colors.surfaceHigh }]}>
-        <Text style={[previewCard.label, { color: colors.textSub, fontFamily: fonts.extraBold, flex: 1 }]}>Rate</Text>
-        <Text style={[previewCard.label, { color: colors.textSub, fontFamily: fonts.extraBold, width: 80, textAlign: 'right' }]}>Taxable</Text>
-        <Text style={[previewCard.label, { color: colors.textSub, fontFamily: fonts.extraBold, width: 60, textAlign: 'right' }]}>GST</Text>
+        <Text style={[previewCard.label, { color: colors.textSub, fontFamily: fonts.extraBold, flex: 1 }]}>{t('gstPreviewRate')}</Text>
+        <Text style={[previewCard.label, { color: colors.textSub, fontFamily: fonts.extraBold, width: 80, textAlign: 'right' }]}>{t('gstPreviewTaxable')}</Text>
+        <Text style={[previewCard.label, { color: colors.textSub, fontFamily: fonts.extraBold, width: 60, textAlign: 'right' }]}>{t('gstTableCgst')}</Text>
       </View>
       {d.rows.map((r: any, i: number) => (
         <View key={r.rate} style={[previewCard.row, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}>
@@ -418,7 +432,7 @@ function GSTPreview({ data: d, cur, colors, settings }: any) {
         </View>
       ))}
       <View style={[previewCard.row, { borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surfaceHigh }]}>
-        <Text style={[previewCard.label, { color: colors.text, fontFamily: fonts.bold, flex: 1 }]}>Total</Text>
+        <Text style={[previewCard.label, { color: colors.text, fontFamily: fonts.bold, flex: 1 }]}>{t('gstPreviewTotal')}</Text>
         <Text style={[previewCard.label, { color: colors.textSub, width: 80, textAlign: 'right', fontFamily: fonts.bold }]}>{formatCurrency(d.totalTaxable, cur)}</Text>
         <Text style={[previewCard.value, { color: colors.success, width: 60, textAlign: 'right' }]}>{formatCurrency(d.totalGst, cur)}</Text>
       </View>
@@ -426,7 +440,7 @@ function GSTPreview({ data: d, cur, colors, settings }: any) {
   );
 }
 
-function InventoryPreview({ data: d, cur, colors }: any) {
+function InventoryPreview({ data: d, cur, colors, t }: any) {
   const byCategory = useMemo(() => {
     const map: Record<string, { count: number; value: number }> = {};
     for (const r of d.rows) {
@@ -440,9 +454,9 @@ function InventoryPreview({ data: d, cur, colors }: any) {
   return (
     <View style={[previewCard.wrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={[previewCard.row, { backgroundColor: colors.surfaceHigh }]}>
-        <Text style={[previewCard.label, { color: colors.textSub, fontFamily: fonts.extraBold, flex: 1 }]}>Category</Text>
-        <Text style={[previewCard.label, { color: colors.textSub, fontFamily: fonts.extraBold, width: 50, textAlign: 'right' }]}>SKUs</Text>
-        <Text style={[previewCard.label, { color: colors.textSub, fontFamily: fonts.extraBold, width: 90, textAlign: 'right' }]}>Value</Text>
+        <Text style={[previewCard.label, { color: colors.textSub, fontFamily: fonts.extraBold, flex: 1 }]}>{t('inventoryPreviewCategory')}</Text>
+        <Text style={[previewCard.label, { color: colors.textSub, fontFamily: fonts.extraBold, width: 50, textAlign: 'right' }]}>{t('inventoryPreviewSkus')}</Text>
+        <Text style={[previewCard.label, { color: colors.textSub, fontFamily: fonts.extraBold, width: 90, textAlign: 'right' }]}>{t('inventoryPreviewValue')}</Text>
       </View>
       {byCategory.map(([cat, data]) => (
         <View key={cat} style={[previewCard.row, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}>
@@ -452,7 +466,7 @@ function InventoryPreview({ data: d, cur, colors }: any) {
         </View>
       ))}
       <View style={[previewCard.row, { borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surfaceHigh }]}>
-        <Text style={[previewCard.label, { color: colors.text, fontFamily: fonts.bold, flex: 1 }]}>Total · {d.productCount} products</Text>
+        <Text style={[previewCard.label, { color: colors.text, fontFamily: fonts.bold, flex: 1 }]}>{t('inventoryPreviewTotal').replace('{count}', String(d.productCount))}</Text>
         <Text style={[previewCard.value, { color: colors.success, textAlign: 'right' }]}>{formatCurrency(d.totalValue, cur)}</Text>
       </View>
     </View>
@@ -469,7 +483,7 @@ const previewCard = StyleSheet.create({
 const makeStyles = (c: any) => StyleSheet.create({
   sectionLabel: { fontFamily: fonts.extraBold, fontSize: 11, letterSpacing: 0.7 },
   section: { marginTop: 8, paddingHorizontal: 8, borderBottomWidth: StyleSheet.hairlineWidth },
-  searchRow: { flexDirection: 'row', gap: 10, padding: 8.5, alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth },
+  searchRow: { flexDirection: 'row', gap: 10, padding: 8.5, alignItems: 'center', borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
   chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5 },
   chipText: { fontFamily: fonts.bold, fontSize: 13 },

@@ -11,6 +11,7 @@ import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
 import { formatCurrency } from '../utils/helpers';
 import { Product, PurchaseItem } from '../types';
+import { useTranslation } from '../hooks/useTranslation';
 
 interface FormItem extends PurchaseItem {
   originalCostPrice: number;
@@ -24,6 +25,7 @@ const PAYMENT_MODES = [
 
 export default function PurchaseFormScreen({ route, navigation }: any) {
   const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const { products, suppliers, createPurchase, settings } = useAppStore();
 
   const prefillSupplierId: string | undefined = route?.params?.supplierId;
@@ -132,11 +134,11 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
   const handleSave = async () => {
     if (saving) return; // guard against double-tap during alert prompts
     if (items.length === 0) {
-      Alert.alert('Error', 'Add at least one item');
+      Alert.alert('Error', t('addAtLeastOneItem'));
       return;
     }
     if (paid > totalAmount + 0.01) {
-      Alert.alert('Error', `Paid amount (${formatCurrency(paid, settings.currency)}) cannot exceed total (${formatCurrency(totalAmount, settings.currency)})`);
+      Alert.alert('Error', `${t('paidExceedsTotal')} (${formatCurrency(paid, settings.currency)} / ${formatCurrency(totalAmount, settings.currency)})`);
       return;
     }
 
@@ -154,18 +156,18 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
       }
       const item = changed[index];
       Alert.alert(
-        'Cost Price Changed',
-        `${item.productName}\nStored cost: ${formatCurrency(item.originalCostPrice, settings.currency)}\nPurchase cost: ${formatCurrency(item.costPrice, settings.currency)}\n\nUpdate stored cost price?`,
+        t('costPriceChanged'),
+        `${item.productName}\nStored cost: ${formatCurrency(item.originalCostPrice, settings.currency)}\nPurchase cost: ${formatCurrency(item.costPrice, settings.currency)}\n\n${t('updateStoredCost')}`,
         [
           {
-            text: 'Update',
+            text: t('update'),
             onPress: () => {
               costPriceUpdates[item.productId] = item.costPrice;
               promptNext(index + 1);
             },
           },
           {
-            text: 'Skip',
+            text: t('skip'),
             style: 'cancel',
             onPress: () => promptNext(index + 1),
           },
@@ -209,7 +211,7 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
 
         {/* Supplier */}
         <View style={s.section}>
-          <Text style={[s.sectionTitle, { color: colors.textSub }]}>SUPPLIER</Text>
+          <Text style={[s.sectionTitle, { color: colors.textSub }]}>{t('selectSupplierLabel').toUpperCase()}</Text>
           <TouchableOpacity
             style={[s.pickerBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
             onPress={() => { setSupplierSearch(''); supplierSheetRef.current?.expand(); }}
@@ -222,7 +224,7 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
                 <Text style={[s.pickerBtnText, { color: colors.text }]}>{selectedSupplier.name}</Text>
               </View>
             ) : (
-              <Text style={[s.pickerBtnText, { color: colors.textMuted }]}>Select supplier (optional)</Text>
+              <Text style={[s.pickerBtnText, { color: colors.textMuted }]}>{t('selectSupplierOpt')}</Text>
             )}
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {selectedSupplier && (
@@ -237,7 +239,7 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
 
         {/* Invoice number */}
         <View style={s.section}>
-          <Text style={[s.sectionTitle, { color: colors.textSub }]}>INVOICE / CHALLAN NO. (OPTIONAL)</Text>
+          <Text style={[s.sectionTitle, { color: colors.textSub }]}>{t('invoiceChallan').toUpperCase()}</Text>
           <TextInput
             style={[s.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
             value={invoiceNumber}
@@ -256,7 +258,7 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
               onPress={openProductPicker}
             >
               <Ionicons name="add" size={16} color={colors.primary} />
-              <Text style={[s.addItemBtnText, { color: colors.primary }]}>Add Item</Text>
+              <Text style={[s.addItemBtnText, { color: colors.primary }]}>{t('addItem')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -266,7 +268,7 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
               onPress={openProductPicker}
             >
               <Ionicons name="add-circle-outline" size={28} color={colors.textMuted} />
-              <Text style={[s.emptyItemsText, { color: colors.textMuted }]}>Tap to add items</Text>
+              <Text style={[s.emptyItemsText, { color: colors.textMuted }]}>{t('tapToAddItems')}</Text>
             </TouchableOpacity>
           ) : (
             items.map(item => {
@@ -314,7 +316,7 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
                         {costChanged && (
                           <View style={[s.changedDot, { backgroundColor: colors.warning + '30' }]}>
                             <Text style={[s.changedDotText, { color: colors.warning }]}>
-                              was {formatCurrency(item.originalCostPrice, settings.currency)}
+                              {t('was')} {formatCurrency(item.originalCostPrice, settings.currency)}
                             </Text>
                           </View>
                         )}
@@ -353,13 +355,13 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
           <Text style={[s.sectionTitle, { color: colors.textSub }]}>PAYMENT</Text>
           <View style={[s.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={s.summaryRow}>
-              <Text style={[s.summaryLabel, { color: colors.textSub }]}>Total Amount</Text>
+              <Text style={[s.summaryLabel, { color: colors.textSub }]}>{t('totalAmount')}</Text>
               <Text style={[s.summaryValue, { color: colors.text }]}>{formatCurrency(totalAmount, settings.currency)}</Text>
             </View>
 
             {/* Paid amount input */}
             <View style={[s.summaryRow, { marginTop: 8 }]}>
-              <Text style={[s.summaryLabel, { color: colors.textSub }]}>Paid Now</Text>
+              <Text style={[s.summaryLabel, { color: colors.textSub }]}>{t('paidNow')}</Text>
               <TextInput
                 style={[s.paidInput, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
                 value={paidAmount}
@@ -380,7 +382,7 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
                   </Text>
                   {!supplierId && (
                     <Text style={{ fontFamily: fonts.regular, fontSize: 11, color: colors.danger, marginTop: 2 }}>
-                      Select a supplier above to track this as a payable
+                      {t('selectSupplierToTrack')}
                     </Text>
                   )}
                 </View>
@@ -410,12 +412,12 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
 
         {/* Notes */}
         <View style={s.section}>
-          <Text style={[s.sectionTitle, { color: colors.textSub }]}>NOTES (OPTIONAL)</Text>
+          <Text style={[s.sectionTitle, { color: colors.textSub }]}>{t('notesOptional').toUpperCase()}</Text>
           <TextInput
             style={[s.input, s.notesInput, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
             value={notes}
             onChangeText={setNotes}
-            placeholder="Any additional notes..."
+            placeholder={t('anyAdditionalNotes')}
             placeholderTextColor={colors.textMuted}
             multiline
             textAlignVertical="top"
@@ -431,7 +433,7 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
           >
             <Ionicons name="checkmark-circle" size={20} color={items.length > 0 ? '#fff' : colors.textMuted} />
             <Text style={[s.saveBtnText, { color: items.length > 0 ? '#fff' : colors.textMuted }]}>
-              {saving ? 'Saving...' : `Save Purchase · ${formatCurrency(totalAmount, settings.currency)}`}
+              {saving ? t('savingDots') : `${t('savePurchase')} · ${formatCurrency(totalAmount, settings.currency)}`}
             </Text>
           </TouchableOpacity>
         </View>
@@ -451,7 +453,7 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
         android_keyboardInputMode="adjustResize"
       >
         <View style={{ flex: 1, paddingHorizontal: 16 }}>
-          <Text style={[s.sheetTitle, { color: colors.text }]}>Select Product</Text>
+          <Text style={[s.sheetTitle, { color: colors.text }]}>{t('selectProduct')}</Text>
           <View style={[s.searchBox, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
             <Ionicons name="search-outline" size={16} color={colors.textMuted} style={{ marginRight: 6 }} />
             <TextInput
@@ -500,7 +502,7 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
         android_keyboardInputMode="adjustResize"
       >
         <View style={{ flex: 1, paddingHorizontal: 16 }}>
-          <Text style={[s.sheetTitle, { color: colors.text }]}>Select Supplier</Text>
+          <Text style={[s.sheetTitle, { color: colors.text }]}>{t('selectSupplierLabel')}</Text>
           <View style={[s.searchBox, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
             <Ionicons name="search-outline" size={16} color={colors.textMuted} style={{ marginRight: 6 }} />
             <TextInput
