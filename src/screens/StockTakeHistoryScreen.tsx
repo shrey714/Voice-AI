@@ -62,7 +62,7 @@ export default function StockTakeHistoryScreen({ navigation }: any) {
     navigation.setOptions({
       headerRight: sessions.length > 0 && !loading
         ? () => (
-            <TouchableOpacity onPress={handleDeleteAll} hitSlop={12}>
+            <TouchableOpacity onPress={handleDeleteAll} hitSlop={12} accessibilityLabel="Delete all history" accessibilityRole="button">
               <Ionicons name="trash-outline" size={22} color={colors.danger} />
             </TouchableOpacity>
           )

@@ -104,11 +104,11 @@ export default function StockTakeReviewScreen({ navigation }: any) {
             </View>
           ) : diff > 0 ? (
             <View style={[s.diffBadge, { backgroundColor: colors.success + '18' }]}>
-              <Text style={[s.diffText, { color: colors.success }]}>+{diff}</Text>
+              <Text style={[s.diffText, { color: colors.success }]} accessibilityLabel={`Over by ${diff}`}>+{diff}</Text>
             </View>
           ) : (
             <View style={[s.diffBadge, { backgroundColor: colors.danger + '18' }]}>
-              <Text style={[s.diffText, { color: colors.danger }]}>{diff}</Text>
+              <Text style={[s.diffText, { color: colors.danger }]} accessibilityLabel={`Short by ${Math.abs(diff)}`}>{diff}</Text>
             </View>
           )}
         </View>
@@ -195,7 +195,7 @@ export default function StockTakeReviewScreen({ navigation }: any) {
 
       {/* Commit footer */}
       <View style={[s.footer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
-        <TouchableOpacity style={[s.backBtn, {borderColor: colors.border}]} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={[s.backBtn, {borderColor: colors.border}]} onPress={() => navigation.goBack()} accessibilityLabel="Go back" accessibilityRole="button">
            <Ionicons name="chevron-back" size={18} color={colors.textMuted} />
         </TouchableOpacity>
         <TouchableOpacity

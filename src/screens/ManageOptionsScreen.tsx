@@ -56,7 +56,7 @@ function OptionGroup({
               {isLocked ? (
                 <Ionicons name="lock-closed" size={11} color={colors.textMuted} />
               ) : (
-                <TouchableOpacity hitSlop={8} onPress={() => onRemove(item)}>
+                <TouchableOpacity hitSlop={8} onPress={() => onRemove(item)} accessibilityLabel={`Remove ${item}`} accessibilityRole="button">
                   <Ionicons name="close-circle" size={16} color={colors.textMuted} />
                 </TouchableOpacity>
               )}
@@ -75,7 +75,7 @@ function OptionGroup({
           onSubmitEditing={submit}
           returnKeyType="done"
         />
-        <TouchableOpacity style={[s.addBtn, { backgroundColor: colors.primary, opacity: draft.trim() ? 1 : 0.5 }]} disabled={!draft.trim()} onPress={submit}>
+        <TouchableOpacity style={[s.addBtn, { backgroundColor: colors.primary, opacity: draft.trim() ? 1 : 0.5 }]} disabled={!draft.trim()} onPress={submit} accessibilityLabel={`Add ${title}`} accessibilityRole="button">
           <Ionicons name="add" size={22} color="#fff" />
         </TouchableOpacity>
       </View>

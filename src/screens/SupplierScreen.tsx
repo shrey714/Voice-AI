@@ -196,7 +196,7 @@ export default function SupplierScreen() {
             onChangeText={setSearch}
           />
           {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')} hitSlop={8}>
+            <TouchableOpacity onPress={() => setSearch('')} hitSlop={8} accessibilityLabel="Clear search" accessibilityRole="button">
               <Ionicons name="close-circle" size={16} color={c.textMuted} />
             </TouchableOpacity>
           )}
@@ -435,7 +435,7 @@ export default function SupplierScreen() {
                         ) : null}
                     </View>
                   </View>
-                  <TouchableOpacity onPress={closeDetailSheet}>
+                  <TouchableOpacity onPress={closeDetailSheet} accessibilityLabel="Close" accessibilityRole="button">
                     <Ionicons name="close" size={24} color={c.textSub} />
                   </TouchableOpacity>
                 </View>
@@ -494,13 +494,15 @@ export default function SupplierScreen() {
                     </TouchableOpacity>
                   ) : null}
                   <TouchableOpacity style={[s.actionBtn, { backgroundColor: '#25D36615' }]}
-                    onPress={() => openWhatsApp(`Hello ${selectedSupplier.name}, I'd like to place an order.`)}>
+                    onPress={() => openWhatsApp(`Hello ${selectedSupplier.name}, I'd like to place an order.`)}
+                    accessibilityLabel="Message supplier via WhatsApp"
+                    accessibilityRole="button">
                     <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
                   </TouchableOpacity>
-                  <TouchableOpacity style={[s.actionBtn, { backgroundColor: c.primaryLight }]} onPress={() => openEdit(selectedSupplier)}>
+                  <TouchableOpacity style={[s.actionBtn, { backgroundColor: c.primaryLight }]} onPress={() => openEdit(selectedSupplier)} accessibilityLabel="Edit supplier" accessibilityRole="button">
                     <Ionicons name="pencil" size={18} color={c.primary} />
                   </TouchableOpacity>
-                  <TouchableOpacity style={[s.actionBtn, { backgroundColor: c.danger + '15' }]} onPress={() => confirmDeleteSupplier(selectedSupplier)}>
+                  <TouchableOpacity style={[s.actionBtn, { backgroundColor: c.danger + '15' }]} onPress={() => confirmDeleteSupplier(selectedSupplier)} accessibilityLabel="Delete supplier" accessibilityRole="button">
                     <Ionicons name="trash" size={18} color={c.danger} />
                   </TouchableOpacity>
                 </View>
@@ -648,7 +650,7 @@ export default function SupplierScreen() {
                               >
                                 <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 13 }}>Add</Text>
                               </TouchableOpacity>
-                              <TouchableOpacity onPress={() => setEditingStockId(null)}>
+                              <TouchableOpacity onPress={() => setEditingStockId(null)} accessibilityLabel="Cancel stock edit" accessibilityRole="button">
                                 <Ionicons name="close-circle" size={26} color={c.textMuted} />
                               </TouchableOpacity>
                             </View>

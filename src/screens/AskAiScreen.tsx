@@ -237,6 +237,8 @@ function Composer({ colors, s, insets, isDark, t }: { colors: any; s: any; inset
           hitSlop={8}
           disabled={isRunning || transcribing}
           onPress={() => (recording ? stopRec() : startRec())}
+          accessibilityLabel={recording ? 'Stop recording' : 'Start voice input'}
+          accessibilityRole="button"
         >
           {transcribing ? (
             <ActivityIndicator size="small" color={colors.primary} />
@@ -259,13 +261,13 @@ function Composer({ colors, s, insets, isDark, t }: { colors: any; s: any; inset
           returnKeyType="default"
         />
         {isRunning ? (
-          <TouchableOpacity onPress={() => aui.composer().cancel()} activeOpacity={0.85}>
+          <TouchableOpacity onPress={() => aui.composer().cancel()} activeOpacity={0.85} accessibilityLabel="Stop generation" accessibilityRole="button">
             <LinearGradient colors={[colors.primary, colors.primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.sendBtn}>
               <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: '#fff' }} />
             </LinearGradient>
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity onPress={send} disabled={!canSend} activeOpacity={0.85}>
+          <TouchableOpacity onPress={send} disabled={!canSend} activeOpacity={0.85} accessibilityLabel="Send message" accessibilityRole="button">
             <LinearGradient
               colors={canSend ? [colors.primary, colors.primaryDark] : [colors.border, colors.border]}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.sendBtn}>

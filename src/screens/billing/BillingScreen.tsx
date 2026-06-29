@@ -315,12 +315,12 @@ export default function BillingScreen({ navigation }: any) {
             placeholderTextColor={colors.textMuted}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => { setSearchQuery(''); refocusBtInput(); }}>
+            <TouchableOpacity onPress={() => { setSearchQuery(''); refocusBtInput(); }} accessibilityLabel="Clear search" accessibilityRole="button">
               <Ionicons name="close-circle" size={18} color={colors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
-         <TouchableOpacity style={[s.iconBtn, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]} onPress={() => setShowScanner(true)}>
+         <TouchableOpacity style={[s.iconBtn, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]} onPress={() => setShowScanner(true)} accessibilityLabel="Scan barcode" accessibilityRole="button">
           <Ionicons name="barcode-outline" size={22} color={colors.primary} />
         </TouchableOpacity>
        <VoiceButton
@@ -454,19 +454,21 @@ export default function BillingScreen({ navigation }: any) {
                     <Text style={[s.cartItemPrice, { color: colors.textMuted }]}>{formatCurrency(item.product.sellingPrice, settings.currency)} {t('each')}</Text>
                   </View>
                   <View style={s.qtyRow}>
-                    <TouchableOpacity style={[s.qtyBtn, { backgroundColor: colors.surfaceHigh }]} onPress={() => updateCartQuantity(item.product.id, item.quantity - 1)}>
+                    <TouchableOpacity style={[s.qtyBtn, { backgroundColor: colors.surfaceHigh }]} onPress={() => updateCartQuantity(item.product.id, item.quantity - 1)} accessibilityLabel="Decrement quantity" accessibilityRole="button">
                       <Text style={[s.qtyBtnText, { color: colors.primary }]}>−</Text>
                     </TouchableOpacity>
                     <Text style={[s.qtyText, { color: colors.text }]}>{item.quantity}</Text>
                     <TouchableOpacity
                       style={[s.qtyBtn, { backgroundColor: colors.surfaceHigh, opacity: item.quantity >= item.product.quantity ? 0.4 : 1 }]}
                       disabled={item.quantity >= item.product.quantity}
-                      onPress={() => updateCartQuantity(item.product.id, item.quantity + 1)}>
+                      onPress={() => updateCartQuantity(item.product.id, item.quantity + 1)}
+                      accessibilityLabel="Increment quantity"
+                      accessibilityRole="button">
                       <Text style={[s.qtyBtnText, { color: colors.primary }]}>+</Text>
                     </TouchableOpacity>
                   </View>
                   <Text style={[s.cartItemTotal, { color: colors.primary }]}>{formatCurrency(item.product.sellingPrice * item.quantity, settings.currency)}</Text>
-                  <TouchableOpacity onPress={() => removeFromCart(item.product.id)} style={{ marginLeft: 4 }}>
+                  <TouchableOpacity onPress={() => removeFromCart(item.product.id)} style={{ marginLeft: 4 }} accessibilityLabel="Remove from cart" accessibilityRole="button">
                     <Ionicons name="close-circle-outline" size={18} color={colors.danger} />
                   </TouchableOpacity>
                 </View>
@@ -664,7 +666,7 @@ export default function BillingScreen({ navigation }: any) {
             {/* Header */}
             <View style={s.qrCardHeader}>
               <Text style={[s.qrCardTitle, { color: colors.text }]}>{t('upiPayment')}</Text>
-              <TouchableOpacity onPress={() => setShowUpiQr(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+              <TouchableOpacity onPress={() => setShowUpiQr(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Close" accessibilityRole="button">
                 <Ionicons name="close" size={22} color={colors.textSub} />
               </TouchableOpacity>
             </View>
@@ -715,7 +717,7 @@ export default function BillingScreen({ navigation }: any) {
                  {templates.length === 0 ? t('noTemplatesYet') : templates.length === 1 ? t('savedTemplate').replace('{count}', String(templates.length)) : t('savedTemplatePlural').replace('{count}', String(templates.length))}
                </Text>
             </View>
-            <TouchableOpacity onPress={closeTemplatesSheet} style={{ padding: 4 }}>
+            <TouchableOpacity onPress={closeTemplatesSheet} style={{ padding: 4 }} accessibilityLabel="Close" accessibilityRole="button">
               <Ionicons name="close" size={22} color={colors.textSub} />
             </TouchableOpacity>
           </View>
@@ -754,6 +756,8 @@ export default function BillingScreen({ navigation }: any) {
                       style={[s.loadIconBtn, { backgroundColor: colors.primary }]}
                       onPress={() => { closeTemplatesSheet(); setTimeout(() => handleLoadTemplate(tmpl), 150); }}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityLabel="Load template into cart"
+                      accessibilityRole="button"
                     >
                       <Ionicons name="cart-outline" size={18} color="#fff" />
                     </TouchableOpacity>
@@ -793,12 +797,16 @@ export default function BillingScreen({ navigation }: any) {
                         <TouchableOpacity
                           style={[s.iconActionBtn, { backgroundColor: colors.primaryLight }]}
                           onPress={() => openRenameSheet(tmpl)}
+                          accessibilityLabel="Rename template"
+                          accessibilityRole="button"
                         >
                           <Ionicons name="pencil-outline" size={16} color={colors.primary} />
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={[s.iconActionBtn, { backgroundColor: colors.danger + '15' }]}
                           onPress={() => handleDeleteTemplate(tmpl.id, tmpl.name)}
+                          accessibilityLabel="Delete template"
+                          accessibilityRole="button"
                         >
                           <Ionicons name="trash-outline" size={16} color={colors.danger} />
                         </TouchableOpacity>
@@ -829,7 +837,7 @@ export default function BillingScreen({ navigation }: any) {
         <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
             <Text style={[s.modalTitle, { color: colors.text }]}>{t('renameTemplate')}</Text>
-            <TouchableOpacity onPress={closeRenameSheet}>
+            <TouchableOpacity onPress={closeRenameSheet} accessibilityLabel="Close" accessibilityRole="button">
               <Ionicons name="close" size={22} color={colors.textSub} />
             </TouchableOpacity>
           </View>
@@ -870,7 +878,7 @@ export default function BillingScreen({ navigation }: any) {
         <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
              <Text style={[s.modalTitle, { color: colors.text }]}>{t('saveAsTemplate')}</Text>
-            <TouchableOpacity onPress={closeSaveSheet}>
+            <TouchableOpacity onPress={closeSaveSheet} accessibilityLabel="Close" accessibilityRole="button">
               <Ionicons name="close" size={22} color={colors.textSub} />
             </TouchableOpacity>
           </View>

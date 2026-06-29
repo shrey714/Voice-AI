@@ -228,7 +228,7 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
             )}
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {selectedSupplier && (
-                <TouchableOpacity onPress={() => setSupplierId(null)} hitSlop={8}>
+                <TouchableOpacity onPress={() => setSupplierId(null)} hitSlop={8} accessibilityLabel="Clear supplier" accessibilityRole="button">
                   <Ionicons name="close-circle" size={18} color={colors.textMuted} />
                 </TouchableOpacity>
               )}
@@ -277,7 +277,7 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
                 <View key={item.productId} style={[s.itemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                   <View style={s.itemTop}>
                     <Text style={[s.itemName, { color: colors.text }]} numberOfLines={1}>{item.productName}</Text>
-                    <TouchableOpacity onPress={() => removeItem(item.productId)} hitSlop={6}>
+                    <TouchableOpacity onPress={() => removeItem(item.productId)} hitSlop={6} accessibilityLabel="Remove item" accessibilityRole="button">
                       <Ionicons name="close-circle" size={20} color={colors.textMuted} />
                     </TouchableOpacity>
                   </View>
@@ -290,6 +290,8 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
                         <TouchableOpacity
                           style={[s.qtyBtn, { backgroundColor: colors.surfaceHigh }]}
                           onPress={() => updateItemQty(item.productId, item.quantity - 1)}
+                          accessibilityLabel="Decrease quantity"
+                          accessibilityRole="button"
                         >
                           <Ionicons name="remove" size={16} color={colors.text} />
                         </TouchableOpacity>
@@ -303,6 +305,8 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
                         <TouchableOpacity
                           style={[s.qtyBtn, { backgroundColor: colors.primaryLight }]}
                           onPress={() => updateItemQty(item.productId, item.quantity + 1)}
+                          accessibilityLabel="Increase quantity"
+                          accessibilityRole="button"
                         >
                           <Ionicons name="add" size={16} color={colors.primary} />
                         </TouchableOpacity>

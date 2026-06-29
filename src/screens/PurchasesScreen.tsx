@@ -71,11 +71,11 @@ export default function PurchasesScreen({ navigation }: any) {
                 </View>
               ) : purchase.paidAmount >= purchase.totalAmount ? (
                 <View style={[s.badge, { backgroundColor: colors.success + '18' }]}>
-                  <Text style={[s.badgeText, { color: colors.success }]}>{t('paid')}</Text>
+                  <Text style={[s.badgeText, { color: colors.success }]} accessibilityLabel="Paid in full">{t('paid')}</Text>
                 </View>
               ) : (
                 <View style={[s.badge, { backgroundColor: colors.danger + '18' }]}>
-                  <Text style={[s.badgeText, { color: colors.danger }]}>
+                  <Text style={[s.badgeText, { color: colors.danger }]} accessibilityLabel={`Unpaid: ${formatCurrency(outstanding, settings.currency)} outstanding`}>
                     {t('unpaid')} {formatCurrency(outstanding, settings.currency)}
                   </Text>
                 </View>
@@ -112,7 +112,7 @@ export default function PurchasesScreen({ navigation }: any) {
             onChangeText={setSearch}
           />
           {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')} hitSlop={8}>
+            <TouchableOpacity onPress={() => setSearch('')} hitSlop={8} accessibilityLabel="Clear search" accessibilityRole="button">
               <Ionicons name="close-circle" size={16} color={colors.textMuted} />
             </TouchableOpacity>
           )}

@@ -313,7 +313,7 @@ export default function UdhaarScreen() {
                     </View>
                   ) : null}
                 </View>
-                <TouchableOpacity onPress={closeCustomerDetail}>
+                <TouchableOpacity onPress={closeCustomerDetail} accessibilityLabel="Close" accessibilityRole="button">
                   <Ionicons name="close" size={24} color={colors.textSub} />
                 </TouchableOpacity>
               </View>
@@ -499,7 +499,9 @@ export default function UdhaarScreen() {
                     <TouchableOpacity
                       style={[s.queueNavBtn, { borderColor: colors.border, opacity: queueIndex === 0 ? 0.4 : 1 }]}
                       onPress={queueBack}
-                      disabled={queueIndex === 0}>
+                      disabled={queueIndex === 0}
+                      accessibilityLabel="Previous customer"
+                      accessibilityRole="button">
                       <Ionicons name="chevron-back" size={18} color={colors.textSub} />
                     </TouchableOpacity>
                     <TouchableOpacity style={[s.cancelBtn, { borderColor: colors.border }]} onPress={queueAdvance}>

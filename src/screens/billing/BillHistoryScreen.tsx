@@ -378,6 +378,8 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
         <TouchableOpacity
           style={[s.filterBtn, { backgroundColor: activeFilterCount > 0 ? colors.primary : colors.surfaceHigh, borderColor: activeFilterCount > 0 ? colors.primary : colors.border }]}
           onPress={openFilterSheet}
+          accessibilityLabel="Open filters"
+          accessibilityRole="button"
         >
           <Ionicons name="options-outline" size={18} color={activeFilterCount > 0 ? '#fff' : colors.textSub} />
           {activeFilterCount > 0 && (
@@ -595,7 +597,7 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
               <>
                 <View style={[s.modalHeader, { borderBottomColor: colors.border }]}>
                   <Text style={[s.modalTitle, { color: colors.text }]}>{t('billDetail')}</Text>
-                  <TouchableOpacity onPress={closeDetail}>
+                  <TouchableOpacity onPress={closeDetail} accessibilityLabel="Close" accessibilityRole="button">
                     <Ionicons name="close" size={22} color={colors.textSub} />
                   </TouchableOpacity>
                 </View>
@@ -742,7 +744,7 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
                   <Text style={[s.modalTitle, { color: colors.text }]}>{t('returnItems')}</Text>
                   <Text style={[s.returnSheetSub, { color: colors.textMuted }]}>{returnBill.items.map(i => i.productName).join(', ')}</Text>
                 </View>
-                <TouchableOpacity onPress={closeReturnSheet}>
+                <TouchableOpacity onPress={closeReturnSheet} accessibilityLabel="Close" accessibilityRole="button">
                   <Ionicons name="close" size={22} color={colors.textSub} />
                 </TouchableOpacity>
               </View>
@@ -767,6 +769,8 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
                         onPress={() => { if (!fullyReturned) setQty(item.productId, Math.max(0, qty - 1)); }}
                         style={[s.stepperBtn, { backgroundColor: qty > 0 ? colors.primary + '20' : colors.surfaceHigh }]}
                         disabled={qty === 0 || fullyReturned}
+                        accessibilityLabel="Decrement return quantity"
+                        accessibilityRole="button"
                       >
                         <Ionicons name="remove" size={18} color={qty > 0 ? colors.primary : colors.textMuted} />
                       </TouchableOpacity>
@@ -788,6 +792,8 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
                         }}
                         style={[s.stepperBtn, { backgroundColor: qty < maxQty ? colors.primary : colors.surfaceHigh }]}
                         disabled={qty >= maxQty || fullyReturned}
+                        accessibilityLabel="Increment return quantity"
+                        accessibilityRole="button"
                       >
                         <Ionicons name="add" size={18} color={qty < maxQty ? '#fff' : colors.textMuted} />
                       </TouchableOpacity>

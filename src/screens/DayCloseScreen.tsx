@@ -149,7 +149,18 @@ export default function DayCloseScreen() {
         <View style={[s.diffBanner, { backgroundColor: diffColor + '14', borderColor: diffColor + '40' }]}>
           <View>
             <Text style={[s.diffLbl, { color: colors.textMuted }]}>{diffLabel}</Text>
-            <Text style={[s.diffAmt, { color: diffColor }]}>{diff === 0 ? formatCurrency(0, settings.currency) : `${diff > 0 ? '+' : '−'}${formatCurrency(Math.abs(diff), settings.currency)}`}</Text>
+            <Text
+              style={[s.diffAmt, { color: diffColor }]}
+              accessibilityLabel={
+                Math.abs(diff) < 0.5
+                  ? 'Tallied: drawer matches expected'
+                  : diff > 0
+                  ? `Over: ${formatCurrency(Math.abs(diff), settings.currency)} extra cash`
+                  : `Short: ${formatCurrency(Math.abs(diff), settings.currency)} missing`
+              }
+            >
+              {diff === 0 ? formatCurrency(0, settings.currency) : `${diff > 0 ? '+' : '−'}${formatCurrency(Math.abs(diff), settings.currency)}`}
+            </Text>
           </View>
           <Ionicons name={Math.abs(diff) < 0.5 ? 'checkmark-circle' : 'alert-circle'} size={30} color={diffColor} />
         </View>

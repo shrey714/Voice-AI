@@ -109,11 +109,11 @@ export default function StockTakeCountScreen({ navigation }: any) {
           </View>
         ) : diff > 0 ? (
           <View style={[s.diffBadge, { backgroundColor: colors.success + '18' }]}>
-            <Text style={[s.diffText, { color: colors.success }]}>+{diff}</Text>
+            <Text style={[s.diffText, { color: colors.success }]} accessibilityLabel={`Over by ${diff}`}>+{diff}</Text>
           </View>
         ) : (
           <View style={[s.diffBadge, { backgroundColor: colors.danger + '18' }]}>
-            <Text style={[s.diffText, { color: colors.danger }]}>{diff}</Text>
+            <Text style={[s.diffText, { color: colors.danger }]} accessibilityLabel={`Short by ${Math.abs(diff)}`}>{diff}</Text>
           </View>
         )}
       </View>
