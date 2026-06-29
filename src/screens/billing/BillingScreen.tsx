@@ -190,28 +190,23 @@ export default function BillingScreen({ navigation }: any) {
     if (scanTimer.current) { clearTimeout(scanTimer.current); scanTimer.current = null; }
 
     const barcode = btBufferRef.current.trim();
-    console.log('[BT] handleBtScan fired — barcode:', JSON.stringify(barcode));
     btBufferRef.current = '';
     setBtBuffer('');
     if (!barcode) { refocusBtInput(); return; }
 
     const product = products.find(p => p.barcode === barcode);
     if (!product) {
-      console.log('[BT] product NOT found for barcode:', barcode);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       toast.error(t('notInInventory').replace('{barcode}', barcode));
     } else if (product.quantity <= 0) {
-      console.log('[BT] product out of stock:', product.name);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       toast.error(t('outOfStockItem').replace('{name}', product.name));
     } else {
       const cartQty = cart.find(ci => ci.product.id === product.id)?.quantity ?? 0;
       if (cartQty >= product.quantity) {
-        console.log('[BT] already at max stock:', product.name);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         toast.warning(t('onlyInStock').replace('{name}', product.name).replace('{qty}', String(product.quantity)));
       } else {
-        console.log('[BT] adding to cart:', product.name);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         addToCart(product);
         toast.success(product.name);
@@ -917,17 +912,15 @@ export default function BillingScreen({ navigation }: any) {
         onChangeText={(t) => {
           btBufferRef.current = t;
           setBtBuffer(t);
-          if (t) console.log('[BT] onChangeText — buffer now:', JSON.stringify(t));
-          // Restart the completion timer on every keystroke.
+          if (t)          // Restart the completion timer on every keystroke.
           // If no new char arrives in 120ms → barcode is complete (handles scanners that don't send Enter).
           if (scanTimer.current) clearTimeout(scanTimer.current);
           if (t.length >= 4) scanTimer.current = setTimeout(handleBtScan, 120);
         }}
         onSubmitEditing={handleBtScan}
-        onFocus={() => { setBtActive(true); console.log('[BT] hidden input FOCUSED'); }}
+        onFocus={() => { setBtActive(true);; }}
         onBlur={() => {
           setBtActive(false);
-          console.log('[BT] hidden input BLURRED');
           // Self-heal: if Billing is still the active tab the blur was unexpected
           // (iOS UIScrollView resigned first-responder during PagerView programmatic
           // scroll; Android IMF dropped focus mid-transition).

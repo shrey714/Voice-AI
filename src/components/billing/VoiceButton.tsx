@@ -142,12 +142,10 @@ export default function VoiceButton({ onResult, style, color }: Props) {
       if (db > SPEECH_DB) {
         if (!speechStartRef.current) {
           speechStartRef.current = now;
-          console.log('[VAD] speech start, db =', db);
         }
         silenceStartRef.current = null;
         // Force-trigger after MAX_SPEECH_MS even without silence gap
         if (now - speechStartRef.current >= MAX_SPEECH_MS) {
-          console.log('[VAD] max speech duration hit, forcing trigger');
           speechStartRef.current = null;
           silenceStartRef.current = null;
           triggerFnRef.current();
@@ -155,12 +153,10 @@ export default function VoiceButton({ onResult, style, color }: Props) {
       } else if (db < SILENCE_DB && speechStartRef.current) {
         if (!silenceStartRef.current) {
           silenceStartRef.current = now;
-          console.log('[VAD] silence start, db =', db);
         }
         const silenceDuration = now - silenceStartRef.current;
         const speechDuration = silenceStartRef.current - speechStartRef.current;
         if (silenceDuration >= SILENCE_MS && speechDuration >= MIN_SPEECH_MS) {
-          console.log('[VAD] utterance complete, speechMs =', speechDuration, 'silenceMs =', silenceDuration);
           speechStartRef.current = null;
           silenceStartRef.current = null;
           triggerFnRef.current();
@@ -180,9 +176,7 @@ export default function VoiceButton({ onResult, style, color }: Props) {
       });
       recorder.record();
       recordingActiveRef.current = true;
-      console.log('[REC] started, isRecording=', recorder.getStatus().isRecording);
     } catch (e) {
-      console.log('[REC] startRecordingOnly failed:', e);
       recordingActiveRef.current = false;
     }
   };
@@ -190,9 +184,7 @@ export default function VoiceButton({ onResult, style, color }: Props) {
   const startRecording = async () => {
     try {
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-      console.log('[REC] audio mode set ok');
     } catch (e) {
-      console.log('[REC] setAudioModeAsync error (non-fatal):', e);
     }
     await startRecordingOnly();
     startVAD();
@@ -203,25 +195,20 @@ export default function VoiceButton({ onResult, style, color }: Props) {
   const transcribeUri = async (uri: string): Promise<string> => {
     const groq = getGroqApiKey();
     const oai = getWhisperApiKey();
-    console.log('[STT] keys: groq=', groq ? groq.slice(0, 8) + '...' : 'MISSING', 'oai=', oai ? oai.slice(0, 8) + '...' : 'MISSING');
-    if (!groq && !oai) { console.log('[STT] no API keys configured'); return ''; }
+    if (!groq && !oai) {; return ''; }
     if (groq) {
       const r = await transcribeWithGroq(uri, languageRef.current);
-      if (r.ok) { console.log('[STT] Groq ok:', r.text.slice(0, 60)); return r.text; }
-      console.log('[STT] Groq failed:', r.error);
+      if (r.ok) {; return r.text; }
     }
     if (oai) {
       const r = await transcribeAudio(uri, languageRef.current);
-      if (r.ok) { console.log('[STT] OAI ok:', r.text.slice(0, 60)); return r.text; }
-      console.log('[STT] OAI failed:', r.error);
+      if (r.ok) {; return r.text; }
     }
     return '';
   };
 
   const processUtterance = async (uri: string) => {
-    console.log('[STT] transcribing...');
     const text = await transcribeUri(uri);
-    console.log('[STT] result:', text || '(empty)');
     if (!text || !listeningRef.current) return;
 
     const gemini = getGeminiApiKey();
@@ -267,15 +254,13 @@ export default function VoiceButton({ onResult, style, color }: Props) {
 
   const triggerProcessing = async () => {
     if (!listeningRef.current) return;
-    if (processingCountRef.current >= MAX_PARALLEL) { console.log('[TRIGGER] skipped — MAX_PARALLEL'); return; }
-    if (!recordingActiveRef.current) { console.log('[TRIGGER] skipped — not recording'); return; }
+    if (processingCountRef.current >= MAX_PARALLEL) {; return; }
+    if (!recordingActiveRef.current) {; return; }
 
     // Check recorder is actually active before stopping
     const statusBefore = recorder.getStatus();
-    console.log('[TRIGGER] before stop: isRecording=', statusBefore.isRecording, 'durationMs=', statusBefore.durationMillis);
 
     if (!statusBefore.isRecording) {
-      console.log('[TRIGGER] recorder was not recording — restarting');
       recordingActiveRef.current = false;
       await startRecordingOnly();
       return;
@@ -286,7 +271,6 @@ export default function VoiceButton({ onResult, style, color }: Props) {
     try {
       await recorder.stop();
       const uri = recorder.uri || '';
-      console.log('[TRIGGER] uri =', uri || '(null)', '| durationMs was', statusBefore.durationMillis);
       if (!uri) {
         await startRecordingOnly();
         return;
