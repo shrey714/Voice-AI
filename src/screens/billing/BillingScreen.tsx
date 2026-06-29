@@ -16,7 +16,7 @@ import BottomSheet, {
 import QRCode from 'react-native-qrcode-svg';
 import { useAppStore } from '../../stores/useAppStore';
 import { useTranslation } from '../../hooks/useTranslation';
-import { formatCurrency, generateBillText, fuzzyMatch } from '../../utils/helpers';
+import { formatCurrency, generateBillText, fuzzyMatch, sanitizeDecimal } from '../../utils/helpers';
 import { toast } from '../../utils/toast';
 import * as Haptics from 'expo-haptics';
 import VoiceButton from '../../components/billing/VoiceButton';
@@ -575,7 +575,7 @@ export default function BillingScreen({ navigation }: any) {
           <Text style={[s.modalLabel, { color: colors.textSub }]}>{t('discount')} ({settings.currency})</Text>
           <BottomSheetTextInput
             style={[s.modalInput, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
-            value={discount} onChangeText={setDiscount} keyboardType="numeric" placeholderTextColor={colors.textMuted}
+            value={discount} onChangeText={v => setDiscount(sanitizeDecimal(v))} keyboardType="numeric" placeholderTextColor={colors.textMuted}
           />
 
           <Text style={[s.modalLabel, { color: colors.textSub }]}>{t('paymentMode')}</Text>

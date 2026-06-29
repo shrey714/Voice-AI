@@ -6,7 +6,7 @@ import { MotiView } from 'moti';
 import BottomSheet, { BottomSheetScrollView, BottomSheetTextInput, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { useAppStore } from '../stores/useAppStore';
 import { useTranslation } from '../hooks/useTranslation';
-import { formatCurrency, formatDate, formatTime, generateId } from '../utils/helpers';
+import { formatCurrency, formatDate, formatTime, generateId, sanitizeDecimal } from '../utils/helpers';
 import { buildReminderMessage, whatsappUrl, remindedAgo } from '../utils/reminder';
 import * as db from '../db/database';
 import { Customer, UdhaarEntry, Bill } from '../types';
@@ -431,7 +431,7 @@ export default function UdhaarScreen() {
         <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
           <Text style={[s.modalTitle, { color: colors.text }]}>{txType === 'debit' ? t('giveCredit') : t('paymentReceived')}</Text>
           <BottomSheetTextInput style={[s.input, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
-            value={txAmount} onChangeText={setTxAmount} placeholder={`${t('amount')} (${settings.currency})`} placeholderTextColor={colors.textMuted} keyboardType="numeric" />
+            value={txAmount} onChangeText={v => setTxAmount(sanitizeDecimal(v))} placeholder={`${t('amount')} (${settings.currency})`} placeholderTextColor={colors.textMuted} keyboardType="numeric" />
           <BottomSheetTextInput style={[s.input, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
             value={txNote} onChangeText={setTxNote} placeholder={t('noteOptional')} placeholderTextColor={colors.textMuted} />
           <View style={s.btnRow}>

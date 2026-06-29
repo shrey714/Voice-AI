@@ -10,7 +10,7 @@ import { useTranslation } from '../hooks/useTranslation';
 import { Product, Supplier } from '../types';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
-import { formatCurrency } from '../utils/helpers';
+import { formatCurrency, sanitizeDecimal } from '../utils/helpers';
 import EmptyState from '../components/common/EmptyState';
 import CollapsibleFab, { useFabScroll } from '../components/common/CollapsibleFab';
 import ProductCard from '../components/inventory/ProductCard';
@@ -339,7 +339,7 @@ export default function SupplierScreen() {
           <BottomSheetTextInput
             style={[s.input, { backgroundColor: c.surfaceHigh, color: c.text, borderColor: c.border, marginBottom: 12 }]}
             value={paymentAmount}
-            onChangeText={v => setPaymentAmount(v.replace(/[^0-9.]/g, ''))}
+            onChangeText={v => setPaymentAmount(sanitizeDecimal(v))}
             placeholder={t('enterAmount')}
             placeholderTextColor={c.textMuted}
             keyboardType="decimal-pad"

@@ -9,7 +9,7 @@ import BottomSheet, { BottomSheetFlatList, BottomSheetBackdrop } from '@gorhom/b
 import { useAppStore } from '../stores/useAppStore';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
-import { formatCurrency } from '../utils/helpers';
+import { formatCurrency, sanitizeDecimal, sanitizeInteger } from '../utils/helpers';
 import { Product, PurchaseItem } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 
@@ -298,7 +298,7 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
                         <TextInput
                           style={[s.qtyInput, { color: colors.text, borderColor: colors.border }]}
                           value={String(item.quantity)}
-                          onChangeText={v => updateItemQty(item.productId, parseInt(v) || 0)}
+                          onChangeText={v => updateItemQty(item.productId, parseInt(sanitizeInteger(v)) || 0)}
                           keyboardType="numeric"
                           selectTextOnFocus
                         />
@@ -332,7 +332,7 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
                           borderColor: costChanged ? colors.warning + '60' : colors.border,
                         }]}
                         value={item.costPrice > 0 ? String(item.costPrice) : ''}
-                        onChangeText={v => updateItemCost(item.productId, v)}
+                        onChangeText={v => updateItemCost(item.productId, sanitizeDecimal(v))}
                         placeholder="0"
                         placeholderTextColor={colors.textMuted}
                         keyboardType="decimal-pad"
@@ -369,7 +369,7 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
               <TextInput
                 style={[s.paidInput, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
                 value={paidAmount}
-                onChangeText={v => setPaidAmount(v.replace(/[^0-9.]/g, ''))}
+                onChangeText={v => setPaidAmount(sanitizeDecimal(v))}
                 placeholder="0"
                 placeholderTextColor={colors.textMuted}
                 keyboardType="decimal-pad"

@@ -6,8 +6,32 @@ import {
   fuzzyScore,
   parseVoiceOrder,
   generateBillText,
+  sanitizeDecimal,
+  sanitizeInteger,
 } from '../utils/helpers';
 import type { Bill } from '../types';
+
+// ── sanitizeDecimal ───────────────────────────────────────────────────────────
+
+describe('sanitizeDecimal', () => {
+  test('allows digits', () => expect(sanitizeDecimal('123')).toBe('123'));
+  test('allows single dot', () => expect(sanitizeDecimal('12.5')).toBe('12.5'));
+  test('strips letters', () => expect(sanitizeDecimal('12abc')).toBe('12'));
+  test('strips minus sign: "5-5" → "55"', () => expect(sanitizeDecimal('5-5')).toBe('55'));
+  test('strips extra dots: "1.2.3" → "1.23"', () => expect(sanitizeDecimal('1.2.3')).toBe('1.23'));
+  test('empty string stays empty', () => expect(sanitizeDecimal('')).toBe(''));
+  test('leading dot preserved', () => expect(sanitizeDecimal('.5')).toBe('.5'));
+});
+
+// ── sanitizeInteger ───────────────────────────────────────────────────────────
+
+describe('sanitizeInteger', () => {
+  test('allows digits', () => expect(sanitizeInteger('42')).toBe('42'));
+  test('strips minus: "5-5" → "55"', () => expect(sanitizeInteger('5-5')).toBe('55'));
+  test('strips dot: "12.5" → "125"', () => expect(sanitizeInteger('12.5')).toBe('125'));
+  test('strips letters', () => expect(sanitizeInteger('10abc')).toBe('10'));
+  test('empty string stays empty', () => expect(sanitizeInteger('')).toBe(''));
+});
 
 // ── formatCurrency ────────────────────────────────────────────────────────────
 

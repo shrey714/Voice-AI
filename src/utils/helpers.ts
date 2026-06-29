@@ -106,6 +106,12 @@ export function parseVoiceOrder(text: string): { item: string; quantity: number 
   return result.length > 0 ? result : [{ item: cleaned, quantity: 1 }];
 }
 
+export const sanitizeDecimal = (v: string): string =>
+  v.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+
+export const sanitizeInteger = (v: string): string =>
+  v.replace(/[^0-9]/g, '');
+
 export function fuzzyMatch(query: string, target: string): boolean {
   const q = query.toLowerCase().trim();
   const t = target.toLowerCase();

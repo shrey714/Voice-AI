@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAppStore } from '../../stores/useAppStore';
 import { useTranslation } from '../../hooks/useTranslation';
-import { formatCurrency } from '../../utils/helpers';
+import { formatCurrency, sanitizeDecimal, sanitizeInteger } from '../../utils/helpers';
 import { Product } from '../../types';
 import BarcodeScannerModal from '../../components/billing/BarcodeScannerModal';
 import DatePickerSheet, { DatePickerSheetRef } from '../../components/common/DatePickerSheet';
@@ -268,7 +268,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
             <TextInput
               style={[s.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
               value={form.costPrice}
-              onChangeText={v => setForm(f => ({ ...f, costPrice: v }))}
+              onChangeText={v => setForm(f => ({ ...f, costPrice: sanitizeDecimal(v) }))}
               keyboardType="numeric" placeholder="0" placeholderTextColor={colors.textMuted}
             />
           </Field>
@@ -276,7 +276,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
             <TextInput
               style={[s.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
               value={form.sellingPrice}
-              onChangeText={v => setForm(f => ({ ...f, sellingPrice: v }))}
+              onChangeText={v => setForm(f => ({ ...f, sellingPrice: sanitizeDecimal(v) }))}
               keyboardType="numeric" placeholder="0" placeholderTextColor={colors.textMuted}
             />
           </Field>
@@ -288,7 +288,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
             <TextInput
               style={[s.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
               value={form.quantity}
-              onChangeText={v => setForm(f => ({ ...f, quantity: v }))}
+              onChangeText={v => setForm(f => ({ ...f, quantity: sanitizeInteger(v) }))}
               keyboardType="numeric" placeholder="0" placeholderTextColor={colors.textMuted}
             />
           </Field>

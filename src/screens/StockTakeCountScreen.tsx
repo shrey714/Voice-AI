@@ -9,6 +9,7 @@ import { useAppStore } from '../stores/useAppStore';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
 import { StockTakeItem } from '../types';
+import { sanitizeInteger } from '../utils/helpers';
 import { useTranslation } from '../hooks/useTranslation';
 
 interface Section {
@@ -34,7 +35,7 @@ export default function StockTakeCountScreen({ navigation }: any) {
   const debounceRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const handleCountChange = useCallback((itemId: string, text: string) => {
-    const clean = text.replace(/[^0-9]/g, '');
+    const clean = sanitizeInteger(text);
     setInputValues(prev => ({ ...prev, [itemId]: clean }));
     if (debounceRefs.current[itemId]) clearTimeout(debounceRefs.current[itemId]);
     debounceRefs.current[itemId] = setTimeout(() => {

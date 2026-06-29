@@ -2,10 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
-import { MotiView } from 'moti';
 import { useAppStore } from '../stores/useAppStore';
 import { computeSalesStats, makeCostOf } from '../utils/stats';
-import { formatCurrency, startOfDay, endOfDay, generateId } from '../utils/helpers';
+import { formatCurrency, startOfDay, endOfDay, sanitizeDecimal } from '../utils/helpers';
 import { toast } from '../utils/toast';
 import * as db from '../db/database';
 import { DayClose } from '../types';
@@ -101,7 +100,7 @@ export default function DayCloseScreen() {
           <View style={s.inRow}>
             <Text style={[s.inLabel, { color: colors.text }]}>{t('openingCash')}</Text>
             <TextInput style={[s.inField, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceHigh }]}
-              value={openingCash} onChangeText={setOpeningCash} keyboardType="numeric" selectTextOnFocus placeholder="0" placeholderTextColor={colors.textMuted} />
+              value={openingCash} onChangeText={v => setOpeningCash(sanitizeDecimal(v))} keyboardType="numeric" selectTextOnFocus placeholder="0" placeholderTextColor={colors.textMuted} />
           </View>
           <View style={[s.inRow, { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
             <Text style={[s.inLabel, { color: colors.text }]}>{t('cashSales')} <Text style={{ color: colors.textMuted, fontSize: 11 }}>({t('auto')})</Text></Text>
@@ -110,7 +109,7 @@ export default function DayCloseScreen() {
           <View style={[s.inRow, { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
             <Text style={[s.inLabel, { color: colors.text }]}>{t('cashPaidOut')}</Text>
             <TextInput style={[s.inField, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceHigh }]}
-              value={cashOut} onChangeText={setCashOut} keyboardType="numeric" selectTextOnFocus placeholder="0" placeholderTextColor={colors.textMuted} />
+              value={cashOut} onChangeText={v => setCashOut(sanitizeDecimal(v))} keyboardType="numeric" selectTextOnFocus placeholder="0" placeholderTextColor={colors.textMuted} />
           </View>
         </View>
 
@@ -119,7 +118,7 @@ export default function DayCloseScreen() {
           <View style={s.inRow}>
             <Text style={[s.inLabel, { color: colors.text }]}>{t('countedCash')}</Text>
             <TextInput style={[s.inField, { color: colors.text, borderColor: colors.primary, backgroundColor: colors.surfaceHigh, fontFamily: fonts.bold }]}
-              value={counted} onChangeText={setCounted} keyboardType="numeric" selectTextOnFocus placeholder={t('enterTotal')} placeholderTextColor={colors.textMuted} />
+              value={counted} onChangeText={v => setCounted(sanitizeDecimal(v))} keyboardType="numeric" selectTextOnFocus placeholder={t('enterTotal')} placeholderTextColor={colors.textMuted} />
           </View>
           <TouchableOpacity style={s.denomToggle} onPress={() => setShowDenom(v => !v)}>
             <Ionicons name="calculator-outline" size={15} color={colors.primary} />

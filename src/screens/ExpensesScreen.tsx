@@ -6,7 +6,7 @@ import { MotiView } from 'moti';
 import BottomSheet, { BottomSheetScrollView, BottomSheetTextInput, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { useAppStore } from '../stores/useAppStore';
 import { useTranslation } from '../hooks/useTranslation';
-import { formatCurrency, formatDate, startOfDay, endOfDay } from '../utils/helpers';
+import { formatCurrency, formatDate, startOfDay, endOfDay, sanitizeDecimal } from '../utils/helpers';
 import { Expense } from '../types';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
@@ -183,7 +183,7 @@ export default function ExpensesScreen() {
 
           <BottomSheetTextInput style={[s.input, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
             placeholder={t('amountPlaceholder').replace('{currency}', settings.currency)} placeholderTextColor={colors.textMuted}
-            value={amount} onChangeText={setAmount} keyboardType="numeric" />
+            value={amount} onChangeText={v => setAmount(sanitizeDecimal(v))} keyboardType="numeric" />
 
           <Text style={[s.fieldLabel, { color: colors.textSub }]}>{t('category')}</Text>
           <View style={s.chipWrap}>
