@@ -101,6 +101,7 @@ import { DashboardSkeleton } from '../components/common/Skeleton';
 import BusiestHours from '../components/common/BusiestHours';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { computeSalesStats, makeCostOf } from '../utils/stats';
+import { whatsappUrl } from '../utils/reminder';
 import { toast } from '../utils/toast';
 import * as db from '../db/database';
 
@@ -266,8 +267,7 @@ export default function DashboardScreen({ navigation }: any) {
       `✅ Net: *${formatCurrency(todayProfit - todayExpenses, settings.currency)}*`,
       `🧾 Bills: ${todayBills.length}`,
     ].join('\n');
-    const phone = settings.phone?.replace(/[^0-9]/g, '');
-    Linking.openURL(phone ? `whatsapp://send?phone=91${phone}&text=${encodeURIComponent(msg)}` : `whatsapp://send?text=${encodeURIComponent(msg)}`).catch(() => Alert.alert('WhatsApp not found'));
+    Linking.openURL(whatsappUrl(settings.phone, msg)).catch(() => Alert.alert('WhatsApp not found'));
   };
 
   const s = makeStyles(colors);
