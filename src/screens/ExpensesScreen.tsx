@@ -1,5 +1,7 @@
 import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { View, FlatList, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { useScrollHideBar } from '../hooks/useScrollHideBar';
+import ScrollHideBar from '../components/common/ScrollHideBar';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -32,6 +34,7 @@ export default function ExpensesScreen() {
   const [note, setNote] = useState('');
   const [supplierId, setSupplierId] = useState('');
   const { extended, onScroll } = useFabScroll();
+  const { translateY: catTranslate, onListScroll, onBarLayout, listPaddingTop } = useScrollHideBar({ onScroll });
 
   const formSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ['80%'], []);
@@ -101,29 +104,31 @@ export default function ExpensesScreen() {
         ))}
       </MotiView>
 
-      {/* Category chips — flexGrow:0 + alignItems center stops vertical stretch */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catScroll} contentContainerStyle={{ paddingHorizontal: 8, gap: 8, alignItems: 'center' }}>
-        {CATEGORIES.map(cat => {
-          const total = expenses.filter(e => e.category === cat.key).reduce((s, e) => s + e.amount, 0);
-          return (
-            <View key={cat.key} style={[s.catCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Ionicons name={cat.icon} size={22} color={colors.primary} />
-              <View>
-                <Text style={[s.catLabel, { color: colors.textSub }]}>{cat.label}</Text>
-                <Text style={[s.catAmt, { color: colors.text }]}>{formatCurrency(total, settings.currency)}</Text>
-              </View>
-            </View>
-          );
-        })}
-      </ScrollView>
+      <View style={{ flex: 1, overflow: 'hidden' }}>
+        <ScrollHideBar translateY={catTranslate} bgColor={colors.bg} onLayout={onBarLayout}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catScroll} contentContainerStyle={{ paddingHorizontal: 8, gap: 8, paddingVertical: 8, alignItems: 'center' }}>
+            {CATEGORIES.map(cat => {
+              const total = expenses.filter(e => e.category === cat.key).reduce((s, e) => s + e.amount, 0);
+              return (
+                <View key={cat.key} style={[s.catCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <Ionicons name={cat.icon} size={22} color={colors.primary} />
+                  <View>
+                    <Text style={[s.catLabel, { color: colors.textSub }]}>{cat.label}</Text>
+                    <Text style={[s.catAmt, { color: colors.text }]}>{formatCurrency(total, settings.currency)}</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </ScrollView>
+        </ScrollHideBar>
 
-      <FlatList
-        data={expenses}
-        keyExtractor={e => e.id}
-        style={{ flex: 1 }}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
-        contentContainerStyle={{ paddingHorizontal: 8, paddingVertical: 0, paddingBottom: 120, flexGrow: 1 }}
+        <FlatList
+          data={expenses}
+          keyExtractor={e => e.id}
+          style={{ flex: 1 }}
+          onScroll={onListScroll}
+          scrollEventThrottle={16}
+        contentContainerStyle={{ paddingHorizontal: 8, paddingTop: listPaddingTop, paddingBottom: 120, flexGrow: 1 }}
         renderItem={({ item, index }) => {
           const cat = getCatInfo(item.category);
           return (
@@ -158,7 +163,8 @@ export default function ExpensesScreen() {
           );
         }}
         ListEmptyComponent={<EmptyState icon="wallet-outline" title={t('noExpensesYet')} subtitle={t('trackExpensesHere')} />}
-      />
+        />
+      </View>{/* end scrollable area */}
 
       <CollapsibleFab bottom={90} icon="add" label={t('saveExpense')} extended={extended} onPress={openForm} />
 
@@ -245,8 +251,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   summaryLabel: { fontFamily: fonts.medium, fontSize: 12, marginTop: 6 },
   divider: { width: 1, marginVertical: 8 },
 
-  // Category chips — better spacing & styling
-  catScroll: { marginVertical: 8, flexGrow: 0 },
+  catScroll: { flexGrow: 0 },
   catCard: { alignItems: 'center', flexDirection: 'row' , paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, gap: 10 },
   catLabel: { fontFamily: fonts.bold, fontSize: 12 },
   catAmt: { fontFamily: fonts.bold, fontSize: 13 },

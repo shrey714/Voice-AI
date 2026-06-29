@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { StyleSheet, TouchableOpacity, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,14 +15,8 @@ type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
  */
 export function useFabScroll() {
   const [extended, setExtended] = useState(true);
-  const lastY = useRef(0);
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const y = e.nativeEvent.contentOffset.y;
-    const diff = y - lastY.current;
-    if (y <= 4) setExtended(true);            // at the top → always full
-    else if (diff > 6) setExtended(false);    // scrolling down → collapse
-    else if (diff < -6) setExtended(true);    // scrolling up → expand
-    lastY.current = y;
+    setExtended(e.nativeEvent.contentOffset.y <= 4);
   }, []);
   return { extended, onScroll };
 }

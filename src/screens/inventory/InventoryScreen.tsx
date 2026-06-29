@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { View, FlatList, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView } from 'react-native';
+import { useScrollHideBar } from '../../hooks/useScrollHideBar';
+import ScrollHideBar from '../../components/common/ScrollHideBar';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetView, BottomSheetScrollView, BottomSheetTextInput, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
@@ -30,6 +32,7 @@ export default function InventoryScreen({ route, navigation }: any) {
   const [stockQty, setStockQty] = useState('');
   const [menuProduct, setMenuProduct] = useState<Product | null>(null);
   const { extended, onScroll } = useFabScroll();
+  const { translateY: catTranslate, onListScroll, onBarLayout, listPaddingTop } = useScrollHideBar({ onScroll });
 
   const stockSheetRef = useRef<BottomSheet>(null);
   const menuSheetRef = useRef<BottomSheet>(null);
@@ -138,27 +141,30 @@ export default function InventoryScreen({ route, navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      {/* Category chips — flexGrow:0 + alignItems center stops the row from stretching to full height */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ paddingHorizontal: 8, gap: 8, paddingVertical: 8, alignItems: 'center' }}>
-        {CATEGORIES.map(cat => {
-          const active = categoryFilter === cat;
-          return (
-            <TouchableOpacity key={cat}
-              style={[s.catChip, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary : colors.surface }]}
-              onPress={() => setCategoryFilter(cat)}>
-              <Text style={[s.catChipText, { color: active ? '#fff' : colors.textSub }]}>{cat}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+      {/* Scrollable area — category bar floats above the list within this container */}
+      <View style={{ flex: 1, overflow: 'hidden' }}>
+        <ScrollHideBar translateY={catTranslate} bgColor={colors.bg} onLayout={onBarLayout}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 8, gap: 8, paddingVertical: 8, alignItems: 'center' }}>
+            {CATEGORIES.map(cat => {
+              const active = categoryFilter === cat;
+              return (
+                <TouchableOpacity key={cat}
+                  style={[s.catChip, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary : colors.surface }]}
+                  onPress={() => setCategoryFilter(cat)}>
+                  <Text style={[s.catChipText, { color: active ? '#fff' : colors.textSub }]}>{cat}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </ScrollHideBar>
 
-      <FlatList
+        <FlatList
         data={filtered}
         keyExtractor={p => p.id}
         style={{ flex: 1 }}
-        onScroll={onScroll}
+        onScroll={onListScroll}
         scrollEventThrottle={16}
-        contentContainerStyle={{ paddingHorizontal: 8, paddingVertical: 0, paddingBottom: 150, flexGrow: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 8, paddingTop: listPaddingTop, paddingBottom: 150, flexGrow: 1 }}
         renderItem={({ item, index }) => (
           <ProductCard
             product={item}
@@ -174,6 +180,7 @@ export default function InventoryScreen({ route, navigation }: any) {
             actionLabel={t('addProduct')} onAction={() => navigation.navigate('ProductForm', {})} />
         }
       />
+      </View>{/* end scrollable area */}
 
       <CollapsibleFab bottom={90} icon="add" label="Add Product" extended={extended} onPress={() => {
         Alert.alert(t('addStock'), undefined, [
@@ -278,7 +285,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   sortBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, justifyContent: 'center', borderWidth: 0.5 },
   sortBtnText: { fontFamily: fonts.bold, fontSize: 12 },
 
-  // Category chips — better styling
+  // Category chips
   catChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, borderWidth: 1 },
   catChipText: { fontFamily: fonts.bold, fontSize: 13 },
 

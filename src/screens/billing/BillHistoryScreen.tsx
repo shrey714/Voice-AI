@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { View, FlatList, StyleSheet, TouchableOpacity, Linking, Alert, ScrollView, TextInput } from 'react-native';
+import { useScrollHideBar } from '../../hooks/useScrollHideBar';
+import ScrollHideBar from '../../components/common/ScrollHideBar';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -331,6 +333,8 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
     }
   };
 
+  const { translateY: stripTranslate, onListScroll, onBarLayout, listPaddingTop } = useScrollHideBar({});
+
   const s = makeStyles(colors);
 
   if (!dataReady) return <View style={{ flex: 1, backgroundColor: colors.bg }}><SkeletonList count={7} /></View>;
@@ -339,8 +343,9 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
     <View style={[s.container, { backgroundColor: colors.bg }]}>
 
       {/* Summary bar */}
+    <View style={[s.header, { backgroundColor: colors.surface }]}>  
       <View
-        style={[s.summaryBar, { backgroundColor: colors.surface }]}>
+        style={s.summaryBar}>
         {[
           { label: 'Bills', value: String(filtered.length), color: colors.text },
           { label: 'Revenue', value: formatCurrency(totalRevenue, settings.currency), color: colors.primary },
@@ -355,7 +360,6 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
           </React.Fragment>
         ))}
       </View>
-
       {/* Search + Filter button */}
       <View style={[s.topRow]}>
         <View style={[s.searchBox, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
@@ -389,45 +393,51 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
           )}
         </TouchableOpacity>
       </View>
-
-      {/* Active filter summary strip */}
-      {(filter !== 'today' || payFilter !== 'all' || returnedOnly) && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 7, gap: 8 }}>
-          {filter !== 'today' && (
-            <TouchableOpacity style={[s.activeChip, { backgroundColor: colors.primary + '18', borderColor: colors.primary + '40' }]} onPress={openFilterSheet}>
-              <Ionicons name="time-outline" size={12} color={colors.primary} />
-              <Text style={[s.activeChipText, { color: colors.primary }]}>
-                {filter === 'week' ? t('thisWeek') : filter === 'month' ? t('thisMonth') : filter === 'all' ? t('allTime') : customFrom || customTo
-                  ? [customFrom?.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }), customTo?.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })].filter(Boolean).join(' – ')
-                  : t('customRange')}
-              </Text>
-              <Ionicons name="close" size={11} color={colors.primary} onPress={() => { setFilter('today'); setCustomFrom(null); setCustomTo(null); }} />
-            </TouchableOpacity>
-          )}
-          {payFilter !== 'all' && (
-            <TouchableOpacity style={[s.activeChip, { backgroundColor: colors.info + '18', borderColor: colors.info + '40' }]} onPress={openFilterSheet}>
-              <Ionicons name={PAY_ICON[payFilter]} size={12} color={colors.info} />
-              <Text style={[s.activeChipText, { color: colors.info }]}>{payFilter.charAt(0).toUpperCase() + payFilter.slice(1)}</Text>
-              <Ionicons name="close" size={11} color={colors.info} onPress={() => setPayFilter('all')} />
-            </TouchableOpacity>
-          )}
-          {returnedOnly && (
-            <TouchableOpacity style={[s.activeChip, { backgroundColor: colors.danger + '18', borderColor: colors.danger + '40' }]} onPress={openFilterSheet}>
-              <Ionicons name="arrow-undo-outline" size={12} color={colors.danger} />
-              <Text style={[s.activeChipText, { color: colors.danger }]}>{t('returns')}</Text>
-              <Ionicons name="close" size={11} color={colors.danger} onPress={() => setReturnedOnly(false)} />
-            </TouchableOpacity>
-          )}
-        </ScrollView>
-      )}
+    </View>
 
 
-      {/* Bill list */}
-      <FlatList
-        data={filtered}
-        keyExtractor={b => b.id}
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 8, paddingVertical: 0, paddingBottom: 120, flexGrow: 1 }}
+      <View style={{ flex: 1, overflow: 'hidden' }}>
+        {/* Active filter strip — slides up/down with scroll */}
+        {(filter !== 'today' || payFilter !== 'all' || returnedOnly) && (
+          <ScrollHideBar translateY={stripTranslate} bgColor={colors.bg} onLayout={onBarLayout}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, gap: 8 }}>
+              {filter !== 'today' && (
+                <TouchableOpacity style={[s.activeChip, { backgroundColor: colors.primary + '18', borderColor: colors.primary + '40' }]} onPress={openFilterSheet}>
+                  <Ionicons name="time-outline" size={12} color={colors.primary} />
+                  <Text style={[s.activeChipText, { color: colors.primary }]}>
+                    {filter === 'week' ? t('thisWeek') : filter === 'month' ? t('thisMonth') : filter === 'all' ? t('allTime') : customFrom || customTo
+                      ? [customFrom?.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }), customTo?.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })].filter(Boolean).join(' – ')
+                      : t('customRange')}
+                  </Text>
+                  <Ionicons name="close" size={11} color={colors.primary} onPress={() => { setFilter('today'); setCustomFrom(null); setCustomTo(null); }} />
+                </TouchableOpacity>
+              )}
+              {payFilter !== 'all' && (
+                <TouchableOpacity style={[s.activeChip, { backgroundColor: colors.info + '18', borderColor: colors.info + '40' }]} onPress={openFilterSheet}>
+                  <Ionicons name={PAY_ICON[payFilter]} size={12} color={colors.info} />
+                  <Text style={[s.activeChipText, { color: colors.info }]}>{payFilter.charAt(0).toUpperCase() + payFilter.slice(1)}</Text>
+                  <Ionicons name="close" size={11} color={colors.info} onPress={() => setPayFilter('all')} />
+                </TouchableOpacity>
+              )}
+              {returnedOnly && (
+                <TouchableOpacity style={[s.activeChip, { backgroundColor: colors.danger + '18', borderColor: colors.danger + '40' }]} onPress={openFilterSheet}>
+                  <Ionicons name="arrow-undo-outline" size={12} color={colors.danger} />
+                  <Text style={[s.activeChipText, { color: colors.danger }]}>{t('returns')}</Text>
+                  <Ionicons name="close" size={11} color={colors.danger} onPress={() => setReturnedOnly(false)} />
+                </TouchableOpacity>
+              )}
+            </ScrollView>
+          </ScrollHideBar>
+        )}
+
+        {/* Bill list */}
+        <FlatList
+          data={filtered}
+          keyExtractor={b => b.id}
+          style={{ flex: 1 }}
+          onScroll={onListScroll}
+          scrollEventThrottle={16}
+          contentContainerStyle={{ paddingHorizontal: 8, paddingTop: filter !== 'today' || payFilter !== 'all' || returnedOnly ? listPaddingTop : 8, paddingBottom: 120, flexGrow: 1 }}
         renderItem={({ item: bill, index }) => {
           const modeColor = bill.paymentMode === 'cash' ? colors.success : bill.paymentMode === 'upi' ? colors.info : colors.warning;
           const hasReturn = billHasReturn(bill.id);
@@ -470,8 +480,9 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
             </FadeSlideIn>
           );
         }}
-        ListEmptyComponent={<EmptyState icon="receipt-outline" title={t('noBillsFound')} subtitle={t('tryDifferentFilter')} />}
-      />
+          ListEmptyComponent={<EmptyState icon="receipt-outline" title={t('noBillsFound')} subtitle={t('tryDifferentFilter')} />}
+        />
+      </View>
 
       {/* ── Filter Sheet ── */}
       <BottomSheet
@@ -861,7 +872,7 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
 const makeStyles = (c: any) => StyleSheet.create({
   container: { flex: 1 },
   // Search + filter row
-  topRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 8, paddingVertical: 8, alignItems: 'center' },
+  topRow: { flexDirection: 'row', gap: 8, marginTop: 12, alignItems: 'center' },
   searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
   searchInput: { flex: 1, fontFamily: fonts.regular, fontSize: 14, padding: 0 },
   filterBtn: { width: 38, height: 38, borderRadius: 10, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
@@ -884,7 +895,8 @@ const makeStyles = (c: any) => StyleSheet.create({
   fsDateRowValue: { fontFamily: fonts.semiBold, fontSize: 15, marginTop: 2 },
   fsClearDates: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 12, justifyContent: 'center' },
   fsClearDatesText: { fontFamily: fonts.semiBold, fontSize: 13 },
-  summaryBar: { flexDirection: 'row', paddingHorizontal: 18, paddingVertical: 11, borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
+  header: { flexDirection: 'column', padding: 12, borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
+  summaryBar: { flexDirection: 'row'},
   summaryItem: { flex: 1, alignItems: 'center' },
   summaryVal: { fontFamily: fonts.display, fontSize: 18 },
   summaryLbl: { fontFamily: fonts.medium, fontSize: 12, marginTop: 6 },

@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, FlatList, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { useScrollHideBar } from '../hooks/useScrollHideBar';
+import ScrollHideBar from '../components/common/ScrollHideBar';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -23,6 +25,7 @@ export default function PurchasesScreen({ navigation }: any) {
   const [search, setSearch] = useState('');
   const [filterSupplierId, setFilterSupplierId] = useState<string | null>(null);
   const { extended, onScroll } = useFabScroll();
+  const { translateY: chipTranslate, onListScroll, onBarLayout, listPaddingTop } = useScrollHideBar({ onScroll });
 
   const filtered = useMemo(() => {
     return purchases.filter(p => {
@@ -119,57 +122,61 @@ export default function PurchasesScreen({ navigation }: any) {
         </View>
       </View>
 
-      {/* Supplier filter chips */}
-      {suppliers.length > 0 && (
-        <View style={{ flexGrow: 0 }}>
-          <FlatList
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            data={[{ id: null, name: t('all') } as any, ...suppliers]}
-            keyExtractor={item => item.id ?? 'all'}
-            contentContainerStyle={{ paddingHorizontal: 10, paddingVertical: 8, gap: 8 }}
-            renderItem={({ item }) => {
-              const active = filterSupplierId === item.id;
-              return (
-                <TouchableOpacity
-                  style={[s.chip, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary : colors.surface }]}
-                  onPress={() => setFilterSupplierId(item.id)}
-                >
-                  <Text style={[s.chipText, { color: active ? '#fff' : colors.textSub }]}>{item.name}</Text>
-                </TouchableOpacity>
-              );
-            }}
-          />
-        </View>
-      )}
+      <View style={{ flex: 1, overflow: 'hidden' }}>
+        {suppliers.length > 0 && (
+          <ScrollHideBar translateY={chipTranslate} bgColor={colors.bg} onLayout={onBarLayout}>
+            <FlatList
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              data={[{ id: null, name: t('all') } as any, ...suppliers]}
+              keyExtractor={item => item.id ?? 'all'}
+              contentContainerStyle={{ paddingHorizontal: 10, paddingVertical: 8, gap: 8 }}
+              renderItem={({ item }) => {
+                const active = filterSupplierId === item.id;
+                return (
+                  <TouchableOpacity
+                    style={[s.chip, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary : colors.surface }]}
+                    onPress={() => setFilterSupplierId(item.id)}
+                  >
+                    <Text style={[s.chipText, { color: active ? '#fff' : colors.textSub }]}>{item.name}</Text>
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </ScrollHideBar>
+        )}
 
-      {/* Summary banner */}
-      {filtered.length > 0 && totalOutstanding > 0 && (
-        <View style={[s.summaryBanner, { backgroundColor: colors.warning + '12', borderBottomColor: colors.warning + '30' }]}>
-          <Ionicons name="alert-circle-outline" size={15} color={colors.warning} />
-          <Text style={[s.summaryText, { color: colors.warning }]}>
-            {t('totalOutstandingLabel')}: {formatCurrency(totalOutstanding, settings.currency)}
-          </Text>
-        </View>
-      )}
+        {/* Summary banner */}
+        
 
-      <FlatList
-        data={filtered}
-        keyExtractor={item => item.id}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
-        contentContainerStyle={{ paddingHorizontal: 8, paddingVertical: 8, paddingBottom: 150, flexGrow: 1 }}
-        renderItem={renderItem}
-        ListEmptyComponent={
-          <EmptyState
-            icon="receipt-outline"
-            title={t('noPurchasesYet')}
-            subtitle={t('noPurchasesDesc')}
-            actionLabel={t('newPurchase')}
-            onAction={() => navigation.navigate('PurchaseForm', {})}
-          />
-        }
-      />
+        <FlatList
+          data={filtered}
+          keyExtractor={item => item.id}
+          onScroll={onListScroll}
+          scrollEventThrottle={16}
+          contentContainerStyle={{ paddingHorizontal: 8, paddingTop: suppliers.length > 0 ? listPaddingTop : 8, paddingBottom: 150, flexGrow: 1 }}
+          renderItem={renderItem}
+          ListHeaderComponent={()=>{
+          if(filtered.length > 0 && totalOutstanding > 0) {
+            return <View style={[s.summaryBanner]}>
+            <Ionicons name="alert-circle-outline" size={15} color={colors.warning} />
+            <Text style={[s.summaryText, { color: colors.warning }]}>
+              {t('totalOutstandingLabel')}: {formatCurrency(totalOutstanding, settings.currency)}
+            </Text>
+          </View>
+          }else return <></>
+          }}
+          ListEmptyComponent={
+            <EmptyState
+              icon="receipt-outline"
+              title={t('noPurchasesYet')}
+              subtitle={t('noPurchasesDesc')}
+              actionLabel={t('newPurchase')}
+              onAction={() => navigation.navigate('PurchaseForm', {})}
+            />
+          }
+        />
+      </View>
 
       <CollapsibleFab
         bottom={90}
@@ -188,7 +195,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   searchInput: { flex: 1, fontSize: 14, padding: 0, fontFamily: fonts.regular },
   chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },
   chipText: { fontFamily: fonts.bold, fontSize: 13 },
-  summaryBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderBottomWidth: 1 },
+  summaryBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingBottom: 8 },
   summaryText: { fontFamily: fonts.semiBold, fontSize: 13 },
   card: {
     borderRadius: 12, padding: 14, marginBottom: 8,
