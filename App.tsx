@@ -19,6 +19,7 @@ import {
 import { LibreBaskerville_400Regular } from '@expo-google-fonts/libre-baskerville';
 import AppNavigator from './src/navigation/AppNavigator';
 import AiProvider from './src/components/AiProvider';
+import ErrorBoundary from './src/components/ErrorBoundary';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import SplashScreen from './src/screens/SplashScreen';
 import ErrorScreen from './src/screens/ErrorScreen';
@@ -89,7 +90,9 @@ export default function App() {
       <SafeAreaProvider>
         <ThemeProvider>
           <BottomSheetModalProvider>
-            <AppLoader />
+            <ErrorBoundary>
+              <AppLoader />
+            </ErrorBoundary>
           </BottomSheetModalProvider>
         </ThemeProvider>
       </SafeAreaProvider>
