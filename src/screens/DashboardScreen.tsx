@@ -248,13 +248,18 @@ export default function DashboardScreen({ navigation }: any) {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      setTimeout(async() => {
-        await Promise.all([loadProducts(), loadBills(), loadExpenses()]);
-      }, 1000);
-    } catch (e) {
-      // ignore — still stop the spinner below
+      await Promise.all([loadProducts(), loadBills(), loadExpenses()]);
+    } catch {
+      // ignore
     } finally {
-      setRefreshing(false);
+      // On iOS, delaying the spinner dismissal by one frame after data lands
+      // lets the content reflow settle before the RefreshControl animates away,
+      // preventing the layout-shift glitch.
+      if (Platform.OS === 'ios') {
+        setTimeout(() => setRefreshing(false), 50);
+      } else {
+        setRefreshing(false);
+      }
     }
   };
 
