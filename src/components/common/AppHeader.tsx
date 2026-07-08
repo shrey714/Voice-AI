@@ -35,14 +35,16 @@ export default function AppHeader({ navigation, route, options, back }: any) {
       : options?.title ?? route?.name ?? '';
 
   const renderRight = options?.headerRight;
+  const roundedBottom = options?.roundedBottom;
 
   return (
     <View
       style={{
         paddingTop: insets.top,
         backgroundColor: colors.surface,
-        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomWidth: roundedBottom ? 0 : StyleSheet.hairlineWidth,
         borderBottomColor: colors.border,
+        ...(roundedBottom ? { borderBottomLeftRadius: 18, borderBottomRightRadius: 18, overflow: 'hidden' as const } : null),
       }}
     >
       <View style={[styles.row, { height: HEADER_HEIGHT }]}>
@@ -73,5 +75,10 @@ const styles = StyleSheet.create({
   backBtn: { marginRight: 8, marginLeft: -4 },
   title: { flex: 1, fontFamily: fonts.extraBold, fontSize: 18 },
   titleSlot: { flex: 1 },
-  right: { marginLeft: 8 },
+  // height: '100%' gives this slot a real, non-zero size even when its
+  // content is `position: absolute` (which otherwise collapses an
+  // auto-sized flex item to 0×0) — needed by screens that animate a
+  // headerRight element expanding in place (e.g. OnlineInventoryScreen's
+  // search box) so they have a real height to center against.
+  right: { marginLeft: 8, height: '100%', alignItems: 'center', justifyContent: 'center' },
 });

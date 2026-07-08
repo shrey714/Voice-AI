@@ -1,0 +1,269 @@
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { View, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, RefreshControl } from 'react-native';
+import { Text } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
+import { useAppTheme } from '../../theme';
+import { fonts } from '../../theme/typography';
+import { useOnlineShopStore } from '../../stores/useOnlineShopStore';
+import { OnlineOrderDetailSkeleton } from '../../components/common/Skeleton';
+import { formatCurrency } from '../../utils/helpers';
+import { useAppStore } from '../../stores/useAppStore';
+import { OrderStatus } from '../../types/online';
+import { toast } from '../../utils/toast';
+
+const STATUS_COLOR: Record<OrderStatus, string> = {
+  pending: '#A98545',
+  accepted: '#5B7567',
+  ready: '#5B7567',
+  completed: '#5B7567',
+  rejected: '#A65A4D',
+  cancelled: '#A65A4D',
+};
+
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString('en-IN', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: true,
+  });
+}
+
+export default function OnlineOrderDetailScreen({ route, navigation }: any) {
+  const { colors } = useAppTheme();
+  const { settings } = useAppStore();
+  const { orders, updateOrderStatus, fetchOrderById } = useOnlineShopStore();
+  const [loading, setLoading] = useState(false);
+  const [notFound, setNotFound] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const orderId = route?.params?.orderId;
+  const order = useMemo(() => orders.find((o) => o.id === orderId), [orders, orderId]);
+
+  // Not in the store yet — e.g. a push notification opened this screen
+  // directly before the dashboard's fetchOrders ever ran. Fetch it directly
+  // instead of assuming "not found" just because the in-memory list is empty.
+  useEffect(() => {
+    if (order || !orderId) return;
+    fetchOrderById(orderId).then((found) => {
+      if (!found) setNotFound(true);
+    });
+  }, [order, orderId]);
+
+  const onRefresh = useCallback(async () => {
+    if (!orderId) return;
+    setRefreshing(true);
+    const found = await fetchOrderById(orderId);
+    if (!found) setNotFound(true);
+    setRefreshing(false);
+  }, [orderId, fetchOrderById]);
+
+  const s = makeStyles(colors);
+
+  if (!order && !notFound) {
+    return <OnlineOrderDetailSkeleton />;
+  }
+
+  if (!order) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg }}>
+        <Text style={{ color: colors.textMuted, fontFamily: fonts.regular }}>Order not found.</Text>
+      </View>
+    );
+  }
+
+  const statusColor = STATUS_COLOR[order.status] ?? colors.textMuted;
+
+  const handleAction = async (action: 'accepted' | 'rejected' | 'ready' | 'completed') => {
+    const labels: Record<string, string> = {
+      accepted: 'Accept Order',
+      rejected: 'Reject Order',
+      ready: 'Mark as Ready',
+      completed: 'Mark as Completed',
+    };
+    const msg: Record<string, string> = {
+      accepted: 'Accept this order and start preparing?',
+      rejected: 'Reject this order? The customer will be notified.',
+      ready: 'Mark this order as ready for pickup/delivery?',
+      completed: 'Mark this order as completed?',
+    };
+    const successMsg: Record<string, string> = {
+      accepted: 'Order accepted',
+      rejected: 'Order rejected',
+      ready: 'Order marked as ready',
+      completed: 'Order completed',
+    };
+    Alert.alert(labels[action], msg[action], [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: labels[action], style: action === 'rejected' ? 'destructive' : 'default',
+        onPress: async () => {
+          setLoading(true);
+          try {
+            await updateOrderStatus(order.id, action);
+            toast.success(successMsg[action]);
+          } catch (e: any) {
+            toast.error('Could not update order', { description: e?.message ?? 'Check your connection and try again.' });
+          } finally {
+            setLoading(false);
+          }
+        },
+      },
+    ]);
+  };
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 14, paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
+      >
+
+        {/* Status header */}
+        <View style={[s.statusCard, { backgroundColor: colors.surface, borderColor: statusColor + '40' }]}>
+          <View style={[s.statusBadge, { backgroundColor: statusColor + '20' }]}>
+            <Text style={[s.statusText, { color: statusColor }]}>{order.status.toUpperCase()}</Text>
+          </View>
+          <Text style={[s.orderId, { color: colors.textMuted }]}>#{order.id.slice(0, 8).toUpperCase()}</Text>
+          <Text style={[s.orderTime, { color: colors.textMuted }]}>{formatDateTime(order.createdAt)}</Text>
+          {order.expiresAt && order.status === 'pending' && (
+            <Text style={[s.expiryText, { color: colors.warning }]}>
+              Auto-cancels at {formatDateTime(order.expiresAt)}
+            </Text>
+          )}
+        </View>
+
+        {/* Customer info */}
+        <View style={[s.section, { backgroundColor: colors.surface }]}>
+          <Text style={[s.sectionTitle, { color: colors.textMuted }]}>CUSTOMER</Text>
+          <Text style={[s.customerName, { color: colors.text }]}>{order.customerName}</Text>
+          {order.customerPhone && (
+            <View style={s.infoRow}>
+              <Ionicons name="call-outline" size={14} color={colors.textMuted} />
+              <Text style={[s.infoText, { color: colors.textSub }]}>{order.customerPhone}</Text>
+            </View>
+          )}
+          {order.customerAddress && (
+            <View style={s.infoRow}>
+              <Ionicons name="location-outline" size={14} color={colors.textMuted} />
+              <Text style={[s.infoText, { color: colors.textSub }]}>{order.customerAddress}</Text>
+            </View>
+          )}
+          {order.note && (
+            <View style={[s.noteBox, { backgroundColor: colors.surfaceHigh }]}>
+              <Ionicons name="chatbubble-outline" size={14} color={colors.textMuted} />
+              <Text style={[s.noteText, { color: colors.textSub }]}>{order.note}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Items */}
+        <View style={[s.section, { backgroundColor: colors.surface }]}>
+          <Text style={[s.sectionTitle, { color: colors.textMuted }]}>ITEMS</Text>
+          {order.items.map((item, i) => (
+            <View key={i} style={[s.itemRow, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}>
+              <Text style={[s.itemQty, { color: colors.textMuted }]}>{item.quantity}×</Text>
+              <Text style={[s.itemName, { color: colors.text }]}>{item.productName}</Text>
+              <Text style={[s.itemPrice, { color: colors.text }]}>{formatCurrency(item.totalPrice, settings.currency)}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Bill summary */}
+        <View style={[s.section, { backgroundColor: colors.surface }]}>
+          <Text style={[s.sectionTitle, { color: colors.textMuted }]}>BILL</Text>
+          <View style={s.billRow}>
+            <Text style={[s.billLabel, { color: colors.textSub }]}>Subtotal</Text>
+            <Text style={[s.billValue, { color: colors.textSub }]}>{formatCurrency(order.subtotal, settings.currency)}</Text>
+          </View>
+          {order.deliveryFee > 0 && (
+            <View style={s.billRow}>
+              <Text style={[s.billLabel, { color: colors.textSub }]}>Delivery</Text>
+              <Text style={[s.billValue, { color: colors.textSub }]}>{formatCurrency(order.deliveryFee, settings.currency)}</Text>
+            </View>
+          )}
+          <View style={[s.billRow, s.totalRow]}>
+            <Text style={[s.billLabel, { color: colors.text, fontFamily: fonts.bold }]}>Total</Text>
+            <Text style={[s.totalValue, { color: colors.text }]}>{formatCurrency(order.total, settings.currency)}</Text>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Action buttons */}
+      {loading ? (
+        <View style={s.actionBar}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      ) : order.status === 'pending' ? (
+        <View style={[s.actionBar, { borderTopColor: colors.border }]}>
+          <TouchableOpacity
+            style={[s.actionBtn, { borderColor: colors.danger, borderWidth: 1.5 }]}
+            onPress={() => handleAction('rejected')}
+          >
+            <Ionicons name="close-outline" size={20} color={colors.danger} />
+            <Text style={[s.actionBtnText, { color: colors.danger }]}>Reject</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.actionBtn, { backgroundColor: colors.primary }]}
+            onPress={() => handleAction('accepted')}
+          >
+            <Ionicons name="checkmark-outline" size={20} color="#fff" />
+            <Text style={[s.actionBtnText, { color: '#fff' }]}>Accept</Text>
+          </TouchableOpacity>
+        </View>
+      ) : order.status === 'accepted' ? (
+        <View style={[s.actionBar, { borderTopColor: colors.border }]}>
+          <TouchableOpacity
+            style={[s.actionBtn, { backgroundColor: colors.primary, flex: 1 }]}
+            onPress={() => handleAction('ready')}
+          >
+            <Ionicons name="bag-check-outline" size={20} color="#fff" />
+            <Text style={[s.actionBtnText, { color: '#fff' }]}>Mark Ready</Text>
+          </TouchableOpacity>
+        </View>
+      ) : order.status === 'ready' ? (
+        <View style={[s.actionBar, { borderTopColor: colors.border }]}>
+          <TouchableOpacity
+            style={[s.actionBtn, { backgroundColor: colors.success, flex: 1 }]}
+            onPress={() => handleAction('completed')}
+          >
+            <Ionicons name="checkmark-done-outline" size={20} color="#fff" />
+            <Text style={[s.actionBtnText, { color: '#fff' }]}>Mark Completed</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+const makeStyles = (c: any) =>
+  StyleSheet.create({
+    statusCard: { borderRadius: 14, padding: 16, marginBottom: 10, borderWidth: 1 },
+    statusBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, marginBottom: 8 },
+    statusText: { fontFamily: fonts.bold, fontSize: 12 },
+    orderId: { fontFamily: fonts.bold, fontSize: 14 },
+    orderTime: { fontFamily: fonts.regular, fontSize: 12, marginTop: 2 },
+    expiryText: { fontFamily: fonts.semiBold, fontSize: 12, marginTop: 6 },
+
+    section: { borderRadius: 14, padding: 14, marginBottom: 10 },
+    sectionTitle: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 0.8, marginBottom: 10 },
+    customerName: { fontFamily: fonts.extraBold, fontSize: 17, marginBottom: 6 },
+    infoRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+    infoText: { fontFamily: fonts.regular, fontSize: 14 },
+    noteBox: { flexDirection: 'row', gap: 8, padding: 10, borderRadius: 10, marginTop: 6 },
+    noteText: { fontFamily: fonts.regular, fontSize: 13, flex: 1, lineHeight: 18 },
+
+    itemRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
+    itemQty: { fontFamily: fonts.bold, fontSize: 13, width: 28 },
+    itemName: { fontFamily: fonts.semiBold, fontSize: 14, flex: 1 },
+    itemPrice: { fontFamily: fonts.bold, fontSize: 14 },
+
+    billRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
+    totalRow: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border, marginTop: 4, paddingTop: 10 },
+    billLabel: { fontFamily: fonts.regular, fontSize: 14 },
+    billValue: { fontFamily: fonts.regular, fontSize: 14 },
+    totalValue: { fontFamily: fonts.extraBold, fontSize: 17 },
+
+    actionBar: { flexDirection: 'row', gap: 12, padding: 16, paddingBottom: 28, borderTopWidth: StyleSheet.hairlineWidth, marginBottom: 60 },
+    actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 14 },
+    actionBtnText: { fontFamily: fonts.bold, fontSize: 16 },
+  });

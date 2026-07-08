@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import React, { useState, useMemo, useEffect } from 'react';
+import { View, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 import { useScrollHideBar } from '../hooks/useScrollHideBar';
 import ScrollHideBar from '../components/common/ScrollHideBar';
 import { Text } from 'react-native-paper';
@@ -12,6 +12,7 @@ import { fonts } from '../theme/typography';
 import { formatCurrency } from '../utils/helpers';
 import EmptyState from '../components/common/EmptyState';
 import CollapsibleFab, { useFabScroll } from '../components/common/CollapsibleFab';
+import HeaderSearchToggle from '../components/common/HeaderSearchToggle';
 import { Purchase } from '../types';
 
 function formatDate(ts: number) {
@@ -43,6 +44,14 @@ export default function PurchasesScreen({ navigation }: any) {
   }, [filtered]);
 
   const s = makeStyles(colors);
+
+  // Search lives in the shared AppHeader now — same convention as Bill
+  // History / Suppliers / Online Orders.
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => <HeaderSearchToggle onQueryChange={setSearch} placeholder={t('searchPurchases')} hasBackButton />,
+    });
+  }, [navigation, t]);
 
   const renderItem = ({ item: purchase, index }: { item: Purchase; index: number }) => {
     const outstanding = Math.max(0, purchase.totalAmount - purchase.paidAmount);
@@ -103,25 +112,6 @@ export default function PurchasesScreen({ navigation }: any) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      {/* Search */}
-      <View style={[s.searchRow, { backgroundColor: colors.surface }]}>
-        <View style={[s.searchBox, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
-          <Ionicons name="search-outline" size={16} color={colors.textMuted} style={{ marginRight: 6 }} />
-          <TextInput
-            style={[s.searchInput, { color: colors.text }]}
-            placeholder={t('searchPurchases')}
-            placeholderTextColor={colors.textMuted}
-            value={search}
-            onChangeText={setSearch}
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')} hitSlop={8} accessibilityLabel="Clear search" accessibilityRole="button">
-              <Ionicons name="close-circle" size={16} color={colors.textMuted} />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
       <View style={{ flex: 1, overflow: 'hidden' }}>
         {suppliers.length > 0 && (
           <ScrollHideBar translateY={chipTranslate} bgColor={colors.bg} onLayout={onBarLayout}>
@@ -190,9 +180,6 @@ export default function PurchasesScreen({ navigation }: any) {
 }
 
 const makeStyles = (c: any) => StyleSheet.create({
-  searchRow: { paddingHorizontal: 12, paddingVertical: 12, borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
-  searchBox: { flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1 },
-  searchInput: { flex: 1, fontSize: 14, padding: 0, fontFamily: fonts.regular },
   chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },
   chipText: { fontFamily: fonts.bold, fontSize: 13 },
   summaryBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingBottom: 8 },

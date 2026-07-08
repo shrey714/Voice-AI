@@ -187,7 +187,6 @@ export default function QuickEditScreen({ navigation }: any) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-          <Text style={[s.pickTitle, { color: colors.text }]}>{t('quickEdit')}</Text>
           <Text style={[s.pickSub, { color: colors.textMuted }]}>{t('quickEditPickSet')}</Text>
           {products.length === 0 ? (
             <View style={{ marginTop: 40 }}><EmptyState icon="cube-outline" title={t('noProductsYet')} subtitle={t('addProductsFirst')} /></View>
@@ -330,8 +329,7 @@ function NumField({ label, value, onChange, colors, s }: { label: string; value:
 }
 
 const makeStyles = (c: any) => StyleSheet.create({
-  pickTitle: { fontFamily: fonts.extraBold, fontSize: 24, marginTop: 6 },
-  pickSub: { fontFamily: fonts.medium, fontSize: 13.5, lineHeight: 20, marginTop: 6, marginBottom: 8 },
+  pickSub: { fontFamily: fonts.medium, fontSize: 13.5, lineHeight: 20, marginBottom: 8 },
   groupLbl: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 0.8, marginTop: 18, marginBottom: 8, marginLeft: 4 },
   catRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth },
   catIcon: { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },

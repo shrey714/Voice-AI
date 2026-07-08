@@ -63,6 +63,7 @@ interface AppState {
   loadSettings: () => Promise<void>;
   setLanguage: (lang: Language) => void;
   resetApp: () => Promise<void>;
+  factoryReset: () => Promise<void>;
 
   loadActiveStockTake: () => Promise<void>;
   startStockTake: (scope: string) => Promise<void>;
@@ -87,6 +88,7 @@ const defaultSettings: AppSettings = {
   expenseCategories: [],
   btScannerEnabled: true,
   onboardingDone: false,
+  onlineShopEnabled: false,
   dailyGoal: 0,
   reminderLang: 'hinglish',
   reminderTone: 'polite',
@@ -559,7 +561,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const val = await db.getSetting(key);
       if (val !== null) {
         if (key === 'lowStockThreshold' || key === 'dailyGoal') (loaded as any)[key] = parseInt(val) || 0;
-        else if (key === 'gstRegistered' || key === 'btScannerEnabled' || key === 'onboardingDone' || key === 'reminderIncludeUpi') (loaded as any)[key] = val === 'true';
+        else if (key === 'gstRegistered' || key === 'btScannerEnabled' || key === 'onboardingDone' || key === 'reminderIncludeUpi' || key === 'onlineShopEnabled') (loaded as any)[key] = val === 'true';
         else if (JSON_SETTING_KEYS.has(key)) {
           try { (loaded as any)[key] = JSON.parse(val); } catch { /* keep default */ }
         }
@@ -571,6 +573,17 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   resetApp: async () => {
     await db.resetAllData();
+    const st = get();
+    await Promise.all([
+      st.loadProducts(), st.loadBills(), st.loadExpenses(), st.loadReturns(),
+      st.loadTemplates(), st.loadSuppliers(), st.loadPurchases(),
+      st.loadSupplierLedger(), st.loadActiveStockTake(), st.loadSettings(),
+    ]);
+    set({ cart: [] });
+  },
+
+  factoryReset: async () => {
+    await db.wipeEverything();
     const st = get();
     await Promise.all([
       st.loadProducts(), st.loadBills(), st.loadExpenses(), st.loadReturns(),

@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -7,7 +7,7 @@ import { useAppStore } from '../stores/useAppStore';
 import { useTranslation } from '../hooks/useTranslation';
 import { Language } from '../types';
 import { setupNotifications } from '../services/notifications';
-import { signOut } from '../services/cloudSync';
+import { supabase } from '../lib/supabase';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
 import { useScreenRadius } from '../utils/screenRadius';
@@ -30,28 +30,44 @@ type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 export default function SettingsScreen({ navigation }: any) {
   const { t } = useTranslation();
   const { colors, themeMode, setThemeMode } = useAppTheme();
-  const { settings, updateSettings, resetApp } = useAppStore();
+  const { settings, updateSettings, resetApp, factoryReset } = useAppStore();
   const s = makeStyles(colors);
   const radius = useScreenRadius();
+  const [erasing, setErasing] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => { setupNotifications(); }, []);
 
-  const handleLogout = () => {
-    Alert.alert(t('logOutConfirmTitle'), t('logOutConfirmMsg'), [
+  // Erase data only clears business records — products, bills, expenses,
+  // customers, suppliers. Shop profile (name, phone, UPI, GST) is kept, and
+  // the user stays signed in.
+  const handleEraseData = () => {
+    Alert.alert(t('eraseDataConfirmTitle'), t('eraseDataConfirmMsg'), [
       { text: t('cancel'), style: 'cancel' },
-      { text: t('logOut'), style: 'destructive', onPress: async () => { await signOut(); Alert.alert(t('loggedOut'), t('loggedOutMsg')); } },
+      {
+        text: t('eraseData'), style: 'destructive', onPress: async () => {
+          setErasing(true);
+          try { await resetApp(); } finally { setErasing(false); }
+        },
+      },
     ]);
   };
 
-  const handleReset = () => {
-    Alert.alert(t('resetConfirmTitle'), t('resetConfirmMsg'), [
+  // Logging out is a full factory reset: every table including settings, so
+  // onboarding runs again for whoever uses the device next. Online-shop
+  // orders live in the cloud and come back on re-login.
+  const handleLogout = () => {
+    Alert.alert(t('logOutConfirmTitle'), t('logOutConfirmMsg'), [
       { text: t('cancel'), style: 'cancel' },
-      { text: t('resetEverything'), style: 'destructive', onPress: () => {
-        Alert.alert(t('resetFinalTitle'), t('resetFinalMsg'), [
-          { text: t('cancel'), style: 'cancel' },
-          { text: t('yesEraseAll'), style: 'destructive', onPress: () => resetApp() },
-        ]);
-      } },
+      {
+        text: t('logOut'), style: 'destructive', onPress: async () => {
+          setLoggingOut(true);
+          try {
+            await factoryReset();
+            await supabase.auth.signOut();
+          } finally { setLoggingOut(false); }
+        },
+      },
     ]);
   };
 
@@ -156,25 +172,25 @@ export default function SettingsScreen({ navigation }: any) {
          {/* Account / danger */}
          <Text style={[s.groupLabel, { color: colors.textMuted }]}>{t('account').toUpperCase()}</Text>
          <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-           <TouchableOpacity style={[s.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]} onPress={handleLogout} activeOpacity={0.7}>
-             <View style={[s.iconTile, { backgroundColor: colors.surfaceHigh }]}>
-               <Ionicons name="log-out-outline" size={20} color={colors.textSub} />
-             </View>
-             <View style={{ flex: 1 }}>
-               <Text style={[s.rowLabel, { color: colors.text }]}>{t('logOut')}</Text>
-               <Text style={[s.rowSub, { color: colors.textMuted }]}>{t('signOutOfCloud')}</Text>
-             </View>
-             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-           </TouchableOpacity>
-           <TouchableOpacity style={s.row} onPress={handleReset} activeOpacity={0.7}>
+           <TouchableOpacity style={[s.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]} onPress={handleEraseData} activeOpacity={0.7} disabled={erasing}>
              <View style={[s.iconTile, { backgroundColor: colors.danger + '22' }]}>
                <Ionicons name="trash-outline" size={20} color={colors.danger} />
              </View>
              <View style={{ flex: 1 }}>
-               <Text style={[s.rowLabel, { color: colors.danger }]}>{t('resetApp')}</Text>
-               <Text style={[s.rowSub, { color: colors.textMuted }]}>{t('eraseAllData')}</Text>
+               <Text style={[s.rowLabel, { color: colors.danger }]}>{t('eraseData')}</Text>
+               <Text style={[s.rowSub, { color: colors.textMuted }]}>{t('eraseDataSub')}</Text>
              </View>
-             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+             {erasing ? <ActivityIndicator color={colors.danger} /> : <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />}
+           </TouchableOpacity>
+           <TouchableOpacity style={s.row} onPress={handleLogout} activeOpacity={0.7} disabled={loggingOut}>
+             <View style={[s.iconTile, { backgroundColor: colors.danger + '22' }]}>
+               <Ionicons name="log-out-outline" size={20} color={colors.danger} />
+             </View>
+             <View style={{ flex: 1 }}>
+               <Text style={[s.rowLabel, { color: colors.danger }]}>{t('logOut')}</Text>
+               <Text style={[s.rowSub, { color: colors.textMuted }]}>{t('logOutSub')}</Text>
+             </View>
+             {loggingOut ? <ActivityIndicator color={colors.danger} /> : <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />}
            </TouchableOpacity>
          </View>
       </ScrollView>

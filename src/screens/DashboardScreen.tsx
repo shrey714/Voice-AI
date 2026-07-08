@@ -7,7 +7,11 @@ import { MotiView } from 'moti';
 import Animated, { useSharedValue, useAnimatedStyle, useAnimatedProps, withRepeat, withTiming, Easing, SharedValue } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 import { useAppStore } from '../stores/useAppStore';
+import { useOnlineShopStore } from '../stores/useOnlineShopStore';
 import { useTranslation } from '../hooks/useTranslation';
+import { useIsOnline } from '../hooks/useIsOnline';
+import { switchAppMode } from '../navigation/navigationRef';
+import { isShopOpenNow } from '../utils/shopStatus';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -160,6 +164,10 @@ export default function DashboardScreen({ navigation }: any) {
   const { t } = useTranslation();
   const { products, bills, expenses, returns, loadProducts, loadBills, loadExpenses, settings } = useAppStore();
   const dataReady = useAppStore(state => state.dataReady);
+  const isOnline = useIsOnline();
+  const fetchShopConfig = useOnlineShopStore(state => state.fetchShopConfig);
+  const onlineShopConfig = useOnlineShopStore(state => state.config);
+  const isOnlineShopLive = settings.onlineShopEnabled && isShopOpenNow(onlineShopConfig);
   const [refreshing, setRefreshing] = useState(false);
 
   // All sales numbers are netted of returns via the shared stats helper. Memoized
@@ -248,7 +256,12 @@ export default function DashboardScreen({ navigation }: any) {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([loadProducts(), loadBills(), loadExpenses()]);
+      await Promise.all([
+        loadProducts(), loadBills(), loadExpenses(),
+        // Also pulls in shop-name/UPI/GST edits made directly in Supabase —
+        // fetchShopConfig mirrors them into local settings on success.
+        ...(isOnline ? [fetchShopConfig()] : []),
+      ]);
     } catch {
       // ignore
     } finally {
@@ -369,6 +382,63 @@ export default function DashboardScreen({ navigation }: any) {
             <Ionicons name="arrow-forward-circle" size={24} color={colors.primary} />
           </PressableScale>
         </MotiView>
+
+        {/* Online Shop — live CTA if enabled, otherwise an invite to start one */}
+        {settings.onlineShopEnabled ? (
+          <MotiView from={{ opacity: 0, translateY: 14 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 400, delay: 210 }}>
+            <PressableScale onPress={() => switchAppMode('online')}>
+              {/* Keyed remount cross-fades the whole card (gradient, dot, copy)
+                  smoothly whenever live/closed actually flips, instead of an
+                  instant style snap. */}
+              <MotiView key={isOnlineShopLive ? 'live' : 'closed'} from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ type: 'timing', duration: 350 }}>
+                <LinearGradient
+                  colors={isOnlineShopLive ? [colors.primary, colors.primaryDark] : [colors.textMuted, colors.textSub]}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                  style={s.onlineShopCard}
+                >
+                  <View style={s.onlineShopIcon}>
+                    <Ionicons name="storefront" size={22} color="#fff" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={s.onlineShopStatusRow}>
+                      <View style={{ width: 7, height: 7, alignItems: 'center', justifyContent: 'center' }}>
+                        {isOnlineShopLive && (
+                          <MotiView
+                            from={{ scale: 1, opacity: 0.6 }}
+                            animate={{ scale: 2.6, opacity: 0 }}
+                            transition={{ type: 'timing', duration: 1400, loop: true, repeatReverse: false }}
+                            style={{ position: 'absolute', width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#A5E8B5' }}
+                          />
+                        )}
+                        <View style={[s.onlineShopDot, { backgroundColor: isOnlineShopLive ? '#A5E8B5' : 'rgba(255,255,255,0.6)' }]} />
+                      </View>
+                      <Text style={s.onlineShopTitle}>Online Shop is {isOnlineShopLive ? 'LIVE' : 'CLOSED'}</Text>
+                    </View>
+                    <Text style={s.onlineShopSub}>
+                      {isOnlineShopLive ? 'Customers can browse & order — tap to manage' : 'Not accepting orders right now — tap to reopen'}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#fff" />
+                </LinearGradient>
+              </MotiView>
+            </PressableScale>
+          </MotiView>
+        ) : (
+          <MotiView from={{ opacity: 0, translateY: 14 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 400, delay: 210 }}>
+            <PressableScale style={[s.onlineShopPrompt, { backgroundColor: colors.surface, borderColor: colors.primary + '40' }]} onPress={() => navigation.navigate('More', { screen: 'ShopInfo' })}>
+              <View style={[s.bentoIcon, { backgroundColor: colors.primaryLight, width: 42, height: 42, borderRadius: 13 }]}>
+                <Ionicons name="storefront-outline" size={22} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.goalAmount, { color: colors.text }]}>Sell online too</Text>
+                <Text style={[s.goalRemain, { color: colors.textMuted }]}>Let customers browse & order from your shop</Text>
+              </View>
+              <View style={[s.onlineShopNewBadge, { backgroundColor: colors.primary }]}>
+                <Text style={s.onlineShopNewBadgeText}>NEW</Text>
+              </View>
+            </PressableScale>
+          </MotiView>
+        )}
 
         {/* Daily goal ring */}
         {dailyGoal > 0 ? (
@@ -618,6 +688,17 @@ const makeStyles = (c: any) => StyleSheet.create({
   askBar: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginTop: 14, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1 },
   askIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   askText: { flex: 1, fontFamily: fonts.medium, fontSize: 14 },
+
+  // Online Shop CTA
+  onlineShopCard: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginTop: 14, borderRadius: 18, padding: 16 },
+  onlineShopIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  onlineShopStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  onlineShopDot: { width: 7, height: 7, borderRadius: 3.5 },
+  onlineShopTitle: { fontFamily: fonts.extraBold, fontSize: 15, color: '#fff' },
+  onlineShopSub: { fontFamily: fonts.medium, fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
+  onlineShopPrompt: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginTop: 14, borderRadius: 18, padding: 14, borderWidth: 1.5 },
+  onlineShopNewBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  onlineShopNewBadgeText: { fontFamily: fonts.extraBold, fontSize: 10, letterSpacing: 0.6, color: '#fff' },
 
   // Daily goal ring
   goalCard: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 14, borderRadius: 18, padding: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border },

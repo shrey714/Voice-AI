@@ -1,5 +1,5 @@
 import 'react-native-url-polyfill/auto';
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { PaperProvider, ActivityIndicator } from 'react-native-paper';
 import { Text } from 'react-native-paper';
@@ -22,19 +22,45 @@ import AiProvider from './src/components/AiProvider';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import SplashScreen from './src/screens/SplashScreen';
+import PhoneAuthScreen from './src/screens/PhoneAuthScreen';
 import ErrorScreen from './src/screens/ErrorScreen';
 import { useAppStore } from './src/stores/useAppStore';
+import { useOnlineShopStore } from './src/stores/useOnlineShopStore';
 import { ThemeProvider, useAppTheme } from './src/theme';
+import { AuthProvider, useAuth } from './src/contexts/AuthContext';
+import { usePushSetup } from './src/hooks/usePushSetup';
 import { fonts } from './src/theme/typography';
 
 function AppLoader() {
+  usePushSetup();
   const { loadProducts, loadBills, loadExpenses, loadSettings, loadSuppliers, loadReturns, loadTemplates, loadPurchases, loadSupplierLedger, loadActiveStockTake, setDataReady } = useAppStore();
   const onboardingDone = useAppStore(state => state.settings.onboardingDone);
   const { paperTheme } = useAppTheme();
+  const { isSignedIn, loading: authLoading } = useAuth();
+  const fetchShopConfig = useOnlineShopStore(state => state.fetchShopConfig);
   // Settings load first (needed for theme + onboarding gate); the rest loads in the
   // background so the app shell appears immediately and screens show skeletons.
   const [settingsReady, setSettingsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Right after a fresh sign-in (not a cold start that resumes an already-valid
+  // session), pull any existing cloud shop profile before deciding whether
+  // onboarding is needed — a returning shopkeeper (or one who just did a
+  // "Log out" factory reset on this device) already has an `online_shops`
+  // row, and fetchShopConfig's mirror marks onboardingDone true when it finds
+  // one, so they skip straight to the main app instead of redoing setup.
+  const [syncingAfterLogin, setSyncingAfterLogin] = useState(false);
+  const wasSignedIn = useRef(false);
+  const hasResolvedAuthOnce = useRef(false);
+  useEffect(() => {
+    if (authLoading) return;
+    if (isSignedIn && !wasSignedIn.current && hasResolvedAuthOnce.current) {
+      setSyncingAfterLogin(true);
+      fetchShopConfig().finally(() => setSyncingAfterLogin(false));
+    }
+    wasSignedIn.current = isSignedIn;
+    hasResolvedAuthOnce.current = true;
+  }, [isSignedIn, authLoading]);
 
   const loadAll = useCallback(async () => {
     try {
@@ -58,7 +84,11 @@ function AppLoader() {
     <PaperProvider theme={paperTheme}>
       {error ? (
         <ErrorScreen message={error} onRetry={handleRetry} />
-      ) : !settingsReady ? (
+      ) : !settingsReady || authLoading ? (
+        <SplashScreen />
+      ) : !isSignedIn ? (
+        <PhoneAuthScreen />
+      ) : syncingAfterLogin ? (
         <SplashScreen />
       ) : !onboardingDone ? (
         <OnboardingScreen />
@@ -91,7 +121,9 @@ export default function App() {
         <ThemeProvider>
           <BottomSheetModalProvider>
             <ErrorBoundary>
-              <AppLoader />
+              <AuthProvider>
+                <AppLoader />
+              </AuthProvider>
             </ErrorBoundary>
           </BottomSheetModalProvider>
         </ThemeProvider>

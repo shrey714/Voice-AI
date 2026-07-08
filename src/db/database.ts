@@ -600,8 +600,21 @@ export async function importAllTables(snapshot: Record<string, any[]>): Promise<
   });
 }
 
-// Factory reset — wipe every table (including settings). Used by "Reset App".
+// Wipe every business-data table but keep `settings` — the shop profile
+// (name, phone, UPI, GST) survives. Used by "Erase data".
 export async function resetAllData(): Promise<void> {
+  const database = await getDatabase();
+  await database.withTransactionAsync(async () => {
+    for (const table of BACKUP_TABLES) {
+      if (table === 'settings') continue;
+      await database.runAsync(`DELETE FROM ${table}`);
+    }
+  });
+}
+
+// Full factory reset — wipes every table including `settings`, so onboarding
+// runs again for whoever uses the device next. Used by "Log out".
+export async function wipeEverything(): Promise<void> {
   const database = await getDatabase();
   await database.withTransactionAsync(async () => {
     for (const table of BACKUP_TABLES) {

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView } from 'react-native';
+import { View, FlatList, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { useScrollHideBar } from '../../hooks/useScrollHideBar';
 import ScrollHideBar from '../../components/common/ScrollHideBar';
 import { Text, ActivityIndicator } from 'react-native-paper';
@@ -14,6 +14,7 @@ import EmptyState from '../../components/common/EmptyState';
 import { SkeletonList } from '../../components/common/Skeleton';
 import CollapsibleFab, { useFabScroll } from '../../components/common/CollapsibleFab';
 import ProductCard from '../../components/inventory/ProductCard';
+import HeaderSearchToggle from '../../components/common/HeaderSearchToggle';
 import { useTranslation } from '../../hooks/useTranslation';
 
 
@@ -87,6 +88,7 @@ export default function InventoryScreen({ route, navigation }: any) {
   };
 
   const lowStockCount = products.filter(p => p.quantity <= p.lowStockThreshold).length;
+  const s = makeStyles(colors);
 
   // Show the item count beside the header title, and the CSV import at the header's right end.
   useLayoutEffect(() => {
@@ -107,55 +109,56 @@ export default function InventoryScreen({ route, navigation }: any) {
         </View>
       ),
       headerRight: () => (
-        <TouchableOpacity onPress={() => navigation.navigate('CsvImport')} hitSlop={10} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-          <Ionicons name="document-text-outline" size={18} color={colors.primary} />
-          <Text style={{ color: colors.primary, fontFamily: fonts.bold, fontSize: 13 }}>CSV</Text>
-        </TouchableOpacity>
+        <>
+          {/* Absolutely positioned, pinned to the header's true right edge —
+              same convention as the filter buttons in Bill History / Online
+              Orders / Suppliers / Purchases. HeaderSearchToggle's
+              rightOffset reserves this button's width + gap. */}
+          <TouchableOpacity
+            style={[s.csvBtn, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}
+            onPress={() => navigation.navigate('CsvImport')}
+            accessibilityLabel="Import CSV"
+            accessibilityRole="button"
+          >
+            <Ionicons name="document-text-outline" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+          <HeaderSearchToggle onQueryChange={setSearch} placeholder={t('searchProducts')} rightOffset={46} />
+        </>
       ),
     });
-  }, [navigation, products.length, lowStockCount, colors]);
-
-  const s = makeStyles(colors);
+  }, [navigation, products.length, lowStockCount, colors, t]);
 
   if (!dataReady) return <View style={{ flex: 1, backgroundColor: colors.bg }}><SkeletonList count={8} /></View>;
 
   return (
     <View style={[{ backgroundColor: colors.bg, flex: 1 }]}>
-      {/* Search + Sort */}
-      <View style={[s.searchRow, {backgroundColor: colors.surface}]}>
-        <View style={[s.searchBox, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
-          <Ionicons name="search-outline" size={16} color={colors.textMuted} style={{ marginRight: 6 }} />
-          <TextInput
-            style={[s.searchInput, { color: colors.text }]}
-            placeholder={t('searchProducts')}
-            value={search}
-            onChangeText={setSearch}
-            placeholderTextColor={colors.textMuted}
-          />
-        </View>
-        <TouchableOpacity
-          style={[s.sortBtn, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
-          onPress={() => setSortBy(s => s === 'name' ? 'stock' : s === 'stock' ? 'price' : 'name')}>
-          <Ionicons name="swap-vertical-outline" size={14} color={colors.primary} />
-          <Text style={[s.sortBtnText, { color: colors.primary }]}>{sortBy}</Text>
-        </TouchableOpacity>
-      </View>
-
       {/* Scrollable area — category bar floats above the list within this container */}
       <View style={{ flex: 1, overflow: 'hidden' }}>
         <ScrollHideBar translateY={catTranslate} bgColor={colors.bg} onLayout={onBarLayout}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 8, gap: 8, paddingVertical: 8, alignItems: 'center' }}>
-            {CATEGORIES.map(cat => {
-              const active = categoryFilter === cat;
-              return (
-                <TouchableOpacity key={cat}
-                  style={[s.catChip, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary : colors.surface }]}
-                  onPress={() => setCategoryFilter(cat)}>
-                  <Text style={[s.catChipText, { color: active ? '#fff' : colors.textSub }]}>{cat}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {/* Sort button — fixed at the left, not part of the scrollable
+                category strip, with a separator marking it off. */}
+            <TouchableOpacity
+              style={[s.sortBtn, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
+              onPress={() => setSortBy(s => s === 'name' ? 'stock' : s === 'stock' ? 'price' : 'name')}>
+              <Ionicons name="swap-vertical-outline" size={14} color={colors.primary} />
+              <Text style={[s.sortBtnText, { color: colors.primary }]}>{sortBy}</Text>
+            </TouchableOpacity>
+            <View style={[s.sortSeparator, { backgroundColor: colors.border }]} />
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 8, gap: 8, paddingVertical: 8, alignItems: 'center' }}>
+              {CATEGORIES.map(cat => {
+                const active = categoryFilter === cat;
+                return (
+                  <TouchableOpacity key={cat}
+                    style={[s.catChip, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary : colors.surface }]}
+                    onPress={() => setCategoryFilter(cat)}>
+                    <Text style={[s.catChipText, { color: active ? '#fff' : colors.textSub }]}>{cat}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
         </ScrollHideBar>
 
         <FlatList
@@ -278,12 +281,16 @@ export default function InventoryScreen({ route, navigation }: any) {
 }
 
 const makeStyles = (c: any) => StyleSheet.create({
-  // Search & filter row — cleaner
-  searchRow: { flexDirection: 'row', gap: 10, padding: 12, alignItems: 'center', borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
-  searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1 },
-  searchInput: { flex: 1, fontSize: 14, padding: 0, fontFamily: fonts.regular },
-  sortBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, justifyContent: 'center', borderWidth: 0.5 },
+  // CSV button — absolutely positioned in the shared AppHeader, pinned to
+  // its true right edge (always visible), same convention as the filter
+  // buttons in Bill History / Online Orders / Suppliers / Purchases.
+  // HeaderSearchToggle's rightOffset reserves this button's width + gap.
+  csvBtn: { position: 'absolute', right: 0, top: '50%', marginTop: -19, width: 38, height: 38, borderRadius: 10, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
+
+  // Sort button — fixed at the left of the category strip (not scrollable).
+  sortBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, justifyContent: 'center', borderWidth: 0.5, marginLeft: 8 },
   sortBtnText: { fontFamily: fonts.bold, fontSize: 12 },
+  sortSeparator: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch', marginVertical: 8, marginLeft: 8 },
 
   // Category chips
   catChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, borderWidth: 1 },

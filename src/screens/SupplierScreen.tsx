@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useRef, useMemo } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, Alert, Linking, TextInput } from 'react-native';
+import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import { View, FlatList, StyleSheet, TouchableOpacity, Alert, Linking } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -14,6 +14,7 @@ import { formatCurrency, sanitizeDecimal } from '../utils/helpers';
 import EmptyState from '../components/common/EmptyState';
 import CollapsibleFab, { useFabScroll } from '../components/common/CollapsibleFab';
 import ProductCard from '../components/inventory/ProductCard';
+import HeaderSearchToggle from '../components/common/HeaderSearchToggle';
 
 const PAYMENT_MODES_KEYS = [
   { key: 'cash', tKey: 'cash' as const, icon: 'cash-outline' },
@@ -59,6 +60,14 @@ export default function SupplierScreen() {
         (sup.address || '').toLowerCase().includes(search.toLowerCase())
       )
     : suppliers;
+
+  // Search lives in the shared AppHeader now — same convention as Bill
+  // History / Online Orders.
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => <HeaderSearchToggle onQueryChange={setSearch} placeholder={t('searchSuppliers')} hasBackButton />,
+    });
+  }, [navigation, t]);
 
   const formSheetRef = useRef<BottomSheet>(null);
   const detailSheetRef = useRef<BottomSheet>(null);
@@ -184,24 +193,6 @@ export default function SupplierScreen() {
 
   return (
     <View style={[s.container, { backgroundColor: c.bg }]}>
-      {/* Search bar */}
-      <View style={[s.searchRow, { backgroundColor: c.surface }]}>
-        <View style={[s.searchBox, { backgroundColor: c.surfaceHigh, borderColor: c.border }]}>
-          <Ionicons name="search-outline" size={16} color={c.textMuted} style={{ marginRight: 6 }} />
-          <TextInput
-            style={[s.searchInput, { color: c.text }]}
-            placeholder={t('searchSuppliers')}
-            placeholderTextColor={c.textMuted}
-            value={search}
-            onChangeText={setSearch}
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')} hitSlop={8} accessibilityLabel="Clear search" accessibilityRole="button">
-              <Ionicons name="close-circle" size={16} color={c.textMuted} />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
 
       <FlatList
         data={filtered}
@@ -671,9 +662,6 @@ export default function SupplierScreen() {
 
 const makeStyles = (c: any) => StyleSheet.create({
   container: { flex: 1 },
-  searchRow: { paddingHorizontal: 12, paddingVertical: 12, borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
-  searchBox: { flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1 },
-  searchInput: { flex: 1, fontSize: 14, padding: 0, fontFamily: fonts.regular },
   card: { flexDirection: 'row', borderRadius: 10, padding: 12, marginBottom: 8, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, gap: 12 },
   cardAvatar: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
   cardAvatarText: { fontFamily: fonts.extraBold, fontSize: 22 },

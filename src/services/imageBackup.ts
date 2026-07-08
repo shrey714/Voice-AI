@@ -1,6 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
-import { supabase } from './supabase';
+import { supabase } from '../lib/supabase';
 import * as db from '../db/database';
 
 const BUCKET = 'product-images';

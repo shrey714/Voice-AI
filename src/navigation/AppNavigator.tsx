@@ -3,19 +3,22 @@ import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import Animated, {
   useSharedValue,
   withSpring,
+  withTiming,
   useAnimatedStyle,
   useDerivedValue,
+  interpolate,
   SharedValue,
   runOnJS,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { NavigationContainer, DefaultTheme, DarkTheme, useNavigationState } from '@react-navigation/native';
+import { navigationRef } from './navigationRef';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { MotiView } from 'moti';
+import { MotiView, AnimatePresence } from 'moti';
 import * as Haptics from 'expo-haptics';
 
 import DashboardScreen from '../screens/DashboardScreen';
@@ -45,17 +48,35 @@ import DayCloseScreen from '../screens/DayCloseScreen';
 import QuickEditScreen from '../screens/inventory/QuickEditScreen';
 import BackupRestoreScreen from '../screens/BackupRestoreScreen';
 import MenuScreen from '../screens/MenuScreen';
+import OnlineShopDashboard from '../screens/onlineshop/OnlineShopDashboard';
+import OnlineOrdersScreen from '../screens/onlineshop/OnlineOrdersScreen';
+import OnlineOrderDetailScreen from '../screens/onlineshop/OnlineOrderDetailScreen';
+import OnlineInventoryScreen from '../screens/onlineshop/OnlineInventoryScreen';
+import OnlineProductFormScreen from '../screens/onlineshop/OnlineProductFormScreen';
 import AppHeader from '../components/common/AppHeader';
 import { Toaster } from 'sonner-native';
 import { useAppTheme } from '../theme';
+import { useAppStore } from '../stores/useAppStore';
 import { useScreenRadius } from '../utils/screenRadius';
+import { registerModeSwitcher } from './navigationRef';
+import PressableScale from '../components/common/PressableScale';
 
 const TopTab = createMaterialTopTabNavigator();
+// The one true root navigator directly under NavigationContainer — Local and
+// Online are its two screens. React Navigation only allows a single navigator
+// per Screen/container; nesting them here (rather than as two sibling
+// navigators both directly under NavigationContainer) is what keeps each
+// portion mounted-but-hidden instead of unmounted, using react-navigation's
+// own supported "lazy mount once, never unmount on blur" behavior.
+const RootTab = createMaterialTopTabNavigator();
 const HomeStack = createNativeStackNavigator();
 const BillingStack = createNativeStackNavigator();
 const InventoryStack = createNativeStackNavigator();
 const RecordsStack = createNativeStackNavigator();
 const MenuStack = createNativeStackNavigator();
+const OnlineDashboardStack = createNativeStackNavigator();
+const OnlineOrdersStack = createNativeStackNavigator();
+const OnlineInventoryStack = createNativeStackNavigator();
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -80,8 +101,8 @@ function InventoryStackNav({ colors }: { colors: any }) {
   return (
     <InventoryStack.Navigator screenOptions={headerOpts(colors)}>
       <InventoryStack.Screen name="InventoryMain" component={InventoryScreen} options={{ title: 'Inventory' }} />
-      <InventoryStack.Screen name="ProductForm" component={ProductFormScreen} />
-      <InventoryStack.Screen name="CsvImport" component={CsvImportScreen} options={{ title: 'Bulk Import CSV' }} />
+      <InventoryStack.Screen name="ProductForm" component={ProductFormScreen} options={{ roundedBottom: true } as any} />
+      <InventoryStack.Screen name="CsvImport" component={CsvImportScreen} options={{ title: 'Bulk Import CSV', roundedBottom: true } as any} />
     </InventoryStack.Navigator>
   );
 }
@@ -106,21 +127,53 @@ function MenuStackNav({ colors }: { colors: any }) {
       <MenuStack.Screen name="Expenses" component={ExpensesScreen} options={{ title: 'Expenses' }} />
       <MenuStack.Screen name="DayClose" component={DayCloseScreen} options={{ title: 'Day Close' }} />
       <MenuStack.Screen name="Udhaar" component={UdhaarScreen} options={{ title: 'Udhaar · Credit' }} />
-      <MenuStack.Screen name="Supplier" component={SupplierScreen} options={{ title: 'Suppliers' }} />
-      <MenuStack.Screen name="Purchases" component={PurchasesScreen} options={{ title: 'Purchases' }} />
+      <MenuStack.Screen name="Supplier" component={SupplierScreen} options={{ title: 'Suppliers', roundedBottom: true } as any} />
+      <MenuStack.Screen name="Purchases" component={PurchasesScreen} options={{ title: 'Purchases', roundedBottom: true } as any} />
       <MenuStack.Screen name="PurchaseForm" component={PurchaseFormScreen} options={{ title: 'New Purchase / GRN' }} />
-      <MenuStack.Screen name="Reorder" component={ReorderScreen} options={{ title: 'Reorder Stock' }} />
-      <MenuStack.Screen name="QuickEdit" component={QuickEditScreen} options={{ title: 'Quick Edit' }} />
-      <MenuStack.Screen name="StockTake" component={StockTakeScreen} options={{ title: 'Stock Take' }} />
-      <MenuStack.Screen name="StockTakeHistory" component={StockTakeHistoryScreen} options={{ title: 'Past Stock Takes' }} />
-      <MenuStack.Screen name="StockTakeCount" component={StockTakeCountScreen} options={{ title: 'Count Stock' }} />
-      <MenuStack.Screen name="StockTakeReview" component={StockTakeReviewScreen} options={{ title: 'Review & Commit' }} />
+      <MenuStack.Screen name="Reorder" component={ReorderScreen} options={{ title: 'Reorder Stock', roundedBottom: true } as any} />
+      <MenuStack.Screen name="QuickEdit" component={QuickEditScreen} options={{ title: 'Quick Edit', roundedBottom: true } as any} />
+      <MenuStack.Screen name="StockTake" component={StockTakeScreen} options={{ title: 'Stock Take', roundedBottom: true } as any} />
+      <MenuStack.Screen name="StockTakeHistory" component={StockTakeHistoryScreen} options={{ title: 'Past Stock Takes', roundedBottom: true } as any} />
+      <MenuStack.Screen name="StockTakeCount" component={StockTakeCountScreen} options={{ title: 'Count Stock', roundedBottom: true } as any} />
+      <MenuStack.Screen name="StockTakeReview" component={StockTakeReviewScreen} options={{ title: 'Review & Commit', roundedBottom: true } as any} />
       <MenuStack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
-      <MenuStack.Screen name="ShopInfo" component={ShopInfoScreen} options={{ title: 'Shop Information' }} />
-      <MenuStack.Screen name="ManageOptions" component={ManageOptionsScreen} options={{ title: 'Preferences' }} />
-      <MenuStack.Screen name="ReminderSettings" component={ReminderSettingsScreen} options={{ title: 'WhatsApp Messages' }} />
-      <MenuStack.Screen name="BackupRestore" component={BackupRestoreScreen} options={{ title: 'Backup & Restore' }} />
+      <MenuStack.Screen name="ShopInfo" component={ShopInfoScreen} options={{ title: 'Shop Information', roundedBottom: true } as any} />
+      <MenuStack.Screen name="ManageOptions" component={ManageOptionsScreen} options={{ title: 'Preferences', roundedBottom: true } as any} />
+      <MenuStack.Screen name="ReminderSettings" component={ReminderSettingsScreen} options={{ title: 'WhatsApp Messages', roundedBottom: true } as any} />
+      <MenuStack.Screen name="BackupRestore" component={BackupRestoreScreen} options={{ title: 'Backup & Restore', roundedBottom: true } as any} />
     </MenuStack.Navigator>
+  );
+}
+
+// Online portion — a fully separate set of stacks/tabs from the local one
+// (see MainTabs/OnlineMainTabs below). ShopInfo is registered here too since
+// it's the one screen common to both portions — reused as-is, not shared
+// via cross-navigator navigation, since it always re-fetches from Supabase
+// on mount anyway.
+function OnlineDashboardStackNav({ colors }: { colors: any }) {
+  return (
+    <OnlineDashboardStack.Navigator screenOptions={headerOpts(colors)}>
+      <OnlineDashboardStack.Screen name="OnlineShopDashboardMain" component={OnlineShopDashboard} options={{ headerShown: false }} />
+      <OnlineDashboardStack.Screen name="ShopInfo" component={ShopInfoScreen} options={{ title: 'Shop Information', roundedBottom: true } as any} />
+    </OnlineDashboardStack.Navigator>
+  );
+}
+
+function OnlineOrdersStackNav({ colors }: { colors: any }) {
+  return (
+    <OnlineOrdersStack.Navigator screenOptions={headerOpts(colors)}>
+      <OnlineOrdersStack.Screen name="OnlineOrdersMain" component={OnlineOrdersScreen} options={{ title: 'Online Orders', roundedBottom: true } as any} />
+      <OnlineOrdersStack.Screen name="OnlineOrderDetail" component={OnlineOrderDetailScreen} options={{ title: 'Order Detail', roundedBottom: true } as any} />
+    </OnlineOrdersStack.Navigator>
+  );
+}
+
+function OnlineInventoryStackNav({ colors }: { colors: any }) {
+  return (
+    <OnlineInventoryStack.Navigator screenOptions={headerOpts(colors)}>
+      <OnlineInventoryStack.Screen name="OnlineInventoryMain" component={OnlineInventoryScreen} options={{ title: 'Online Products', roundedBottom: true } as any} />
+      <OnlineInventoryStack.Screen name="OnlineProductForm" component={OnlineProductFormScreen} options={{ title: 'Online Product', roundedBottom: true } as any} />
+    </OnlineInventoryStack.Navigator>
   );
 }
 
@@ -159,6 +212,9 @@ const TAB_ICONS: Record<string, { off: IoniconsName; on: IoniconsName }> = {
   Billing:   { off: 'cart-outline',        on: 'cart' },
   Records:   { off: 'stats-chart-outline', on: 'stats-chart' },
   More:      { off: 'grid-outline',        on: 'grid' },
+  OnlineDashboard: { off: 'storefront-outline', on: 'storefront' },
+  OnlineOrders:    { off: 'bag-handle-outline',  on: 'bag-handle' },
+  OnlineInventory: { off: 'cube-outline',        on: 'cube' },
 };
 
 const ICON_SIZE = 26;
@@ -238,42 +294,131 @@ function AnimatedTabIcon({
   );
 }
 
+// Small frosted-glass circle beside the main pill — switches between the
+// Local and Online portions. Deliberately NOT one of the swipeable tabs (see
+// AppNavigator's mode state): it sits outside UnifiedBottomBar's route-driven pill
+// math entirely, styled to match but structurally independent.
+//
+// Simple crossfade between storefront/home — outgoing glyph fades out as the
+// incoming one fades in. No rotation, no blur.
+function ModeSwitchButton({ icon, onPress, colors, isDark }: { icon: IoniconsName; onPress: () => void; colors: any; isDark: boolean }) {
+  return (
+    <PressableScale onPress={onPress} scaleTo={0.9}>
+      <BlurView
+        intensity={50}
+        tint={isDark ? 'dark' : 'light'}
+        experimentalBlurMethod="dimezisBlurView"
+        style={[styles.switchBtn, { borderColor: colors.border, backgroundColor: colors.surface + '40' }]}
+      >
+        <View style={{ width: 22, height: 22, alignItems: 'center', justifyContent: 'center' }}>
+          {/* AnimatePresence overlaps the outgoing/incoming icon's exit/enter
+              instead of us manually juggling a shared value + two pieces of
+              React state — that manual approach had a one-frame race where
+              the new icon could pop in at full opacity before its fade-in
+              actually started, reading as a flicker. */}
+          <AnimatePresence>
+            <MotiView
+              key={icon}
+              style={StyleSheet.absoluteFill}
+              from={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ type: 'timing', duration: 220 }}
+            >
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name={icon} size={22} color={colors.primary} />
+              </View>
+            </MotiView>
+          </AnimatePresence>
+        </View>
+      </BlurView>
+    </PressableScale>
+  );
+}
+
+// Bridges a TopTab.Navigator's own tabBar render prop up to the persistent
+// UnifiedBottomBar below, without rendering anything itself. The `useEffect`
+// (not a plain call during render) defers the parent state update to after
+// this commits — calling it straight from the render body would be a
+// "setState while rendering a different component" violation, since
+// react-navigation invokes `tabBar` synchronously as part of its own render.
+function TabBarBridge({ state, navigation, onReport }: any) {
+  // Deps on `state`/`navigation` themselves (not a no-array effect) — react-navigation
+  // only gives these new references when something actually changed, so this only
+  // re-reports on real nav updates. A no-deps effect would construct a fresh
+  // `{state, navigation}` object every render, making the parent's setState always
+  // look "changed" and re-render this right back into the effect — infinite loop.
+  useEffect(() => { onReport({ state, navigation }); }, [state, navigation, onReport]);
+  return null;
+}
+
 // Instagram-style floating bottom bar: a rounded "pill" with evenly-spaced flat
-// icons. Highlights the active tab and gives a selection haptic on tab change.
-function BottomBar({ state, navigation, colors, isDark }: any) {
+// icons. One persistent instance shared by both the Local and Online portions
+// (see AppNavigator) — the frosted BlurView, gesture detector and sliding pill
+// never remount when switching portions (a real BlurView remount was the
+// actual source of the switch feeling laggy); only the icon row cross-fades
+// between the two route sets.
+function UnifiedBottomBar({ mode, local, online, colors, isDark, modeSwitch }: any) {
   const insets = useSafeAreaInsets();
-  const prevIndex = useRef(state.index);
+  const active = mode === 'local' ? local : online;
+
+  const prevIndex = useRef(active?.state.index ?? 0);
+  const prevMode = useRef(mode);
   const [barWidth, setBarWidth] = useState(0);
   // Fractional pill position (0 = first tab, numTabs-1 = last tab).
-  const pillProgress = useSharedValue<number>(state.index);
+  const pillProgress = useSharedValue<number>(active?.state.index ?? 0);
   // Records pill position at the start of each drag so onUpdate can add delta.
   const dragStartProgress = useSharedValue(0);
 
+  const numTabs = active?.state.routes.length ?? 1;
+  const pillWidth = barWidth > 0 ? (barWidth - 6) / numTabs : 0;
+  // Animated copy of `pillWidth` — Local (5 tabs) and Online (3 tabs) have
+  // different pill widths, so this tweens smoothly on a mode switch instead
+  // of snapping straight to the new size.
+  const pillWidthSV = useSharedValue(pillWidth);
   useEffect(() => {
-    if (prevIndex.current !== state.index) {
-      prevIndex.current = state.index;
-      Haptics.selectionAsync();
-    }
-    pillProgress.value = withSpring(state.index, {
-      damping: 20, stiffness: 200, mass: 0.8,
-    });
-  }, [state.index]);
+    pillWidthSV.value = withTiming(pillWidth, { duration: 280 });
+  }, [pillWidth]);
 
-  const activeRoute = getDeepActiveRoute(state.routes[state.index]);
+  useEffect(() => {
+    if (!active) return;
+    if (prevMode.current !== mode) {
+      // Crossing portions — same light intensity as the ordinary tab-change
+      // tick, but a two-pulse "duk-duk" rhythm instead of a single tap, so
+      // it reads as a distinct kind of change (Local <-> Online) rather than
+      // just a stronger version of the same tick. Then glide to the new
+      // index/width together (see pillWidthSV above) rather than snapping;
+      // the icon row cross-fades separately below so it doesn't read as
+      // sliding through tabs that don't exist in the other portion.
+      prevMode.current = mode;
+      prevIndex.current = active.state.index;
+      Haptics.selectionAsync();
+      setTimeout(() => Haptics.selectionAsync(), 90);
+      pillProgress.value = withSpring(active.state.index, { damping: 22, stiffness: 180, mass: 0.9 });
+      return;
+    }
+    if (prevIndex.current !== active.state.index) {
+      prevIndex.current = active.state.index;
+      Haptics.selectionAsync();
+      pillProgress.value = withSpring(active.state.index, {
+        damping: 20, stiffness: 200, mass: 0.8,
+      });
+    }
+  }, [active?.state.index, mode]);
+
+  const activeRoute = active ? getDeepActiveRoute(active.state.routes[active.state.index]) : '';
   const isHidden = FULLSCREEN_SCREENS.has(activeRoute);
 
-  const numTabs = state.routes.length;
-  const pillWidth = barWidth > 0 ? (barWidth - 6) / numTabs : 0;
-
   const pillAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: 3 + pillProgress.value * pillWidth }],
+    width: pillWidthSV.value,
+    transform: [{ translateX: 3 + pillProgress.value * pillWidthSV.value }],
   }));
 
   // Called from the worklet (UI thread) → runs navigation on JS thread.
   const navigateToTab = useCallback((tabIndex: number) => {
-    const route = state.routes[tabIndex];
-    if (route) navigation.navigate(route.name);
-  }, [state.routes, navigation]);
+    const route = active?.state.routes[tabIndex];
+    if (route) active.navigation.navigate(route.name);
+  }, [active]);
 
   const panGesture = Gesture.Pan()
     // Only activate after an intentional horizontal swipe — taps fall through to icons.
@@ -300,57 +445,79 @@ function BottomBar({ state, navigation, colors, isDark }: any) {
 
   return (
     <MotiView
+      from={{ translateY: 24, opacity: 0 }}
       animate={{ translateY: isHidden ? 120 : 0, opacity: isHidden ? 0 : 1 }}
       transition={{ type: 'timing', duration: 300 }}
       style={[styles.barWrap, { paddingBottom: Platform.OS === 'ios' ? Math.max(insets.bottom - 10, 10) : 20 }]}
       pointerEvents={isHidden ? 'none' : 'box-none'}
     >
-      <GestureDetector gesture={panGesture}>
-      <BlurView
-        intensity={50}
-        tint={isDark ? 'dark' : 'light'}
-        experimentalBlurMethod="dimezisBlurView"
-        style={[styles.bar, { borderColor: colors.border, backgroundColor: colors.surface + '40' }]}
-        onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}
-      >
-        {/* Sliding pill — behind the icons */}
-        {pillWidth > 0 && (
-          <Animated.View
-            style={[
-              styles.slidingPill,
-              { width: pillWidth, backgroundColor: colors.primaryLight + '90' },
-              pillAnimStyle,
-            ]}
-            pointerEvents="none"
-          />
-        )}
-
-        {state.routes.map((route: any, index: number) => {
-          const ic = TAB_ICONS[route.name];
-          const onPress = () => {
-            const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-            if (state.index !== index && !event.defaultPrevented) navigation.navigate(route.name);
-          };
-          return (
-            <AnimatedTabIcon
-              key={route.key}
-              pillProgress={pillProgress}
-              index={index}
-              pillWidth={pillWidth}
-              ic={ic}
-              onPress={onPress}
-              colors={colors}
+      <View style={styles.barRow}>
+        <GestureDetector gesture={panGesture}>
+        <BlurView
+          intensity={50}
+          tint={isDark ? 'dark' : 'light'}
+          experimentalBlurMethod="dimezisBlurView"
+          style={[styles.bar, { flex: 1, borderColor: colors.border, backgroundColor: colors.surface + '40' }]}
+          onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}
+        >
+          {/* Sliding pill — behind the icons */}
+          {pillWidth > 0 && (
+            <Animated.View
+              style={[
+                styles.slidingPill,
+                { backgroundColor: colors.primaryLight + '90' },
+                pillAnimStyle,
+              ]}
+              pointerEvents="none"
             />
-          );
-        })}
-      </BlurView>
-      </GestureDetector>
+          )}
+
+          {/* Icon row cross-fades between the Local and Online route sets;
+              the BlurView/pill/gesture above stay mounted throughout. */}
+          <AnimatePresence exitBeforeEnter>
+            {active && (
+              <MotiView
+                key={mode}
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch' }}
+                from={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ type: 'timing', duration: 160 }}
+                exitTransition={{ type: 'timing', duration: 120 }}
+              >
+                {active.state.routes.map((route: any, index: number) => {
+                  const ic = TAB_ICONS[route.name];
+                  const onPress = () => {
+                    const event = active.navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+                    if (active.state.index !== index && !event.defaultPrevented) active.navigation.navigate(route.name);
+                  };
+                  return (
+                    <AnimatedTabIcon
+                      key={route.key}
+                      pillProgress={pillProgress}
+                      index={index}
+                      pillWidth={pillWidth}
+                      ic={ic}
+                      onPress={onPress}
+                      colors={colors}
+                    />
+                  );
+                })}
+              </MotiView>
+            )}
+          </AnimatePresence>
+        </BlurView>
+        </GestureDetector>
+        {modeSwitch}
+      </View>
     </MotiView>
   );
 }
 
 // Must be rendered inside NavigationContainer so useNavigationState works.
-function MainTabs({ colors, isDark }: { colors: any; isDark: boolean }) {
+// Reports its tab-bar state up to AppNavigator's persistent UnifiedBottomBar
+// instead of rendering its own bar (see TabBarBridge/UnifiedBottomBar above).
+function MainTabs({ colors, isDark, onReport }: { colors: any; isDark: boolean; onReport: (bar: any) => void }) {
   const navState = useNavigationState(s => s);
   const activeRoute = navState ? getDeepActiveRoute(navState.routes[navState.index]) : '';
   const swipeEnabled = !FULLSCREEN_SCREENS.has(activeRoute);
@@ -358,7 +525,7 @@ function MainTabs({ colors, isDark }: { colors: any; isDark: boolean }) {
   return (
     <TopTab.Navigator
       tabBarPosition="bottom"
-      tabBar={(props: any) => <BottomBar {...props} colors={colors} isDark={isDark} />}
+      tabBar={(props: any) => <TabBarBridge {...props} onReport={onReport} />}
       screenOptions={{ swipeEnabled, lazy: false }}
       pageMargin={10}
       style={{ backgroundColor: '#000' }}
@@ -389,8 +556,75 @@ function MainTabs({ colors, isDark }: { colors: any; isDark: boolean }) {
   );
 }
 
+// The Online portion — its own floating tab bar (Dashboard / Orders /
+// Products), built with the exact same RoundedScene/pill-swipe machinery as
+// the local one, and reporting into the same persistent UnifiedBottomBar.
+function OnlineMainTabs({ colors, isDark, onReport }: { colors: any; isDark: boolean; onReport: (bar: any) => void }) {
+  const navState = useNavigationState(s => s);
+  const activeRoute = navState ? getDeepActiveRoute(navState.routes[navState.index]) : '';
+  const swipeEnabled = !FULLSCREEN_SCREENS.has(activeRoute);
+
+  return (
+    <TopTab.Navigator
+      tabBarPosition="bottom"
+      tabBar={(props: any) => <TabBarBridge {...props} onReport={onReport} />}
+      screenOptions={{ swipeEnabled, lazy: false }}
+      pageMargin={10}
+      style={{ backgroundColor: '#000' }}
+      sceneContainerStyle={{ backgroundColor: 'transparent' }}
+    >
+      <TopTab.Screen name="OnlineDashboard">
+        {() => <RoundedScene colors={colors}><OnlineDashboardStackNav colors={colors} /></RoundedScene>}
+      </TopTab.Screen>
+
+      <TopTab.Screen name="OnlineOrders">
+        {() => <RoundedScene colors={colors}><OnlineOrdersStackNav colors={colors} /></RoundedScene>}
+      </TopTab.Screen>
+
+      <TopTab.Screen name="OnlineInventory">
+        {() => <RoundedScene colors={colors}><OnlineInventoryStackNav colors={colors} /></RoundedScene>}
+      </TopTab.Screen>
+    </TopTab.Navigator>
+  );
+}
+
 export default function AppNavigator() {
   const { colors, isDark } = useAppTheme();
+  const onlineShopEnabled = useAppStore(s => s.settings.onlineShopEnabled);
+
+  // Each portion's TopTab.Navigator reports its own {state, navigation} up
+  // here (via TabBarBridge) instead of rendering its own bar — see
+  // UnifiedBottomBar for why this is the one persistent instance for both.
+  const [localBar, setLocalBar] = useState<{ state: any; navigation: any } | null>(null);
+  const [onlineBar, setOnlineBar] = useState<{ state: any; navigation: any } | null>(null);
+  // RootTab's own bar (also via TabBarBridge, rendering nothing) tells us
+  // which portion is focused and gives us its `navigation` to actually
+  // switch — `lazy: true` on RootTab.Navigator means Online mounts on first
+  // visit and, per react-navigation's default (unmountOnBlur: false), simply
+  // stays mounted-but-inactive after that. No manual display-toggling needed.
+  const [rootBar, setRootBar] = useState<{ state: any; navigation: any } | null>(null);
+  const mode: 'local' | 'online' = rootBar?.state.routeNames[rootBar.state.index] === 'Online' ? 'online' : 'local';
+
+  // registerModeSwitcher exposes a module-level function so code outside this
+  // component (Home's CTA card, push-notification deep links) can switch
+  // portions without prop-drilling. Re-registered whenever rootBar changes so
+  // it always navigates via the current (not a stale) navigation object.
+  useEffect(() => {
+    registerModeSwitcher((m) => rootBar?.navigation.navigate(m === 'online' ? 'Online' : 'Local'));
+  }, [rootBar]);
+  // If the shopkeeper turns the feature off while sitting in Online mode
+  // (e.g. from Shop Information), fall back to Local rather than stranding
+  // them on a portion that no longer has a way back in.
+  useEffect(() => {
+    if (!onlineShopEnabled && mode === 'online') rootBar?.navigation.navigate('Local');
+  }, [onlineShopEnabled, mode, rootBar]);
+
+  // Only shopkeepers who've turned on the Online Shop feature see a switch
+  // while in Local mode — otherwise this is exactly today's single-portion
+  // app. Online mode's switch always points back to Local, unconditionally.
+  const modeSwitch = mode === 'local'
+    ? (onlineShopEnabled ? <ModeSwitchButton icon="storefront" onPress={() => rootBar?.navigation.navigate('Online')} colors={colors} isDark={isDark} /> : undefined)
+    : <ModeSwitchButton icon="home" onPress={() => rootBar?.navigation.navigate('Local')} colors={colors} isDark={isDark} />;
 
   const navTheme = {
     ...(isDark ? DarkTheme : DefaultTheme),
@@ -405,8 +639,26 @@ export default function AppNavigator() {
   };
 
   return (
-    <NavigationContainer theme={navTheme}>
-      <MainTabs colors={colors} isDark={isDark} />
+    <NavigationContainer ref={navigationRef} theme={navTheme}>
+      <RootTab.Navigator
+        tabBar={(props: any) => <TabBarBridge {...props} onReport={setRootBar} />}
+        screenOptions={{ swipeEnabled: false, lazy: true }}
+        // Same black-backdrop-through-a-gap treatment as the inner per-portion
+        // tab bars (see MainTabs/OnlineMainTabs) — swiping is disabled here
+        // (only the switch button changes portions), but the pager still
+        // animates a slide on navigate(), so the gap shows during that too.
+        pageMargin={10}
+        style={{ backgroundColor: '#000' }}
+        sceneContainerStyle={{ backgroundColor: 'transparent' }}
+      >
+        <RootTab.Screen name="Local">
+          {() => <MainTabs colors={colors} isDark={isDark} onReport={setLocalBar} />}
+        </RootTab.Screen>
+        <RootTab.Screen name="Online">
+          {() => <OnlineMainTabs colors={colors} isDark={isDark} onReport={setOnlineBar} />}
+        </RootTab.Screen>
+      </RootTab.Navigator>
+      <UnifiedBottomBar mode={mode} local={localBar} online={onlineBar} colors={colors} isDark={isDark} modeSwitch={modeSwitch} />
       <Toaster
         position="top-center"
         theme={isDark ? 'dark' : 'light'}
@@ -427,9 +679,30 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: 30,
+    paddingHorizontal: 20,
     paddingTop: 8,
     backgroundColor: 'transparent',
+  },
+  // Row holding the main pill + (optionally) the mode-switch circle beside it.
+  barRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  // Matches `.bar`'s frosted-glass treatment at a fixed circular size.
+  switchBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+    elevation: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
   },
   // The Instagram-style rounded pill.
   bar: {

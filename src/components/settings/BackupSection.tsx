@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fonts } from '../../theme/typography';
-import { isBackupConfigured } from '../../services/supabase';
-import {
-  sendOtp, verifyOtp, getCurrentUser, signOut,
-  backupNow, restoreNow, getBackupMeta, AuthUser,
-} from '../../services/cloudSync';
+import { isSupabaseConfigured } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
+import { backupNow, restoreNow, getBackupMeta } from '../../services/cloudSync';
 import { useAppStore } from '../../stores/useAppStore';
+import { BackupSectionSkeleton } from '../common/Skeleton';
 
 // Pull every loader so a restore refreshes the whole in-memory store at once.
 function reloadAllStores() {
@@ -27,11 +26,8 @@ function formatWhen(iso: string | null): string {
 
 export default function BackupSection({ colors }: { colors: any }) {
   const s = makeStyles(colors);
+  const { session } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [phase, setPhase] = useState<'phone' | 'otp'>('phone');
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [lastBackup, setLastBackup] = useState<string | null>(null);
@@ -42,45 +38,14 @@ export default function BackupSection({ colors }: { colors: any }) {
   useEffect(() => {
     (async () => {
       try {
-        const u = await getCurrentUser();
-        setUser(u);
-        if (u) {
+        if (session) {
           const meta = await getBackupMeta();
           setLastBackup(meta.updatedAt);
         }
       } catch { /* offline / not configured */ }
       finally { setLoading(false); }
     })();
-  }, []);
-
-  const handleSend = async () => {
-    if (phone.replace(/\D/g, '').length < 10) {
-      Alert.alert('Invalid number', 'Enter a valid 10-digit mobile number.');
-      return;
-    }
-    setBusy(true);
-    try {
-      await sendOtp(phone);
-      setPhase('otp');
-    } catch (e: any) { Alert.alert('Could not send OTP', e.message); }
-    finally { setBusy(false); }
-  };
-
-  const handleVerify = async () => {
-    if (otp.replace(/\D/g, '').length < 4) {
-      Alert.alert('Invalid code', 'Enter the code from the SMS.');
-      return;
-    }
-    setBusy(true);
-    try {
-      const u = await verifyOtp(phone, otp);
-      setUser(u);
-      setOtp('');
-      const meta = await getBackupMeta();
-      setLastBackup(meta.updatedAt);
-    } catch (e: any) { Alert.alert('Verification failed', e.message); }
-    finally { setBusy(false); }
-  };
+  }, [session]);
 
   const handleBackup = async () => {
     setBusy(true);
@@ -114,34 +79,22 @@ export default function BackupSection({ colors }: { colors: any }) {
     );
   };
 
-  const handleLogout = async () => {
-    setBusy(true);
-    try {
-      await signOut();
-      setUser(null);
-      setPhase('phone');
-      setPhone('');
-      setLastBackup(null);
-    } finally { setBusy(false); }
-  };
-
   return (
     <View style={[s.section, { backgroundColor: colors.surface }]}>
       <Text style={[s.title, { color: colors.text }]}>Cloud Backup</Text>
 
-      {!isBackupConfigured ? (
+      {!isSupabaseConfigured ? (
         <Text style={[s.hint, { color: colors.textMuted }]}>
           Cloud backup isn’t available in this build.
         </Text>
       ) : loading ? (
-        <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} />
-      ) : user ? (
-        // ── Logged in ──────────────────────────────────────────────
+        <BackupSectionSkeleton />
+      ) : (
         <>
           <View style={[s.accountRow, { borderColor: colors.border }]}>
             <Ionicons name="shield-checkmark" size={20} color={colors.success} />
             <View style={{ flex: 1 }}>
-              <Text style={[s.accountPhone, { color: colors.text }]}>{user.phone || 'Logged in'}</Text>
+              <Text style={[s.accountPhone, { color: colors.text }]}>{session?.user.phone || 'Logged in'}</Text>
               <Text style={[s.hint, { color: colors.textMuted, marginTop: 2 }]}>{formatWhen(lastBackup)}</Text>
             </View>
           </View>
@@ -159,53 +112,6 @@ export default function BackupSection({ colors }: { colors: any }) {
           {busy && status ? (
             <Text style={[s.hint, { color: colors.primary, textAlign: 'center', marginBottom: 8 }]}>{status}</Text>
           ) : null}
-
-          <TouchableOpacity style={[s.linkBtn]} disabled={busy} onPress={handleLogout}>
-            <Text style={[s.linkText, { color: colors.danger }]}>Log out</Text>
-          </TouchableOpacity>
-        </>
-      ) : phase === 'phone' ? (
-        // ── Enter phone ────────────────────────────────────────────
-        <>
-          <Text style={[s.hint, { color: colors.textMuted, marginBottom: 14 }]}>
-            Log in with your phone number to back up your shop data and restore it on any device.
-          </Text>
-          <TextInput
-            style={[s.input, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
-            value={phone}
-            onChangeText={setPhone}
-            placeholder="Mobile number (e.g. 98765 43210)"
-            placeholderTextColor={colors.textMuted}
-            keyboardType="phone-pad"
-            maxLength={15}
-          />
-          <TouchableOpacity style={[s.btn, { backgroundColor: colors.primary, opacity: busy ? 0.6 : 1 }]} disabled={busy} onPress={handleSend}>
-            <Ionicons name="paper-plane-outline" size={18} color="#fff" />
-            <Text style={s.btnText}>{busy ? 'Sending…' : 'Send OTP'}</Text>
-          </TouchableOpacity>
-        </>
-      ) : (
-        // ── Enter OTP ──────────────────────────────────────────────
-        <>
-          <Text style={[s.hint, { color: colors.textMuted, marginBottom: 14 }]}>
-            Enter the code sent to {phone}.
-          </Text>
-          <TextInput
-            style={[s.input, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border, letterSpacing: 8, textAlign: 'center', fontSize: 22 }]}
-            value={otp}
-            onChangeText={setOtp}
-            placeholder="••••••"
-            placeholderTextColor={colors.textMuted}
-            keyboardType="number-pad"
-            maxLength={6}
-          />
-          <TouchableOpacity style={[s.btn, { backgroundColor: colors.primary, opacity: busy ? 0.6 : 1 }]} disabled={busy} onPress={handleVerify}>
-            <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
-            <Text style={s.btnText}>{busy ? 'Verifying…' : 'Verify & log in'}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.linkBtn} disabled={busy} onPress={() => { setPhase('phone'); setOtp(''); }}>
-            <Text style={[s.linkText, { color: colors.textSub }]}>Change number</Text>
-          </TouchableOpacity>
         </>
       )}
     </View>
@@ -216,11 +122,8 @@ const makeStyles = (c: any) => StyleSheet.create({
   section: { marginHorizontal: 8, marginTop: 8, borderRadius: 10, padding: 18, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border },
   title: { fontFamily: fonts.extraBold, fontSize: 15, marginBottom: 14 },
   hint: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 18 },
-  input: { borderRadius: 14, padding: 16, fontSize: 16, borderWidth: 1, fontFamily: fonts.regular, marginBottom: 12 },
   btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 15, borderRadius: 14, marginTop: 4, marginBottom: 8, gap: 8 },
   btnText: { color: '#fff', fontFamily: fonts.bold, fontSize: 14 },
-  linkBtn: { alignItems: 'center', paddingVertical: 8 },
-  linkText: { fontFamily: fonts.bold, fontSize: 13 },
   accountRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12, borderWidth: 1, marginBottom: 14 },
   accountPhone: { fontFamily: fonts.bold, fontSize: 15 },
 });

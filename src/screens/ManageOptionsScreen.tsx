@@ -9,8 +9,6 @@ import { BUILTIN_EXPENSE_CATEGORIES, LOCKED_CATEGORIES, LOCKED_UNITS } from '../
 import SettingInput from '../components/settings/SettingInput';
 import { useTranslation } from '../hooks/useTranslation';
 
-const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
-
 // A single editable list: locked/built-in chips (no delete) + removable chips + add row.
 function OptionGroup({
   title, hint, icon, items, locked = [], readonly = [], onAdd, onRemove, placeholder, colors,
@@ -93,16 +91,9 @@ export default function ManageOptionsScreen() {
   const units = settings.units ?? [];
   const customExpense = settings.expenseCategories ?? [];
 
-  const [gstRegistered, setGstRegistered] = useState(settings.gstRegistered || false);
   const [btEnabled, setBtEnabled] = useState(settings.btScannerEnabled !== false);
   const toggleBt = (val: boolean) => { setBtEnabled(val); updateSettings({ btScannerEnabled: val }); };
 
-  const toggleGst = (val: boolean) => { setGstRegistered(val); updateSettings({ gstRegistered: val }); };
-  const saveGstin = (v: string) => {
-    const upper = v.trim().toUpperCase();
-    if (upper && !GSTIN_RE.test(upper)) { Alert.alert('Invalid GSTIN', 'GSTIN must be 15 characters, e.g. 22AAAAA0000A1Z5'); return; }
-    updateSettings({ gstin: upper });
-  };
   const saveLowStock = (v: string) => updateSettings({ lowStockThreshold: parseInt(v) || 5 });
   const saveDailyGoal = (v: string) => updateSettings({ dailyGoal: parseInt(v) || 0 });
 
@@ -112,26 +103,6 @@ export default function ManageOptionsScreen() {
         <Text style={[s.lead, { color: colors.textMuted }]}>
           {t('customizeApp')}
         </Text>
-
-        {/* GST */}
-        <View style={[s.section, { backgroundColor: colors.surface }]}>
-          <View style={s.sectionHead}>
-            <Ionicons name="document-text-outline" size={18} color={colors.primary} />
-            <Text style={[s.sectionTitle, { color: colors.text }]}>{t('gstSettings')}</Text>
-          </View>
-          <View style={[s.toggleRow, { borderBottomColor: colors.border }]}>
-            <View style={{ flex: 1, paddingRight: 12 }}>
-              <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: colors.text }}>{t('gstRegistered')}</Text>
-              <Text style={[s.hint, { color: colors.textMuted, marginTop: 2 }]}>{t('showCgstSgst')}</Text>
-            </View>
-            <Switch value={gstRegistered} onValueChange={toggleGst} trackColor={{ true: colors.primary }} thumbColor="#fff" />
-          </View>
-          {gstRegistered ? (
-            <SettingInput label="GSTIN" value={settings.gstin || ''} onBlur={saveGstin} placeholder="22AAAAA0000A1Z5" colors={colors} autoCapitalize="characters" />
-          ) : (
-            <Text style={[s.hint, { color: colors.textMuted }]}>{t('enableGstHint')}</Text>
-          )}
-        </View>
 
         {/* Alerts */}
         <View style={[s.section, { backgroundColor: colors.surface }]}>

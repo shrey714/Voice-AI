@@ -227,6 +227,7 @@ export interface AppSettings {
   expenseCategories: string[]; // custom extras beyond the built-in expense categories
   btScannerEnabled: boolean;   // Bluetooth HID barcode scanner support on the billing screen
   onboardingDone: boolean;     // first-run setup completed
+  onlineShopEnabled: boolean;  // shopkeeper opted into the Online Shop feature; mirrored from Supabase `online_shops.online_shop_enabled`
   dailyGoal: number;           // daily revenue target (0 = not set)
   // Udhaar WhatsApp payment reminders
   reminderLang: ReminderLang;       // message language (Hindi / English / Hinglish)

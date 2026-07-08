@@ -39,9 +39,12 @@ Bottom tabs: Home, Inventory, Billing, Records, More.
 - See charts (revenue & profit): More → Analytics.
 - See busiest hours / when sales happen: the "Busiest hours" card on Home, or More → Analytics (weekday × hour heatmap with your peak time).
 - Export reports (PDF/CSV): More → Export Reports.
-- Settings: More → Settings. Inside: Shop Information (name, owner, phone, address, UPI, GST), Preferences (customise product categories, units, expense categories, toggle the Bluetooth barcode scanner), and Backup & Restore.
-- Backup & restore data to the cloud: More → Settings → Backup & Restore (log in with your phone number + OTP, then Back up or Restore).
-- Re-run the setup wizard, reset the app, or log out: More → Settings.
+- Settings: More → Settings. Inside: Shop Information (name, owner, phone, address, UPI, GST, and the Online Shop toggle — this ONE screen is the only place shop details and GST live), Preferences (customise product categories, units, expense categories, toggle the Bluetooth barcode scanner), and Backup & Restore.
+- Signing in: the app requires a mobile-number OTP sign-in right at the start, before anything else — this same login is what backs up your data to the cloud and (if enabled) runs your Online Shop.
+- Sell online / Online Shop: More → Settings → Shop Information → turn on "Use Online Shop" (or tap the "Sell online too" card on the Home screen) → fill in shop URL, description, delivery, pickup location, hours, and auto-cancel timeout for unaccepted orders (5–30 minutes) → Save. Once it's on, a mode-switch button appears beside the bottom tab bar — tap it to flip between the "Local" portion (Home/Inventory/Billing/Records/More) and a separate "Online" portion with its own three tabs: Dashboard (live/closed toggle, today's orders, 7-day trend), Orders (accept/reject/mark ready, filter by status/date, search), and Products (a fully independent online catalog — add by importing a local product as a one-time copy, or create an online-only listing; edit/remove/toggle visibility and set a different online price per item). Shop Information itself is reachable from either portion. Requires an internet connection to save — shop info is otherwise cached locally so billing keeps working offline.
+- Backup & restore data to the cloud: More → Settings → Backup & Restore (uses the same sign-in as the rest of the app — Back up or Restore).
+- Re-run the setup wizard: More → Settings → Preferences.
+- Erase data vs Log out: More → Settings has two separate destructive options — "Erase data" clears products/bills/expenses/customers/suppliers on this device but KEEPS the shop profile and sign-in; "Log out" wipes this device completely (everything, like a fresh install) and signs out — online-shop data is safe in the cloud and comes back on next login with the same phone number.
 - Ask AI (this assistant): Home screen → the "Ask AI" bar.`;
 
 const r = (n: number) => Math.round(n);
