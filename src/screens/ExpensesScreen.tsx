@@ -5,7 +5,8 @@ import ScrollHideBar from '../components/common/ScrollHideBar';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
-import BottomSheet, { BottomSheetScrollView, BottomSheetTextInput, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import AppBottomSheet, { AppBottomSheetRef } from '../components/common/AppBottomSheet';
 import { useAppStore } from '../stores/useAppStore';
 import { useTranslation } from '../hooks/useTranslation';
 import { formatCurrency, formatDate, startOfDay, endOfDay, sanitizeDecimal } from '../utils/helpers';
@@ -36,15 +37,9 @@ export default function ExpensesScreen() {
   const { extended, onScroll } = useFabScroll();
   const { translateY: catTranslate, onListScroll, onBarLayout, listPaddingTop } = useScrollHideBar({ onScroll });
 
-  const formSheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ['80%'], []);
+  const formSheetRef = useRef<AppBottomSheetRef>(null);
   const openForm = useCallback(() => formSheetRef.current?.expand(), []);
   const closeForm = useCallback(() => formSheetRef.current?.close(), []);
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} pressBehavior="close" />
-    ), []
-  );
 
   const todayTotal = expenses.filter(e => e.createdAt >= startOfDay() && e.createdAt <= endOfDay()).reduce((s, e) => s + e.amount, 0);
   const totalAll = expenses.reduce((s, e) => s + e.amount, 0);
@@ -168,18 +163,7 @@ export default function ExpensesScreen() {
 
       <CollapsibleFab bottom={90} icon="add" label={t('saveExpense')} extended={extended} onPress={openForm} />
 
-      <BottomSheet
-        ref={formSheetRef}
-        index={-1}
-        snapPoints={snapPoints}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: colors.surface }}
-        handleIndicatorStyle={{ backgroundColor: colors.primary, width: 40 }}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-        android_keyboardInputMode="adjustResize"
-      >
+      <AppBottomSheet ref={formSheetRef}>
          <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
           <Text style={[s.modalTitle, { color: colors.text }]}>{t('addExpense')}</Text>
 
@@ -238,7 +222,7 @@ export default function ExpensesScreen() {
             </TouchableOpacity>
           </View>
         </BottomSheetScrollView>
-      </BottomSheet>
+      </AppBottomSheet>
     </View>
   );
 }
@@ -267,7 +251,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8, borderWidth: 1 },
   deleteBtnLabel: { fontFamily: fonts.semiBold, fontSize: 11 },
 
-  sheetContent: { paddingHorizontal: 20, paddingBottom: 40 },
+  sheetContent: { paddingHorizontal: 20, paddingBottom: 24 },
   modalTitle: { fontFamily: fonts.extraBold, fontSize: 18, marginBottom: 16 },
   input: { borderRadius: 14, padding: 16, fontSize: 15, borderWidth: 1, marginBottom: 14, fontFamily: fonts.regular },
   fieldLabel: { fontFamily: fonts.bold, fontSize: 13, marginBottom: 8 },

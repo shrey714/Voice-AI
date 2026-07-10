@@ -10,9 +10,7 @@ import Animated, {
   withTiming,
   interpolate,
   interpolateColor,
-  runOnJS,
 } from 'react-native-reanimated';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -43,43 +41,29 @@ const TRACK_PAD = 6;
  * translucent white for the "off" state, solid white for "on", so it reads
  * correctly against colors.primary in both light and dark theme (the
  * gradient's exact hue shifts a little between modes; white-on-gradient
- * doesn't need to know which). Tap either half, or drag the knob and let go
- * on whichever side — same drag-then-snap idiom already used by the app's
- * bottom tab bar (capture start progress, translate by delta, spring to the
- * nearest side on release).
+ * doesn't need to know which). Tap anywhere on the switch to flip it — a
+ * physical drag isn't used here: this screen sits inside the app's
+ * swipeable tab pager, and any nested horizontal drag control fights that
+ * pager's own gesture recognizer at the native level on both platforms
+ * (whichever gesture system the nested control uses). A tap never competes
+ * for that arena, so it's the reliable choice here.
  */
 function PowerToggle({ isOpen, disabled, loading, onChange, colors }: { isOpen: boolean; disabled: boolean; loading: boolean; onChange: (wantOpen: boolean) => void; colors: any }) {
   const [trackWidth, setTrackWidth] = useState(0);
   const progress = useSharedValue(isOpen ? 1 : 0);
-  const dragStart = useSharedValue(0);
   const travel = Math.max(0, trackWidth - THUMB - TRACK_PAD * 2);
 
-  // External state (e.g. a pull-to-refresh pulling fresh config) re-syncs the
-  // knob; this also re-settles it after an optimistic drag gets reverted.
+  // External state (e.g. a pull-to-refresh pulling fresh config) re-syncs the knob.
   useEffect(() => {
     progress.value = withTiming(isOpen ? 1 : 0, { duration: 200 });
   }, [isOpen]);
 
-  const commit = useCallback((wantOpen: boolean) => {
-    if (wantOpen === isOpen) return;
+  const handlePress = useCallback(() => {
+    if (disabled || loading) return;
+    const wantOpen = !isOpen;
     Haptics.notificationAsync(wantOpen ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning);
     onChange(wantOpen);
-  }, [isOpen, onChange]);
-
-  const gesture = Gesture.Pan()
-    .enabled(!disabled && !loading)
-    .activeOffsetX([-6, 6])
-    .failOffsetY([-14, 14])
-    .onBegin(() => { dragStart.value = progress.value; })
-    .onUpdate((e) => {
-      if (travel <= 0) return;
-      progress.value = Math.max(0, Math.min(1, dragStart.value + e.translationX / travel));
-    })
-    .onEnd(() => {
-      const wantOpen = progress.value > 0.5;
-      progress.value = withTiming(wantOpen ? 1 : 0, { duration: 200 });
-      runOnJS(commit)(wantOpen);
-    });
+  }, [disabled, loading, isOpen, onChange]);
 
   const trackStyle = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(progress.value, [0, 1], ['rgba(255,255,255,0.14)', 'rgba(255,255,255,0.95)']),
@@ -91,42 +75,49 @@ function PowerToggle({ isOpen, disabled, loading, onChange, colors }: { isOpen: 
   const onLabelStyle = useAnimatedStyle(() => ({ opacity: interpolate(progress.value, [0.6, 1], [0, 1]) }));
 
   return (
-    <GestureDetector gesture={gesture}>
-      <View style={styles.toggleOuter} onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}>
-        <Animated.View style={[styles.toggleTrack, trackStyle]}>
-          <Animated.Text style={[styles.toggleLabel, styles.toggleLabelOff, offLabelStyle]}>CLOSED</Animated.Text>
-          <Animated.Text style={[styles.toggleLabel, styles.toggleLabelOn, { color: colors.primary }, onLabelStyle]}>YOU'RE LIVE</Animated.Text>
+    <View style={styles.toggleOuter} onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}>
+      <Animated.View style={[styles.toggleTrack, trackStyle]}>
+        <Animated.Text style={[styles.toggleLabel, styles.toggleLabelOff, offLabelStyle]}>CLOSED</Animated.Text>
+        <Animated.Text style={[styles.toggleLabel, styles.toggleLabelOn, { color: colors.primary }, onLabelStyle]}>YOU'RE LIVE</Animated.Text>
 
-          <Animated.View style={[styles.toggleThumb, thumbStyle]}>
-            <View style={styles.toggleKnobFace}>
-              {loading ? (
-                <ActivityIndicator size="small" color={isOpen ? colors.primary : colors.danger} />
-              ) : (
-                <Ionicons name="power" size={24} color={isOpen ? colors.primary : colors.danger} />
-              )}
-            </View>
-          </Animated.View>
+        {/* Only the knob itself is tappable — the track/labels are just display. */}
+        <Animated.View style={[styles.toggleThumb, thumbStyle]}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            disabled={disabled || loading}
+            onPress={handlePress}
+            style={styles.toggleKnobFace}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: isOpen, disabled: disabled || loading }}
+            accessibilityLabel={isOpen ? 'Shop is live, tap to close' : 'Shop is closed, tap to go live'}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color={isOpen ? colors.primary : colors.danger} />
+            ) : (
+              <Ionicons name="power" size={24} color={isOpen ? colors.primary : colors.danger} />
+            )}
+          </TouchableOpacity>
         </Animated.View>
+      </Animated.View>
 
-        {/* Halo rings live OUTSIDE the track (which clips to its pill shape
-            via overflow:hidden for the background color) — same transform as
-            the thumb so they still track its position, but free to expand
-            past the track's rounded edge instead of getting cut off. */}
-        {isOpen && !loading && (
-          <Animated.View style={[styles.toggleHaloLayer, thumbStyle]} pointerEvents="none">
-            {[0, 1].map((i) => (
-              <MotiView
-                key={i}
-                from={{ scale: 1, opacity: 0.5 }}
-                animate={{ scale: 2.1, opacity: 0 }}
-                transition={{ type: 'timing', duration: 1600, loop: true, repeatReverse: false, delay: i * 500 }}
-                style={styles.toggleHalo}
-              />
-            ))}
-          </Animated.View>
-        )}
-      </View>
-    </GestureDetector>
+      {/* Halo rings live OUTSIDE the track (which clips to its pill shape
+          via overflow:hidden for the background color) — same transform as
+          the thumb so they still track its position, but free to expand
+          past the track's rounded edge instead of getting cut off. */}
+      {isOpen && !loading && (
+        <Animated.View style={[styles.toggleHaloLayer, thumbStyle]} pointerEvents="none">
+          {[0, 1].map((i) => (
+            <MotiView
+              key={i}
+              from={{ scale: 1, opacity: 0.5 }}
+              animate={{ scale: 2.1, opacity: 0 }}
+              transition={{ type: 'timing', duration: 1600, loop: true, repeatReverse: false, delay: i * 500 }}
+              style={styles.toggleHalo}
+            />
+          ))}
+        </Animated.View>
+      )}
+    </View>
   );
 }
 
@@ -316,7 +307,7 @@ export default function OnlineShopDashboard({ navigation }: any) {
 
             <View style={styles.toggleWrap}>
               <PowerToggle isOpen={isOpen} disabled={isSavingConfig} loading={isSavingConfig} onChange={setShopOpen} colors={colors} />
-              <Text style={styles.toggleHint}>{isSavingConfig ? 'Saving…' : isOpen ? 'Swipe to close' : 'Swipe to go live'}</Text>
+              <Text style={styles.toggleHint}>{isSavingConfig ? 'Saving…' : isOpen ? 'Tap to close' : 'Tap to go live'}</Text>
             </View>
           </MotiView>
         </LinearGradient>

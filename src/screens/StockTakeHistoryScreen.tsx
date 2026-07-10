@@ -1,11 +1,12 @@
-import React, { useEffect, useLayoutEffect, useState, useRef, useMemo, useCallback } from 'react';
+import React, { useEffect, useLayoutEffect, useState, useRef, useCallback } from 'react';
 import {
   View, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Alert,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
-import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import AppBottomSheet, { AppBottomSheetRef } from '../components/common/AppBottomSheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
@@ -37,8 +38,7 @@ export default function StockTakeHistoryScreen({ navigation }: any) {
   const [sessionItems, setSessionItems] = useState<StockTakeItem[]>([]);
   const [itemsLoading, setItemsLoading] = useState(false);
 
-  const sheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ['80%'], []);
+  const sheetRef = useRef<AppBottomSheetRef>(null);
 
   const handleDeleteAll = useCallback(() => {
     Alert.alert(
@@ -69,12 +69,6 @@ export default function StockTakeHistoryScreen({ navigation }: any) {
         : undefined,
     });
   }, [navigation, handleDeleteAll, sessions.length, loading, colors.danger]);
-
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} pressBehavior="close" />
-    ), []
-  );
 
   useEffect(() => {
     getCompletedStockTakeSessions().then(data => {
@@ -181,16 +175,7 @@ export default function StockTakeHistoryScreen({ navigation }: any) {
       )}
 
       {/* Session detail bottom sheet */}
-      <BottomSheet
-        ref={sheetRef}
-        index={-1}
-        snapPoints={snapPoints}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: colors.surface }}
-        handleIndicatorStyle={{ backgroundColor: colors.primary, width: 40 }}
-        onClose={handleSheetClose}
-      >
+      <AppBottomSheet ref={sheetRef} onDismiss={handleSheetClose}>
         <BottomSheetScrollView
           contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 24) }}
         >
@@ -296,7 +281,7 @@ export default function StockTakeHistoryScreen({ navigation }: any) {
             </>
           )}
         </BottomSheetScrollView>
-      </BottomSheet>
+      </AppBottomSheet>
     </View>
   );
 }

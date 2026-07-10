@@ -1,9 +1,10 @@
-import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, FlatList, StyleSheet, TouchableOpacity, Alert, Linking } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
-import BottomSheet, { BottomSheetScrollView, BottomSheetTextInput, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import AppBottomSheet, { AppBottomSheetRef } from '../components/common/AppBottomSheet';
 import { useNavigation } from '@react-navigation/native';
 import { useAppStore } from '../stores/useAppStore';
 import { useTranslation } from '../hooks/useTranslation';
@@ -45,8 +46,7 @@ export default function SupplierScreen() {
   const [paymentMode, setPaymentMode] = useState<'cash' | 'upi' | 'bank'>('cash');
   const [paymentNote, setPaymentNote] = useState('');
   const [savingPayment, setSavingPayment] = useState(false);
-  const paymentSheetRef = useRef<BottomSheet>(null);
-  const paymentSnapPoints = useMemo(() => ['60%'], []);
+  const paymentSheetRef = useRef<AppBottomSheetRef>(null);
 
   const getOutstanding = (supplierId: string) =>
     purchases
@@ -69,10 +69,8 @@ export default function SupplierScreen() {
     });
   }, [navigation, t]);
 
-  const formSheetRef = useRef<BottomSheet>(null);
-  const detailSheetRef = useRef<BottomSheet>(null);
-  const formSnapPoints = useMemo(() => ['88%'], []);
-  const detailSnapPoints = useMemo(() => ['92%'], []);
+  const formSheetRef = useRef<AppBottomSheetRef>(null);
+  const detailSheetRef = useRef<AppBottomSheetRef>(null);
 
   const openFormSheet = useCallback(() => formSheetRef.current?.expand(), []);
   const closeFormSheet = useCallback(() => formSheetRef.current?.close(), []);
@@ -81,12 +79,6 @@ export default function SupplierScreen() {
     setSelectedSupplier(null);
     setEditingStockId(null);
   }, []);
-
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} pressBehavior="close" />
-    ), []
-  );
 
   const openAdd = () => { setEditing(null); setForm({ ...emptyForm }); openFormSheet(); };
   const openEdit = (sup: Supplier) => {
@@ -256,18 +248,7 @@ export default function SupplierScreen() {
       <CollapsibleFab bottom={90} icon="add" label={t('addSupplier')} extended={extended} onPress={openAdd} />
 
       {/* Add/Edit Supplier Form Sheet */}
-      <BottomSheet
-        ref={formSheetRef}
-        index={-1}
-        snapPoints={formSnapPoints}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: c.surface }}
-        handleIndicatorStyle={{ backgroundColor: c.primary, width: 40 }}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-        android_keyboardInputMode="adjustResize"
-      >
+      <AppBottomSheet ref={formSheetRef}>
         <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
           <Text style={[s.modalTitle, { color: c.text }]}>{editing ? t('editSupplier') : t('addSupplier')}</Text>
           {([
@@ -303,23 +284,15 @@ export default function SupplierScreen() {
             </TouchableOpacity>
           </View>
         </BottomSheetScrollView>
-      </BottomSheet>
+      </AppBottomSheet>
 
       {/* Record Payment Sheet */}
-      <BottomSheet
+      <AppBottomSheet
         ref={paymentSheetRef}
-        index={-1}
-        snapPoints={paymentSnapPoints}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: c.surface }}
-        handleIndicatorStyle={{ backgroundColor: c.primary, width: 40 }}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-        android_keyboardInputMode="adjustResize"
-        onClose={() => { setPaymentSupplier(null); setPaymentAmount(''); setPaymentNote(''); }}
+        detached
+        onDismiss={() => { setPaymentSupplier(null); setPaymentAmount(''); setPaymentNote(''); }}
       >
-        <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 60 }}>
+        <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}>
           <Text style={[s.modalTitle, { color: c.text }]}>{t('recordPayment')}</Text>
           {paymentSupplier && (
             <Text style={{ fontFamily: fonts.medium, fontSize: 14, color: c.textSub, marginBottom: 14, marginTop: -10 }}>
@@ -369,21 +342,12 @@ export default function SupplierScreen() {
             </TouchableOpacity>
           </View>
         </BottomSheetScrollView>
-      </BottomSheet>
+      </AppBottomSheet>
 
       {/* Supplier Detail Sheet */}
-      <BottomSheet
+      <AppBottomSheet
         ref={detailSheetRef}
-        index={-1}
-        snapPoints={detailSnapPoints}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: c.surface }}
-        handleIndicatorStyle={{ backgroundColor: c.primary, width: 40 }}
-        onClose={() => { setSelectedSupplier(null); setEditingStockId(null); }}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-        android_keyboardInputMode="adjustResize"
+        onDismiss={() => { setSelectedSupplier(null); setEditingStockId(null); }}
       >
         <BottomSheetScrollView contentContainerStyle={s.sheetContent} keyboardShouldPersistTaps="handled">
           {selectedSupplier && (() => {
@@ -655,7 +619,7 @@ export default function SupplierScreen() {
             );
           })()}
         </BottomSheetScrollView>
-      </BottomSheet>
+      </AppBottomSheet>
     </View>
   );
 }
@@ -668,7 +632,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   cardName: { fontFamily: fonts.bold, fontSize: 15 },
   lowBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   lowBadgeText: { fontFamily: fonts.bold, fontSize: 11 },
-  sheetContent: { paddingHorizontal:0, paddingBottom: 140 },
+  sheetContent: { paddingHorizontal: 0, paddingBottom: 24 },
   modalTitle: { fontFamily: fonts.extraBold, fontSize: 18, marginBottom: 16, paddingLeft: 8, paddingRight: 14 },
   fieldLabel: { fontFamily: fonts.bold, fontSize: 12, marginBottom: 6, paddingLeft: 4 },
   input: { borderRadius: 10, padding: 12, fontSize: 15, borderWidth: 1, fontFamily: fonts.regular },

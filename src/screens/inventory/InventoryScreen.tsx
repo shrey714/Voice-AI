@@ -4,7 +4,8 @@ import { useScrollHideBar } from '../../hooks/useScrollHideBar';
 import ScrollHideBar from '../../components/common/ScrollHideBar';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
-import BottomSheet, { BottomSheetView, BottomSheetScrollView, BottomSheetTextInput, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import { BottomSheetView, BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import AppBottomSheet, { AppBottomSheetRef } from '../../components/common/AppBottomSheet';
 import { useAppStore } from '../../stores/useAppStore';
 import { formatCurrency, fuzzyMatch } from '../../utils/helpers';
 import { Product } from '../../types';
@@ -35,10 +36,8 @@ export default function InventoryScreen({ route, navigation }: any) {
   const { extended, onScroll } = useFabScroll();
   const { translateY: catTranslate, onListScroll, onBarLayout, listPaddingTop } = useScrollHideBar({ onScroll });
 
-  const stockSheetRef = useRef<BottomSheet>(null);
-  const menuSheetRef = useRef<BottomSheet>(null);
-  const stockSnapPoints = useMemo(() => ['72%'], []);
-  const menuSnapPoints = useMemo(() => ['42%'], []);
+  const stockSheetRef = useRef<AppBottomSheetRef>(null);
+  const menuSheetRef = useRef<AppBottomSheetRef>(null);
 
   const openStockSheet = useCallback((item: Product) => {
     setStockProduct(item);
@@ -52,12 +51,6 @@ export default function InventoryScreen({ route, navigation }: any) {
     menuSheetRef.current?.expand();
   }, []);
   const closeMenuSheet = useCallback(() => menuSheetRef.current?.close(), []);
-
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} pressBehavior="close" />
-    ), []
-  );
 
   // If navigated with prefillBarcode, open form immediately
   useEffect(() => {
@@ -194,18 +187,7 @@ export default function InventoryScreen({ route, navigation }: any) {
       }} />
 
       {/* Stock Adjust Sheet */}
-      <BottomSheet
-        ref={stockSheetRef}
-        index={-1}
-        snapPoints={stockSnapPoints}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: colors.surface }}
-        handleIndicatorStyle={{ backgroundColor: colors.primary, width: 40 }}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-        android_keyboardInputMode="adjustResize"
-      >
+      <AppBottomSheet ref={stockSheetRef} detached>
         <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
           <Text style={[s.stockTitle, { color: colors.text }]}>{t('updateStockLabel')}</Text>
           <Text style={[s.stockProductName, { color: colors.primary }]}>{stockProduct?.name}</Text>
@@ -243,18 +225,10 @@ export default function InventoryScreen({ route, navigation }: any) {
             </TouchableOpacity>
           </View>
         </BottomSheetScrollView>
-      </BottomSheet>
+      </AppBottomSheet>
 
       {/* Product Action Sheet (⋯ menu) */}
-      <BottomSheet
-        ref={menuSheetRef}
-        index={-1}
-        snapPoints={menuSnapPoints}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: colors.surface }}
-        handleIndicatorStyle={{ backgroundColor: colors.primary, width: 40 }}
-      >
+      <AppBottomSheet ref={menuSheetRef} detached>
         <BottomSheetView style={s.sheetContent}>
           <Text style={[s.sheetTitle, { color: colors.text }]} numberOfLines={1}>{menuProduct?.name}</Text>
           <TouchableOpacity style={s.sheetRow} onPress={() => { const p = menuProduct; closeMenuSheet(); navigation.navigate('ProductForm', { product: p }); }}>
@@ -275,7 +249,7 @@ export default function InventoryScreen({ route, navigation }: any) {
             <Text style={{ color: colors.textSub, fontFamily: fonts.bold, fontSize: 15 }}>Cancel</Text>
           </TouchableOpacity>
         </BottomSheetView>
-      </BottomSheet>
+      </AppBottomSheet>
     </View>
   );
 }
@@ -296,7 +270,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   catChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, borderWidth: 1 },
   catChipText: { fontFamily: fonts.bold, fontSize: 13 },
 
-  sheetContent: { paddingHorizontal: 20, paddingBottom: 40 },
+  sheetContent: { paddingHorizontal: 20, paddingBottom: 24 },
   stockTitle: { fontFamily: fonts.extraBold, fontSize: 18, marginBottom: 6 },
   stockProductName: { fontFamily: fonts.bold, fontSize: 16, marginBottom: 4 },
   stockCurrent: { fontFamily: fonts.medium, fontSize: 14, marginBottom: 18 },

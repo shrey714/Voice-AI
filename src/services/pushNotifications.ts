@@ -5,7 +5,6 @@ import { Platform } from 'react-native';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
     shouldShowBanner: true,
@@ -13,32 +12,56 @@ Notifications.setNotificationHandler({
   }),
 });
 
+/**
+ * Requests permission (if needed), sets up the Android notification channel,
+ * and mints an Expo push token for this install.
+ *
+ * Every early-return/throw is logged with a `[push]` prefix — a failure here
+ * (denied permission, missing projectId, the token call itself throwing)
+ * used to be silent, which made a dead/stale token in Supabase
+ * indistinguishable from "registration never ran". Wrapping the whole body
+ * in try/catch (not just the final token request) matters too: any of the
+ * awaited calls throwing becomes an unhandled promise rejection otherwise,
+ * which Metro prints as an easy-to-miss ERROR line instead of a traceable
+ * warning here.
+ */
 export async function registerForPushNotifications(): Promise<string | null> {
-  if (!Device.isDevice) return null; // push doesn't work on simulator
+  try {
+    if (!Device.isDevice) {
+      console.warn('[push] skipped — running on a simulator/emulator, not a physical device');
+      return null;
+    }
 
-  const { status: existing } = await Notifications.getPermissionsAsync();
-  let finalStatus = existing;
+    const { status: existing } = await Notifications.getPermissionsAsync();
+    const finalStatus = existing === 'granted'
+      ? existing
+      : (await Notifications.requestPermissionsAsync()).status;
 
-  if (existing !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
+    if (finalStatus !== 'granted') {
+      console.warn(`[push] permission not granted (status: ${finalStatus})`);
+      return null;
+    }
+
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('online-orders', {
+        name: 'Online Orders',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#5B7567',
+        sound: 'default',
+      });
+    }
+
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+    if (!projectId) {
+      console.warn('[push] no EAS projectId found in app config — cannot request a push token');
+      return null;
+    }
+
+    const token = await Notifications.getExpoPushTokenAsync({ projectId });
+    return token.data;
+  } catch (e) {
+    console.warn('[push] registerForPushNotifications() threw:', e);
+    return null;
   }
-
-  if (finalStatus !== 'granted') return null;
-
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('online-orders', {
-      name: 'Online Orders',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#5B7567',
-      sound: 'default',
-    });
-  }
-
-  const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-  if (!projectId) return null;
-
-  const token = await Notifications.getExpoPushTokenAsync({ projectId });
-  return token.data;
 }

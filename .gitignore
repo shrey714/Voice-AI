@@ -41,3 +41,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Supabase CLI local cache (project ref/version metadata, not secrets —
+# still shouldn't be committed, it's machine-local state)
+supabase/.temp/

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "876922790893",
+    "project_id": "voice-ai-shopkeeper",
+    "storage_bucket": "voice-ai-shopkeeper.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:876922790893:android:8555478ffa5e4b301ffde4",
+        "android_client_info": {
+          "package_name": "com.shopkeeperai.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBKiRKkxWXDXYrm6pQUJCUm2rOJdV2JhSA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

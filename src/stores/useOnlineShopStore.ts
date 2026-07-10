@@ -66,8 +66,10 @@ interface OnlineShopState {
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   upsertOrder: (order: OnlineOrder) => void;
 
-  // Push token
-  savePushToken: (token: string) => void;
+  // Push token — persists to Supabase via a single-column update (not the
+  // full-row saveConfigToSupabase) so it can never clobber other config
+  // fields with a stale local snapshot. See the action below for why.
+  savePushToken: (token: string) => Promise<void>;
 }
 
 // Supabase is the source of truth for the shop profile; the local SQLite
@@ -176,9 +178,13 @@ export const useOnlineShopStore = create<OnlineShopState>()((set, get) => ({
     if (isFirstLoad) set({ isLoadingConfig: true });
     set({ lastError: null });
     try {
-      const { data: userData } = await supabase.auth.getUser();
+      const { data: userData, error: userErr } = await supabase.auth.getUser();
+      if (userErr) console.warn('[shopConfig] auth.getUser() failed:', userErr.message);
       const uid = userData.user?.id;
-      if (!uid) { set({ config: DEFAULT_SHOP_CONFIG }); return; }
+      if (!uid) {
+        set({ config: DEFAULT_SHOP_CONFIG });
+        return;
+      }
 
       const { data, error } = await supabase
         .from('online_shops')
@@ -187,10 +193,17 @@ export const useOnlineShopStore = create<OnlineShopState>()((set, get) => ({
         .maybeSingle();
       if (error) throw error;
 
+      // No row for this uid isn't necessarily an error (brand-new account that
+      // hasn't finished online-shop onboarding yet) — but if a shop should
+      // already exist for this account, this is the first place to look: its
+      // `owner_user_id` column may not actually be set to this uid.
+      if (!data) console.log(`[shopConfig] no online_shops row with owner_user_id = ${uid}`);
+
       const nextConfig = data ? mapShopRow(data) : DEFAULT_SHOP_CONFIG;
       set({ config: nextConfig });
       if (data) mirrorCoreToLocalSettings(nextConfig);
     } catch (e: any) {
+      console.warn('[shopConfig] fetch threw:', e?.message ?? e);
       set({ lastError: e?.message ?? 'Could not load shop settings' });
     } finally {
       set({ hasLoadedConfig: true });
@@ -442,8 +455,29 @@ export const useOnlineShopStore = create<OnlineShopState>()((set, get) => ({
       return { orders: [order, ...s.orders] };
     }),
 
-  savePushToken: (token) =>
-    set((s) => ({ config: { ...s.config, expoPushToken: token } })),
+  savePushToken: async (token) => {
+    set((s) => ({ config: { ...s.config, expoPushToken: token } }));
+
+    // Nothing to persist to yet — registration is gated on shopId existing
+    // (see usePushSetup), so this only happens if that gate is ever removed.
+    const { shopId } = get().config;
+    if (!shopId) return;
+
+    // Deliberately NOT saveConfigToSupabase(): that writes every config
+    // field from local state, so calling it just to persist a token risks
+    // clobbering other fields with a stale/incomplete local snapshot (e.g. if
+    // this fires before the rest of config finishes loading, or another
+    // screen has unsaved edits in flight). A single-column update can't
+    // touch anything it doesn't explicitly name.
+    const { error } = await supabase
+      .from('online_shops')
+      .update({ expo_push_token: token })
+      .eq('id', shopId);
+    if (error) {
+      console.warn('[push] failed to save token to Supabase:', error.message);
+      throw error;
+    }
+  },
 }));
 
 function mapRow(row: any): OnlineOrder {

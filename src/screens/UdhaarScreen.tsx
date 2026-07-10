@@ -3,7 +3,8 @@ import { View, FlatList, StyleSheet, TouchableOpacity, Alert, ScrollView, Linkin
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
-import BottomSheet, { BottomSheetScrollView, BottomSheetTextInput, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import AppBottomSheet, { AppBottomSheetRef } from '../components/common/AppBottomSheet';
 import { useAppStore } from '../stores/useAppStore';
 import { useTranslation } from '../hooks/useTranslation';
 import { formatCurrency, formatDate, formatTime, generateId, sanitizeDecimal } from '../utils/helpers';
@@ -52,24 +53,15 @@ export default function UdhaarScreen() {
       .sort((a, b) => b.createdAt - a.createdAt);
   }, [bills, selectedCustomer]);
 
-  const addCustomerSheetRef = useRef<BottomSheet>(null);
-  const customerDetailSheetRef = useRef<BottomSheet>(null);
-  const addTxSheetRef = useRef<BottomSheet>(null);
-  const addCustomerSnapPoints = useMemo(() => ['50%'], []);
-  const customerDetailSnapPoints = useMemo(() => ['88%'], []);
-  const addTxSnapPoints = useMemo(() => ['50%'], []);
+  const addCustomerSheetRef = useRef<AppBottomSheetRef>(null);
+  const customerDetailSheetRef = useRef<AppBottomSheetRef>(null);
+  const addTxSheetRef = useRef<AppBottomSheetRef>(null);
 
   const openAddCustomer = useCallback(() => addCustomerSheetRef.current?.expand(), []);
   const closeAddCustomer = useCallback(() => addCustomerSheetRef.current?.close(), []);
   const closeCustomerDetail = useCallback(() => { customerDetailSheetRef.current?.close(); setSelectedCustomer(null); }, []);
   const openAddTx = useCallback(() => addTxSheetRef.current?.expand(), []);
   const closeAddTx = useCallback(() => addTxSheetRef.current?.close(), []);
-
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} pressBehavior="close" />
-    ), []
-  );
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -149,8 +141,7 @@ export default function UdhaarScreen() {
   // through debtors one at a time (open → you tap send → next).
   const debtors = useMemo(() => sortedDebtors(customers, balances), [customers, balances]);
   const [queueIndex, setQueueIndex] = useState<number | null>(null);
-  const queueSheetRef = useRef<BottomSheet>(null);
-  const queueSnapPoints = useMemo(() => ['80%'], []);
+  const queueSheetRef = useRef<AppBottomSheetRef>(null);
 
   const startRemindAll = useCallback(() => {
     if (debtors.length === 0) { Alert.alert(t('allClear'), t('allClearMsg')); return; }
@@ -260,18 +251,7 @@ export default function UdhaarScreen() {
       <CollapsibleFab bottom={90} icon="add" label={t('addCustomer')} extended={extended} onPress={() => { setEditingCustomer(null); setNewName(''); setNewPhone(''); openAddCustomer(); }} />
 
       {/* Add/Edit Customer Sheet */}
-      <BottomSheet
-        ref={addCustomerSheetRef}
-        index={-1}
-        snapPoints={addCustomerSnapPoints}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: colors.surface }}
-        handleIndicatorStyle={{ backgroundColor: colors.primary, width: 40 }}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-        android_keyboardInputMode="adjustResize"
-      >
+      <AppBottomSheet ref={addCustomerSheetRef} detached>
         <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
           <Text style={[s.modalTitle, { color: colors.text }]}>{editingCustomer ? t('editCustomer') : t('addCustomer')}</Text>
           <BottomSheetTextInput style={[s.input, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
@@ -287,18 +267,12 @@ export default function UdhaarScreen() {
             </TouchableOpacity>
           </View>
         </BottomSheetScrollView>
-      </BottomSheet>
+      </AppBottomSheet>
 
       {/* Customer Detail Sheet */}
-      <BottomSheet
+      <AppBottomSheet
         ref={customerDetailSheetRef}
-        index={-1}
-        snapPoints={customerDetailSnapPoints}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: colors.surface }}
-        handleIndicatorStyle={{ backgroundColor: colors.primary, width: 40 }}
-        onClose={() => setSelectedCustomer(null)}
+        onDismiss={() => setSelectedCustomer(null)}
       >
         <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
           {selectedCustomer && (
@@ -413,21 +387,10 @@ export default function UdhaarScreen() {
             </>
           )}
         </BottomSheetScrollView>
-      </BottomSheet>
+      </AppBottomSheet>
 
       {/* Add Transaction Sheet */}
-      <BottomSheet
-        ref={addTxSheetRef}
-        index={-1}
-        snapPoints={addTxSnapPoints}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: colors.surface }}
-        handleIndicatorStyle={{ backgroundColor: colors.primary, width: 40 }}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-        android_keyboardInputMode="adjustResize"
-      >
+      <AppBottomSheet ref={addTxSheetRef} detached>
         <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
           <Text style={[s.modalTitle, { color: colors.text }]}>{txType === 'debit' ? t('giveCredit') : t('paymentReceived')}</Text>
           <BottomSheetTextInput style={[s.input, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
@@ -443,18 +406,12 @@ export default function UdhaarScreen() {
             </TouchableOpacity>
           </View>
         </BottomSheetScrollView>
-      </BottomSheet>
+      </AppBottomSheet>
 
       {/* Remind-All queue Sheet — step through every debtor */}
-      <BottomSheet
+      <AppBottomSheet
         ref={queueSheetRef}
-        index={-1}
-        snapPoints={queueSnapPoints}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: colors.surface }}
-        handleIndicatorStyle={{ backgroundColor: colors.primary, width: 40 }}
-        onClose={() => setQueueIndex(null)}
+        onDismiss={() => setQueueIndex(null)}
       >
         <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
           {queueIndex !== null && (
@@ -520,7 +477,7 @@ export default function UdhaarScreen() {
             })()
           )}
         </BottomSheetScrollView>
-      </BottomSheet>
+      </AppBottomSheet>
     </View>
   );
 }
@@ -544,7 +501,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   waBadgeText: { fontFamily: fonts.semiBold, fontSize: 11 },
   balCaption: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   balCaptionText: { fontFamily: fonts.extraBold, fontSize: 11, letterSpacing: 0.5 },
-  sheetContent: { paddingHorizontal: 20, paddingBottom: 40 },
+  sheetContent: { paddingHorizontal: 20, paddingBottom: 24 },
   modalTitle: { fontFamily: fonts.extraBold, fontSize: 18, marginBottom: 16 },
   input: { borderRadius: 14, padding: 16, fontSize: 15, borderWidth: 1, marginBottom: 14, fontFamily: fonts.regular },
   btnRow: { flexDirection: 'row', gap: 12, marginTop: 8 },

@@ -3,7 +3,8 @@ import { View, FlatList, StyleSheet, TouchableOpacity, TextInput, ActivityIndica
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
-import BottomSheet, { BottomSheetView, BottomSheetScrollView, BottomSheetTextInput, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import AppBottomSheet, { AppBottomSheetRef } from '../../components/common/AppBottomSheet';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
 import { useAppStore } from '../../stores/useAppStore';
@@ -31,7 +32,7 @@ export default function OnlineInventoryScreen({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const { extended, onScroll } = useFabScroll();
-  const importSheetRef = useRef<BottomSheet>(null);
+  const importSheetRef = useRef<AppBottomSheetRef>(null);
   const s = makeStyles(colors);
 
   // See HeaderSearchToggle.tsx for how/why this expands the way it does.
@@ -41,12 +42,6 @@ export default function OnlineInventoryScreen({ navigation }: any) {
     });
   }, [navigation]);
 
-  const importSnapPoints = useMemo(() => ['85%'], []);
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} pressBehavior="close" />
-    ), []
-  );
   // This tab sits in a `lazy: false` navigator (needed so the online-portion
   // tab bar can animate its slide/gap — see AppNavigator), so it mounts
   // immediately alongside Dashboard/Orders instead of only when visited.
@@ -201,7 +196,7 @@ export default function OnlineInventoryScreen({ navigation }: any) {
 
       <CollapsibleFab icon="add" label="Add Product" extended={extended} onPress={handleAdd} bottom={90} />
 
-      <ImportPickerSheet sheetRef={importSheetRef} snapPoints={importSnapPoints} renderBackdrop={renderBackdrop} onPick={handleImportPick} />
+      <ImportPickerSheet sheetRef={importSheetRef} onPick={handleImportPick} />
     </View>
   );
 }
@@ -210,8 +205,8 @@ export default function OnlineInventoryScreen({ navigation }: any) {
 // listing — picking one never creates or keeps any ongoing link. Same
 // BottomSheet convention as InventoryScreen's stock/menu sheets, instead of
 // a full-screen modal.
-function ImportPickerSheet({ sheetRef, snapPoints, renderBackdrop, onPick }: {
-  sheetRef: React.RefObject<BottomSheet | null>; snapPoints: string[]; renderBackdrop: (props: any) => React.ReactElement; onPick: (p: Product) => void;
+function ImportPickerSheet({ sheetRef, onPick }: {
+  sheetRef: React.RefObject<AppBottomSheetRef | null>; onPick: (p: Product) => void;
 }) {
   const { colors } = useAppTheme();
   const { products } = useAppStore();
@@ -225,18 +220,7 @@ function ImportPickerSheet({ sheetRef, snapPoints, renderBackdrop, onPick }: {
   }, [products, query]);
 
   return (
-    <BottomSheet
-      ref={sheetRef}
-      index={-1}
-      snapPoints={snapPoints}
-      enablePanDownToClose
-      backdropComponent={renderBackdrop}
-      backgroundStyle={{ backgroundColor: colors.surface }}
-      handleIndicatorStyle={{ backgroundColor: colors.primary, width: 40 }}
-      keyboardBehavior="interactive"
-      keyboardBlurBehavior="restore"
-      android_keyboardInputMode="adjustResize"
-    >
+    <AppBottomSheet ref={sheetRef}>
       {/* Single BottomSheetScrollView holding everything — title, search
           input, and rows all mapped inline. This is the one pattern already
           proven to work in this app (InventoryScreen's stock-adjust sheet
@@ -275,7 +259,7 @@ function ImportPickerSheet({ sheetRef, snapPoints, renderBackdrop, onPick }: {
           ))
         )}
       </BottomSheetScrollView>
-    </BottomSheet>
+    </AppBottomSheet>
   );
 }
 
@@ -305,7 +289,7 @@ const makeStyles = (c: any) =>
     actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     actionText: { fontFamily: fonts.bold, fontSize: 13 },
 
-    pickerHeader: { paddingHorizontal: 16, paddingBottom: 12 },
+    pickerHeader: { paddingHorizontal: 16, paddingBottom: 24 },
     pickerTitle: { fontFamily: fonts.extraBold, fontSize: 17 },
     pickerRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   });

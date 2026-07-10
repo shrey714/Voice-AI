@@ -9,10 +9,11 @@ import React, {
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
-import { BottomSheetModal, BottomSheetBackdrop, BottomSheetView } from '@gorhom/bottom-sheet';
+import { BottomSheetView } from '@gorhom/bottom-sheet';
 import { Calendar, CalendarProps } from 'react-native-calendars';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
+import AppBottomSheet, { AppBottomSheetRef } from './AppBottomSheet';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -60,8 +61,7 @@ function fromYMD(s: string): Date {
 const DatePickerSheet = forwardRef<DatePickerSheetRef, Props>(
   ({ mode = 'single', title, onSelectDate, onSelectRange, onDismiss, calendarProps }, ref) => {
     const { colors } = useAppTheme();
-    const sheetRef = useRef<BottomSheetModal>(null);
-    const snapPoints = useMemo(() => ['55%'], []);
+    const sheetRef = useRef<AppBottomSheetRef>(null);
 
     // Single-mode selection
     const [selectedYMD, setSelectedYMD] = useState<string | undefined>();
@@ -76,24 +76,10 @@ const DatePickerSheet = forwardRef<DatePickerSheetRef, Props>(
         setSelectedYMD(undefined);
         setRangeStart(undefined);
         setRangeEnd(undefined);
-        sheetRef.current?.present();
+        sheetRef.current?.expand();
       },
-      close: () => sheetRef.current?.dismiss(),
+      close: () => sheetRef.current?.close(),
     }));
-
-    // ── Backdrop ──────────────────────────────────────────────────────────
-    const renderBackdrop = useCallback(
-      (props: any) => (
-        <BottomSheetBackdrop
-          {...props}
-          disappearsOnIndex={-1}
-          appearsOnIndex={0}
-          opacity={0.45}
-          pressBehavior="close"
-        />
-      ),
-      []
-    );
 
     // ── Day press logic ────────────────────────────────────────────────────
     const handleDayPress = useCallback(
@@ -168,10 +154,10 @@ const DatePickerSheet = forwardRef<DatePickerSheetRef, Props>(
     const handleConfirm = useCallback(() => {
       if (mode === 'single' && selectedYMD) {
         onSelectDate?.(fromYMD(selectedYMD));
-        sheetRef.current?.dismiss();
+        sheetRef.current?.close();
       } else if (mode === 'range' && rangeStart && rangeEnd) {
         onSelectRange?.({ from: fromYMD(rangeStart), to: fromYMD(rangeEnd) });
-        sheetRef.current?.dismiss();
+        sheetRef.current?.close();
       }
     }, [mode, selectedYMD, rangeStart, rangeEnd, onSelectDate, onSelectRange]);
 
@@ -208,12 +194,9 @@ const DatePickerSheet = forwardRef<DatePickerSheetRef, Props>(
     };
 
     return (
-      <BottomSheetModal
+      <AppBottomSheet
         ref={sheetRef}
-        snapPoints={snapPoints}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: colors.surface }}
+        detached
         handleIndicatorStyle={{ backgroundColor: colors.border, width: 40 }}
         onDismiss={onDismiss}
         enableContentPanningGesture={false}
@@ -261,7 +244,7 @@ const DatePickerSheet = forwardRef<DatePickerSheetRef, Props>(
             </TouchableOpacity>
           </View>
         </BottomSheetView>
-      </BottomSheetModal>
+      </AppBottomSheet>
     );
   }
 );

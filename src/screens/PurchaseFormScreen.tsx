@@ -1,11 +1,12 @@
-import React, { useState, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   View, ScrollView, StyleSheet, TouchableOpacity, Alert,
   TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
-import BottomSheet, { BottomSheetFlatList, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
+import AppBottomSheet, { AppBottomSheetRef } from '../components/common/AppBottomSheet';
 import { useAppStore } from '../stores/useAppStore';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
@@ -52,12 +53,12 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
 
   // Product picker sheet state
   const [productSearch, setProductSearch] = useState('');
-  const pickerSheetRef = useRef<BottomSheet>(null);
+  const pickerSheetRef = useRef<AppBottomSheetRef>(null);
   const pickerSnapPoints = useMemo(() => ['80%'], []);
 
   // Supplier picker sheet state
   const [supplierSearch, setSupplierSearch] = useState('');
-  const supplierSheetRef = useRef<BottomSheet>(null);
+  const supplierSheetRef = useRef<AppBottomSheetRef>(null);
   const supplierSnapPoints = useMemo(() => ['60%'], []);
 
   const selectedSupplier = suppliers.find(s => s.id === supplierId);
@@ -81,12 +82,6 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
   const totalAmount = items.reduce((s, i) => s + i.totalCost, 0);
   const paid = parseFloat(paidAmount) || 0;
   const outstanding = Math.max(0, totalAmount - paid);
-
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} pressBehavior="close" />
-    ), []
-  );
 
   const openProductPicker = () => {
     setProductSearch('');
@@ -444,18 +439,7 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
       </ScrollView>
 
       {/* Product picker sheet */}
-      <BottomSheet
-        ref={pickerSheetRef}
-        index={-1}
-        snapPoints={pickerSnapPoints}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: colors.surface }}
-        handleIndicatorStyle={{ backgroundColor: colors.primary, width: 40 }}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-        android_keyboardInputMode="adjustResize"
-      >
+      <AppBottomSheet ref={pickerSheetRef} snapPoints={pickerSnapPoints}>
         <View style={{ flex: 1, paddingHorizontal: 16 }}>
           <Text style={[s.sheetTitle, { color: colors.text }]}>{t('selectProduct')}</Text>
           <View style={[s.searchBox, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
@@ -472,7 +456,7 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
           <BottomSheetFlatList
             data={filteredProducts}
             keyExtractor={p => p.id}
-            contentContainerStyle={{ paddingBottom: 60 }}
+            contentContainerStyle={{ paddingBottom: 24 }}
             keyboardShouldPersistTaps="handled"
             renderItem={({ item: p }) => (
               <TouchableOpacity
@@ -490,21 +474,10 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
             )}
           />
         </View>
-      </BottomSheet>
+      </AppBottomSheet>
 
       {/* Supplier picker sheet */}
-      <BottomSheet
-        ref={supplierSheetRef}
-        index={-1}
-        snapPoints={supplierSnapPoints}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: colors.surface }}
-        handleIndicatorStyle={{ backgroundColor: colors.primary, width: 40 }}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-        android_keyboardInputMode="adjustResize"
-      >
+      <AppBottomSheet ref={supplierSheetRef} snapPoints={supplierSnapPoints}>
         <View style={{ flex: 1, paddingHorizontal: 16 }}>
           <Text style={[s.sheetTitle, { color: colors.text }]}>{t('selectSupplierLabel')}</Text>
           <View style={[s.searchBox, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
@@ -521,7 +494,7 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
           <BottomSheetFlatList
             data={filteredSuppliers}
             keyExtractor={s => s.id}
-            contentContainerStyle={{ paddingBottom: 60 }}
+            contentContainerStyle={{ paddingBottom: 24 }}
             keyboardShouldPersistTaps="handled"
             renderItem={({ item: sup }) => (
               <TouchableOpacity
@@ -540,7 +513,7 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
             )}
           />
         </View>
-      </BottomSheet>
+      </AppBottomSheet>
     </KeyboardAvoidingView>
   );
 }

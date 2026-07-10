@@ -6,7 +6,8 @@ import ScrollHideBar from '../../components/common/ScrollHideBar';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
-import BottomSheet, { BottomSheetScrollView, BottomSheetTextInput, BottomSheetBackdrop } from '@gorhom/bottom-sheet'; // BottomSheetTextInput used in return sheet
+import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import AppBottomSheet, { AppBottomSheetRef } from '../../components/common/AppBottomSheet';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useAppStore } from '../../stores/useAppStore';
@@ -70,14 +71,11 @@ export default function BillHistoryScreen() {
   const [returnRefundAmt, setReturnRefundAmt] = useState('');
   const [processingReturn, setProcessingReturn] = useState(false);
 
-  const detailSheetRef = useRef<BottomSheet>(null);
-  const returnSheetRef = useRef<BottomSheet>(null);
-  const filterSheetRef = useRef<BottomSheet>(null);
-  const detailSnapPoints  = useMemo(() => ['88%'], []);
-  const returnSnapPoints  = useMemo(() => ['88%'], []);
-  const filterSnapPoints  = useMemo(() => ['80%'], []);
+  const detailSheetRef = useRef<AppBottomSheetRef>(null);
+  const returnSheetRef = useRef<AppBottomSheetRef>(null);
+  const filterSheetRef = useRef<AppBottomSheetRef>(null);
 
-  const openFilterSheet = useCallback(() => filterSheetRef.current?.snapToIndex(0), []);
+  const openFilterSheet = useCallback(() => filterSheetRef.current?.expand(), []);
 
   // Count of non-default active filters (for the badge)
   const activeFilterCount = useMemo(() => {
@@ -137,12 +135,6 @@ export default function BillHistoryScreen() {
   }, [closeDetail]);
 
   const closeReturnSheet = useCallback(() => returnSheetRef.current?.close(), []);
-
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} pressBehavior="close" />
-    ), []
-  );
 
   const filtered = useMemo(() => {
     let start = 0;
@@ -482,16 +474,8 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
       </View>
 
       {/* ── Filter Sheet ── */}
-      <BottomSheet
-        ref={filterSheetRef}
-        index={-1}
-        snapPoints={filterSnapPoints}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: colors.surface }}
-        handleIndicatorStyle={{ backgroundColor: colors.primary, width: 40 }}
-      >
-        <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 120 }}>
+      <AppBottomSheet ref={filterSheetRef}>
+        <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}>
           {/* Header */}
           <View style={[s.fsHeader, { borderBottomColor: colors.border }]}>
             <Text style={[s.fsTitle, { color: colors.text }]}>{t('filters')}</Text>
@@ -584,18 +568,12 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
             </TouchableOpacity>
           </View>
         </BottomSheetScrollView>
-      </BottomSheet>
+      </AppBottomSheet>
 
       {/* ── Bill Detail Sheet ── */}
-      <BottomSheet
+      <AppBottomSheet
         ref={detailSheetRef}
-        index={-1}
-        snapPoints={detailSnapPoints}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: colors.surface }}
-        handleIndicatorStyle={{ backgroundColor: colors.primary, width: 40 }}
-        onClose={() => setSelectedBill(null)}
+        onDismiss={() => setSelectedBill(null)}
       >
         <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
           {selectedBill && (() => {
@@ -728,21 +706,13 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
             );
           })()}
         </BottomSheetScrollView>
-      </BottomSheet>
+      </AppBottomSheet>
 
       {/* ── Return Items Sheet ── */}
-      <BottomSheet
+      <AppBottomSheet
         ref={returnSheetRef}
-        index={-1}
-        snapPoints={returnSnapPoints}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: colors.surface }}
         handleIndicatorStyle={{ backgroundColor: colors.warning, width: 40 }}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-        android_keyboardInputMode="adjustResize"
-        onClose={() => { setReturnQtys({}); setReturnReason(''); setReturnBill(null); }}
+        onDismiss={() => { setReturnQtys({}); setReturnReason(''); setReturnBill(null); }}
       >
         <BottomSheetScrollView contentContainerStyle={s.sheetContent} keyboardShouldPersistTaps="handled">
           {returnBill && (
@@ -850,7 +820,7 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
             </>
           )}
         </BottomSheetScrollView>
-      </BottomSheet>
+      </AppBottomSheet>
 
       {/* Date range picker for custom filter */}
       <DatePickerSheet
@@ -912,7 +882,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   payPill: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8 },
   payPillText: { fontFamily: fonts.extraBold, fontSize: 11, letterSpacing: 0.3 },
 
-  sheetContent: { paddingHorizontal: 20, paddingBottom: 120 },
+  sheetContent: { paddingHorizontal: 20, paddingBottom: 24 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18, paddingBottom: 14, borderBottomWidth: 0.5 },
   modalTitle: { fontFamily: fonts.extraBold, fontSize: 18 },
   billHeader: { alignItems: 'center', paddingBottom: 16, borderBottomWidth: 1, marginBottom: 14 },

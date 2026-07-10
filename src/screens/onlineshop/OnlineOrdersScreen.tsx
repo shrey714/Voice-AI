@@ -4,7 +4,8 @@ import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { useIsFocused } from '@react-navigation/native';
-import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import AppBottomSheet, { AppBottomSheetRef } from '../../components/common/AppBottomSheet';
 import { useScrollHideBar } from '../../hooks/useScrollHideBar';
 import ScrollHideBar from '../../components/common/ScrollHideBar';
 import { useAppTheme } from '../../theme';
@@ -66,14 +67,9 @@ export default function OnlineOrdersScreen({ navigation, route }: any) {
   const [searchQuery, setSearchQuery] = useState('');
   const { translateY: stripTranslate, onListScroll, onBarLayout, listPaddingTop } = useScrollHideBar();
 
-  const filterSheetRef = useRef<BottomSheet>(null);
+  const filterSheetRef = useRef<AppBottomSheetRef>(null);
   const rangePickerRef = useRef<DatePickerSheetRef>(null);
-  const openFilterSheet = useCallback(() => filterSheetRef.current?.snapToIndex(0), []);
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} pressBehavior="close" />
-    ), []
-  );
+  const openFilterSheet = useCallback(() => filterSheetRef.current?.expand(), []);
 
   const activeFilterCount = (activeTab !== 'all' ? 1 : 0) + (periodFilter !== 'today' ? 1 : 0);
   const s = makeStyles(colors);
@@ -271,16 +267,8 @@ export default function OnlineOrdersScreen({ navigation, route }: any) {
       </View>
 
       {/* Filter Sheet */}
-      <BottomSheet
-        ref={filterSheetRef}
-        index={-1}
-        enableDynamicSizing
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: colors.surface }}
-        handleIndicatorStyle={{ backgroundColor: colors.primary, width: 40 }}
-      >
-        <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 120 }}>
+      <AppBottomSheet ref={filterSheetRef}>
+        <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}>
           <View style={[s.fsHeader, { borderBottomColor: colors.border }]}>
             <Text style={[s.fsTitle, { color: colors.text }]}>Filters</Text>
             <TouchableOpacity onPress={() => { setActiveTab('all'); setPeriodFilter('today'); setCustomFrom(null); setCustomTo(null); }}>
@@ -346,7 +334,7 @@ export default function OnlineOrdersScreen({ navigation, route }: any) {
             })}
           </View>
         </BottomSheetScrollView>
-      </BottomSheet>
+      </AppBottomSheet>
 
       {/* Custom date range picker */}
       <DatePickerSheet

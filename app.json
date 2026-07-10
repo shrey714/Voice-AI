@@ -23,6 +23,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
+      "googleServicesFile": "./google-services.json",
+      "softwareKeyboardLayoutMode": "pan",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",

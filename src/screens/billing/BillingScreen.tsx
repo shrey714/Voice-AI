@@ -8,11 +8,11 @@ import {
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
-import BottomSheet, {
+import {
   BottomSheetScrollView,
   BottomSheetTextInput,
-  BottomSheetBackdrop,
 } from '@gorhom/bottom-sheet';
+import AppBottomSheet, { AppBottomSheetRef } from '../../components/common/AppBottomSheet';
 import QRCode from 'react-native-qrcode-svg';
 import { useAppStore } from '../../stores/useAppStore';
 import { useTranslation } from '../../hooks/useTranslation';
@@ -52,10 +52,10 @@ export default function BillingScreen({ navigation }: any) {
   const [renameName, setRenameName] = useState('');
   const [renameSaving, setRenameSaving] = useState(false);
 
-  const checkoutSheetRef = useRef<BottomSheet>(null);
-  const saveTemplateSheetRef = useRef<BottomSheet>(null);
-  const templatesSheetRef = useRef<BottomSheet>(null);
-  const renameSheetRef = useRef<BottomSheet>(null);
+  const checkoutSheetRef = useRef<AppBottomSheetRef>(null);
+  const saveTemplateSheetRef = useRef<AppBottomSheetRef>(null);
+  const templatesSheetRef = useRef<AppBottomSheetRef>(null);
+  const renameSheetRef = useRef<AppBottomSheetRef>(null);
   const btInputRef = useRef<TextInput>(null);
   const btBufferRef = useRef('');
   const scanTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -63,12 +63,9 @@ export default function BillingScreen({ navigation }: any) {
 
   const [btBuffer, setBtBuffer] = useState('');
   const [btActive, setBtActive] = useState(false);
-  const snapPoints = useMemo(() => ['70%'], []);
-  const saveSheetSnap = useMemo(() => ['56%'], []);
   const templatesSheetSnap = useMemo(() => ['85%'], []);
-  const renameSheetSnap = useMemo(() => ['54%'], []);
 
-  const openCheckout = useCallback(() => checkoutSheetRef.current?.snapToIndex(1), []);
+  const openCheckout = useCallback(() => checkoutSheetRef.current?.expand(), []);
   const closeCheckout = useCallback(() => checkoutSheetRef.current?.close(), []);
   const openSaveSheet = useCallback(() => { setTemplateName(''); saveTemplateSheetRef.current?.expand(); }, []);
   const closeSaveSheet = useCallback(() => saveTemplateSheetRef.current?.close(), []);
@@ -80,13 +77,6 @@ export default function BillingScreen({ navigation }: any) {
     renameSheetRef.current?.expand();
   }, []);
   const closeRenameSheet = useCallback(() => renameSheetRef.current?.close(), []);
-
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} pressBehavior="close" />
-    ),
-    []
-  );
 
   const cartTotal = cart.reduce((sum, i) => sum + i.product.sellingPrice * i.quantity, 0);
   // Clamp discount to [0, cartTotal] so the bill total / profit can never go negative.
@@ -486,18 +476,9 @@ export default function BillingScreen({ navigation }: any) {
       <View style={[s.emptyContainer]}></View>
 
       {/* Checkout Bottom Sheet */}
-      <BottomSheet
+      <AppBottomSheet
         ref={checkoutSheetRef}
-        index={-1}
-        snapPoints={snapPoints}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: colors.surface }}
-        handleIndicatorStyle={{ backgroundColor: colors.primary, width: 40 }}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-        android_keyboardInputMode="adjustResize"
-        onClose={() => { setCheckoutStep('form'); setLastBill(null); setShowUpiQr(false); refocusBtInput(); }}
+        onDismiss={() => { setCheckoutStep('form'); setLastBill(null); setShowUpiQr(false); refocusBtInput(); }}
       >
         {checkoutStep === 'success' && lastBill ? (
           <MotiView
@@ -652,7 +633,7 @@ export default function BillingScreen({ navigation }: any) {
           </View>
         </BottomSheetScrollView>
         )}
-      </BottomSheet>
+      </AppBottomSheet>
 
       {/* UPI QR Modal */}
       <AppModal visible={showUpiQr} onRequestClose={() => setShowUpiQr(false)}>
@@ -694,16 +675,11 @@ export default function BillingScreen({ navigation }: any) {
       </AppModal>
 
       {/* Templates List Sheet */}
-      <BottomSheet
+      <AppBottomSheet
         ref={templatesSheetRef}
-        index={-1}
         snapPoints={templatesSheetSnap}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: colors.surface }}
-        handleIndicatorStyle={{ backgroundColor: colors.primary, width: 40 }}
       >
-        <BottomSheetScrollView contentContainerStyle={[s.sheetContent, { paddingBottom: 120 }]}>
+        <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
           {/* Header */}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
             <View>
@@ -813,21 +789,13 @@ export default function BillingScreen({ navigation }: any) {
             })
           )}
         </BottomSheetScrollView>
-      </BottomSheet>
+      </AppBottomSheet>
 
       {/* Rename Template Sheet */}
-      <BottomSheet
+      <AppBottomSheet
         ref={renameSheetRef}
-        index={-1}
-        snapPoints={renameSheetSnap}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: colors.surface }}
-        handleIndicatorStyle={{ backgroundColor: colors.primary, width: 40 }}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-        android_keyboardInputMode="adjustResize"
-        onClose={() => setRenameTarget(null)}
+        detached
+        onDismiss={() => setRenameTarget(null)}
       >
         <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
@@ -855,20 +823,12 @@ export default function BillingScreen({ navigation }: any) {
             </Text>
           </TouchableOpacity>
         </BottomSheetScrollView>
-      </BottomSheet>
+      </AppBottomSheet>
 
       {/* Save Template Sheet */}
-      <BottomSheet
+      <AppBottomSheet
         ref={saveTemplateSheetRef}
-        index={-1}
-        snapPoints={saveSheetSnap}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: colors.surface }}
-        handleIndicatorStyle={{ backgroundColor: colors.primary, width: 40 }}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-        android_keyboardInputMode="adjustResize"
+        detached
       >
         <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
@@ -900,7 +860,7 @@ export default function BillingScreen({ navigation }: any) {
             </Text>
           </TouchableOpacity>
         </BottomSheetScrollView>
-      </BottomSheet>
+      </AppBottomSheet>
 
       {/* Hidden input — always focused, captures BT HID scanner keystrokes silently.
           Must be 1×1 (not 0×0) so Android's IMF routes keyboard events to it.
@@ -1003,7 +963,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   checkoutBtn: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', margin: 14, paddingHorizontal: 18, paddingVertical: 14, borderRadius: 16 },
   checkoutTotal: { color: '#fff', fontFamily: fonts.display, fontSize: 18 },
   checkoutLabel: { color: '#fff', fontFamily: fonts.bold, fontSize: 15 },
-  sheetContent: { paddingHorizontal: 20, paddingBottom: 120 },
+  sheetContent: { paddingHorizontal: 20, paddingBottom: 24 },
   modalTitle: { fontFamily: fonts.extraBold, fontSize: 18, marginBottom: 8 },
   modalLabel: { fontFamily: fonts.bold, fontSize: 13, marginBottom: 8, marginTop: 14 },
   modalInput: { borderRadius: 14, padding: 14, fontSize: 15, borderWidth: 1, fontFamily: fonts.regular, color: 'black' },
@@ -1014,7 +974,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   modalBtns: { flexDirection: 'row', gap: 12, marginTop: 18 },
   cancelBtn: { flex: 1, padding: 16, borderRadius: 14, borderWidth: 1, alignItems: 'center' },
   confirmBtn: { flex: 2, padding: 16, borderRadius: 14, alignItems: 'center' },
-  successSheetContent: { alignItems: 'center', paddingHorizontal: 24, paddingTop: 12, paddingBottom: 100 },
+  successSheetContent: { alignItems: 'center', paddingHorizontal: 24, paddingTop: 12, paddingBottom: 24 },
   successSheetIcon: { width: 76, height: 76, borderRadius: 38, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
   successSheetTitle: { fontFamily: fonts.display, fontSize: 20, marginBottom: 4 },
   successSheetSub: { fontFamily: fonts.regular, fontSize: 14, marginBottom: 24 },
