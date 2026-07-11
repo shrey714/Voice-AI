@@ -186,6 +186,7 @@ function LocalTabs() {
   const { colors } = useAppTheme();
   return (
     <LocalTab.Navigator
+      initialRouteName="Home"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
@@ -233,6 +234,7 @@ function OnlineTabs() {
   const { colors } = useAppTheme();
   return (
     <OnlineTab.Navigator
+      initialRouteName="OnlineDashboard"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
