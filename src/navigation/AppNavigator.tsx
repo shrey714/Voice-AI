@@ -1,10 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Platform } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { navigationRef } from './navigationRef';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createNativeBottomTabNavigator } from '@react-navigation/bottom-tabs/unstable';
 import { Ionicons } from '@expo/vector-icons';
 
 import DashboardScreen from '../screens/DashboardScreen';
@@ -54,16 +52,24 @@ const OnlineDashboardStack = createNativeStackNavigator();
 const OnlineOrdersStack = createNativeStackNavigator();
 const OnlineInventoryStack = createNativeStackNavigator();
 
-// iOS gets the real native UITabBarController (Liquid Glass on iOS 26+) via
-// React Navigation's experimental native-bottom-tab-navigator. Its tabBarIcon
-// only accepts SF Symbols / static images — arbitrary React components (our
-// old Ionicons-driven pill) aren't supported by the native renderer, so this
-// is a deliberate, verified constraint, not an oversight. Android has no SF
-// Symbols equivalent and the native renderer only really shines as Liquid
-// Glass on iOS, so Android keeps the classic JS bottom-tabs navigator (still
-// a React Navigation built-in, still Ionicons, just JS-rendered).
-const LocalTab = Platform.OS === 'ios' ? createNativeBottomTabNavigator() : createBottomTabNavigator();
-const OnlineTab = Platform.OS === 'ios' ? createNativeBottomTabNavigator() : createBottomTabNavigator();
+// Both platforms use React Navigation's classic, stable bottom-tabs
+// navigator (still a React Navigation built-in, JS-rendered, Ionicons).
+//
+// iOS originally used the experimental native-bottom-tab-navigator
+// (`@react-navigation/bottom-tabs/unstable`) for a real native
+// UITabBarController with automatic Liquid Glass chrome on iOS 26+. Reverted
+// after it crashed on every cold launch with "[RNScreens] Invariant
+// violation. Expected exactly 1 focused tab, got: 0" — a native-side race
+// between React Navigation's tab-router state and the native tab
+// controller's first mount (RNSTabBarController.assertExactlyOneFocusedTab
+// in react-native-screens). Reproduced consistently even with an explicit
+// initialRouteName, which rules out a routing/config mistake here — this is
+// a rough edge in a genuinely experimental (`/unstable`) API, not something
+// fixable from the JS side. Worth revisiting once react-native-screens'
+// gamma tabs implementation matures; until then, a working app beats a
+// crashing one with fancier chrome.
+const LocalTab = createBottomTabNavigator();
+const OnlineTab = createBottomTabNavigator();
 
 // One header for the whole app — every stack renders the same <AppHeader>, so
 // font, height, and theme are identical everywhere. See AppHeader.tsx.
@@ -173,10 +179,11 @@ function tabBarStyleFor(route: any) {
   return focused && FULLSCREEN_ROUTES.has(focused) ? { display: 'none' as const } : undefined;
 }
 
-function tabIcon(ionicon: { off: any; on: any }, sf: { off: string; on: string }) {
-  if (Platform.OS === 'ios') {
-    return ({ focused }: { focused: boolean }) => ({ type: 'sfSymbol' as const, name: (focused ? sf.on : sf.off) as any });
-  }
+// The `sf` (SF Symbol) argument is unused now that both platforms render
+// via the classic JS bottom-tabs navigator — kept in the signature so call
+// sites (which read as "off/on Ionicons name, off/on SF Symbol name" pairs)
+// don't need touching if native tabs come back later.
+function tabIcon(ionicon: { off: any; on: any }, _sf: { off: string; on: string }) {
   return ({ focused, color }: { focused: boolean; color: string }) => (
     <Ionicons name={focused ? ionicon.on : ionicon.off} size={24} color={color} />
   );
