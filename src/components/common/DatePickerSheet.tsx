@@ -9,11 +9,10 @@ import React, {
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
-import { BottomSheetView } from '@gorhom/bottom-sheet';
 import { Calendar, CalendarProps } from 'react-native-calendars';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
-import AppBottomSheet, { AppBottomSheetRef } from './AppBottomSheet';
+import LiquidBottomSheet, { LiquidBottomSheetRef } from './LiquidBottomSheet';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -61,7 +60,7 @@ function fromYMD(s: string): Date {
 const DatePickerSheet = forwardRef<DatePickerSheetRef, Props>(
   ({ mode = 'single', title, onSelectDate, onSelectRange, onDismiss, calendarProps }, ref) => {
     const { colors } = useAppTheme();
-    const sheetRef = useRef<AppBottomSheetRef>(null);
+    const sheetRef = useRef<LiquidBottomSheetRef>(null);
 
     // Single-mode selection
     const [selectedYMD, setSelectedYMD] = useState<string | undefined>();
@@ -194,14 +193,8 @@ const DatePickerSheet = forwardRef<DatePickerSheetRef, Props>(
     };
 
     return (
-      <AppBottomSheet
-        ref={sheetRef}
-        detached
-        handleIndicatorStyle={{ backgroundColor: colors.border, width: 40 }}
-        onDismiss={onDismiss}
-        enableContentPanningGesture={false}
-      >
-        <BottomSheetView>
+      <LiquidBottomSheet ref={sheetRef} onDismiss={onDismiss}>
+        <View>
           {/* Header */}
           <View style={[styles.header, { borderBottomColor: colors.border }]}>
             <Text style={[styles.title, { color: colors.text }]}>{sheetTitle}</Text>
@@ -243,8 +236,8 @@ const DatePickerSheet = forwardRef<DatePickerSheetRef, Props>(
               </Text>
             </TouchableOpacity>
           </View>
-        </BottomSheetView>
-      </AppBottomSheet>
+        </View>
+      </LiquidBottomSheet>
     );
   }
 );

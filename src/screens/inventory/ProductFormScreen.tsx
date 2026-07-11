@@ -12,6 +12,7 @@ import DatePickerSheet, { DatePickerSheetRef } from '../../components/common/Dat
 import { identifyProductFromImage, getVisionApiKey } from '../../services/vision';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
+import LiquidTextField from '../../components/common/LiquidTextField';
 
 const GST_RATES = [0, 5, 12, 18, 28]; // government-fixed slabs — not user-editable
 const emptyForm = { name: '', category: 'General', costPrice: '', sellingPrice: '', quantity: '', barcode: '', unit: 'pcs', lowStockThreshold: '5', imageUri: '', supplierId: '', gstRate: 0, hsnCode: '', expiryDay: '', expiryMonth: '', expiryYear: '' };
@@ -237,12 +238,10 @@ export default function ProductFormScreen({ route, navigation }: any) {
 
         {/* Product Name */}
         <Field label="Product Name *" colors={colors}>
-          <TextInput
-            style={[s.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+          <LiquidTextField
             value={form.name}
             onChangeText={v => setForm(f => ({ ...f, name: v }))}
             placeholder="e.g. Cello Pen Blue"
-            placeholderTextColor={colors.textMuted}
           />
         </Field>
 

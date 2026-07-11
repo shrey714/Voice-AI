@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme, getFocusedRouteNameFromRoute } from '@react-navigation/native';
-import { navigationRef } from './navigationRef';
+import { navigationRef, switchAppMode } from './navigationRef';
+import LiquidModeSwitchAccessory from '../components/common/LiquidModeSwitchAccessory';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeBottomTabNavigator } from '@react-navigation/bottom-tabs/unstable';
@@ -42,6 +43,7 @@ import OnlineProductFormScreen from '../screens/onlineshop/OnlineProductFormScre
 import AppHeader from '../components/common/AppHeader';
 import { Toaster } from 'sonner-native';
 import { useAppTheme } from '../theme';
+import { fonts } from '../theme/typography';
 import { useAppStore } from '../stores/useAppStore';
 
 const RootStack = createNativeStackNavigator();
@@ -75,15 +77,29 @@ const OnlineInventoryStack = createNativeStackNavigator();
 const LocalTab = Platform.OS === 'ios' ? createNativeBottomTabNavigator() : createBottomTabNavigator();
 const OnlineTab = Platform.OS === 'ios' ? createNativeBottomTabNavigator() : createBottomTabNavigator();
 
-// One header for the whole app — every stack renders the same <AppHeader>, so
-// font, height, and theme are identical everywhere. See AppHeader.tsx.
-const headerOpts = () => ({
-  header: (props: any) => <AppHeader {...props} />,
-});
+// iOS: no `header` override at all — native-stack renders its own real
+// UINavigationBar (automatic Liquid Glass translucency on iOS 26+, native
+// large-type rendering, native edge-swipe-to-go-back). `title`/`headerRight`
+// on individual Screens already work unchanged, since native-stack reads the
+// exact same option shape the old custom AppHeader did.
+// Android: keeps the custom AppHeader (no native Liquid Glass equivalent to
+// gain there, and it already matches the app's Material-ish look).
+function useHeaderOpts() {
+  const { colors } = useAppTheme();
+  if (Platform.OS === 'ios') {
+    return {
+      headerTintColor: colors.primary,
+      headerTitleStyle: { fontFamily: fonts.extraBold, fontSize: 17, color: colors.text },
+      headerStyle: { backgroundColor: colors.surface },
+    };
+  }
+  return { header: (props: any) => <AppHeader {...props} /> };
+}
 
 function HomeStackNav() {
+  const headerOpts = useHeaderOpts();
   return (
-    <HomeStack.Navigator screenOptions={headerOpts()}>
+    <HomeStack.Navigator screenOptions={headerOpts}>
       <HomeStack.Screen name="DashboardMain" component={DashboardScreen} options={{ headerShown: false }} />
       <HomeStack.Screen name="AskAi" component={AskAiScreen} options={{ title: 'Ask AI' }} />
     </HomeStack.Navigator>
@@ -91,16 +107,18 @@ function HomeStackNav() {
 }
 
 function BillingStackNav() {
+  const headerOpts = useHeaderOpts();
   return (
-    <BillingStack.Navigator screenOptions={headerOpts()}>
+    <BillingStack.Navigator screenOptions={headerOpts}>
       <BillingStack.Screen name="BillingMain" component={BillingScreen} options={{ title: 'New Bill' }} />
     </BillingStack.Navigator>
   );
 }
 
 function InventoryStackNav() {
+  const headerOpts = useHeaderOpts();
   return (
-    <InventoryStack.Navigator screenOptions={headerOpts()}>
+    <InventoryStack.Navigator screenOptions={headerOpts}>
       <InventoryStack.Screen name="InventoryMain" component={InventoryScreen} options={{ title: 'Inventory' }} />
       <InventoryStack.Screen name="ProductForm" component={ProductFormScreen} options={{ presentation: 'modal' }} />
       <InventoryStack.Screen name="CsvImport" component={CsvImportScreen} options={{ title: 'Bulk Import CSV', presentation: 'modal' }} />
@@ -109,16 +127,18 @@ function InventoryStackNav() {
 }
 
 function RecordsStackNav() {
+  const headerOpts = useHeaderOpts();
   return (
-    <RecordsStack.Navigator screenOptions={headerOpts()}>
+    <RecordsStack.Navigator screenOptions={headerOpts}>
       <RecordsStack.Screen name="RecordsMain" component={BillHistoryScreen} options={{ title: 'Bill History' }} />
     </RecordsStack.Navigator>
   );
 }
 
 function MenuStackNav() {
+  const headerOpts = useHeaderOpts();
   return (
-    <MenuStack.Navigator screenOptions={headerOpts()}>
+    <MenuStack.Navigator screenOptions={headerOpts}>
       <MenuStack.Screen name="MenuMain" component={MenuScreen} options={{ title: 'More' }} />
       <MenuStack.Screen name="Analytics" component={AnalyticsScreen} options={{ title: 'Analytics' }} />
       <MenuStack.Screen name="Exports" component={ExportsScreen} options={{ title: 'Export Reports' }} />
@@ -147,8 +167,9 @@ function MenuStackNav() {
 // ShopInfo is registered here too since it's the one screen common to both
 // portions — reused as-is (always re-fetches from Supabase on mount anyway).
 function OnlineDashboardStackNav() {
+  const headerOpts = useHeaderOpts();
   return (
-    <OnlineDashboardStack.Navigator screenOptions={headerOpts()}>
+    <OnlineDashboardStack.Navigator screenOptions={headerOpts}>
       <OnlineDashboardStack.Screen name="OnlineShopDashboardMain" component={OnlineShopDashboard} options={{ headerShown: false }} />
       <OnlineDashboardStack.Screen name="ShopInfo" component={ShopInfoScreen} options={{ title: 'Shop Information' }} />
     </OnlineDashboardStack.Navigator>
@@ -156,8 +177,9 @@ function OnlineDashboardStackNav() {
 }
 
 function OnlineOrdersStackNav() {
+  const headerOpts = useHeaderOpts();
   return (
-    <OnlineOrdersStack.Navigator screenOptions={headerOpts()}>
+    <OnlineOrdersStack.Navigator screenOptions={headerOpts}>
       <OnlineOrdersStack.Screen name="OnlineOrdersMain" component={OnlineOrdersScreen} options={{ title: 'Online Orders' }} />
       <OnlineOrdersStack.Screen name="OnlineOrderDetail" component={OnlineOrderDetailScreen} options={{ title: 'Order Detail' }} />
     </OnlineOrdersStack.Navigator>
@@ -165,8 +187,9 @@ function OnlineOrdersStackNav() {
 }
 
 function OnlineInventoryStackNav() {
+  const headerOpts = useHeaderOpts();
   return (
-    <OnlineInventoryStack.Navigator screenOptions={headerOpts()}>
+    <OnlineInventoryStack.Navigator screenOptions={headerOpts}>
       <OnlineInventoryStack.Screen name="OnlineInventoryMain" component={OnlineInventoryScreen} options={{ title: 'Online Products' }} />
       <OnlineInventoryStack.Screen name="OnlineProductForm" component={OnlineProductFormScreen} options={{ title: 'Online Product', presentation: 'modal' }} />
     </OnlineInventoryStack.Navigator>
@@ -194,6 +217,7 @@ function tabIcon(ionicon: { off: any; on: any }, sf: { off: string; on: string }
 
 function LocalTabs() {
   const { colors } = useAppTheme();
+  const onlineShopEnabled = useAppStore(s => s.settings.onlineShopEnabled);
   return (
     <LocalTab.Navigator
       initialRouteName="Home"
@@ -201,6 +225,15 @@ function LocalTabs() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
+        // iOS 26+ only (ignored elsewhere) — a real native Liquid Glass
+        // button beside the tab bar itself, switching into the Online
+        // portion. Only shopkeepers who've turned on Online Shop see it,
+        // same gate DashboardScreen's CTA card already uses.
+        ...(Platform.OS === 'ios' && onlineShopEnabled ? {
+          bottomAccessory: () => (
+            <LiquidModeSwitchAccessory icon="storefront" tintColor={colors.primary} onPress={() => switchAppMode('online')} />
+          ),
+        } : null),
       } as any}
     >
       <LocalTab.Screen
@@ -249,6 +282,13 @@ function OnlineTabs() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
+        // Reciprocal of LocalTabs' accessory — always available here since
+        // you can only be in Online mode if it's already enabled.
+        ...(Platform.OS === 'ios' ? {
+          bottomAccessory: () => (
+            <LiquidModeSwitchAccessory icon="house" tintColor={colors.primary} onPress={() => switchAppMode('local')} />
+          ),
+        } : null),
       } as any}
     >
       <OnlineTab.Screen

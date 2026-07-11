@@ -24,6 +24,7 @@ import BarcodeScannerModal from '../../components/billing/BarcodeScannerModal';
 import BtStatusIcon from '../../components/billing/BtStatusIcon';
 import EmptyState from '../../components/common/EmptyState';
 import AppModal from '../../components/common/AppModal';
+import LiquidButton from '../../components/common/LiquidButton';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
 
@@ -624,12 +625,14 @@ export default function BillingScreen({ navigation }: any) {
             <TouchableOpacity style={[s.cancelBtn, { borderColor: colors.border }]} onPress={closeCheckout}>
               <Text style={{ color: colors.textSub, fontFamily: fonts.semiBold }}>{t('cancel')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[s.confirmBtn, { backgroundColor: colors.primary }]} onPress={handleCheckout} disabled={processing}>
-              {processing
-                ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={{ color: '#fff', fontFamily: fonts.extraBold, fontSize: 15 }}>{t('generateBill')}</Text>
-              }
-            </TouchableOpacity>
+            <LiquidButton
+              title={t('generateBill')}
+              onPress={handleCheckout}
+              loading={processing}
+              variant="glassProminent"
+              height={52}
+              style={{ flex: 2 }}
+            />
           </View>
         </BottomSheetScrollView>
         )}

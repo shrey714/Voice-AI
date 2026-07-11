@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { StyleSheet, TouchableOpacity, TextInput, useWindowDimensions } from 'react-native';
+import { StyleSheet, TouchableOpacity, TextInput, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, interpolate, runOnJS } from 'react-native-reanimated';
 import { useAppTheme } from '../../theme';
@@ -27,9 +27,13 @@ const SEARCH_COLLAPSED_W = 38;
  *   flow, so the header title (flex:1) doesn't race it for space as the
  *   width animates — without this the title would balloon into unclaimed
  *   space mid-animation then get compressed back, causing a visible
- *   shift/gap. This requires AppHeader's `right` slot wrapper to have a
- *   real height (see AppHeader.tsx) since an absolute-only child otherwise
- *   collapses its auto-sized parent to 0×0, breaking vertical centering.
+ *   shift/gap. The box is positioned against `styles.wrapper`, a plain
+ *   (non-absolute) `height: 38` element rendered alongside it — NOT against
+ *   whatever header slot renders this component. That matters because
+ *   native-stack's built-in native header (iOS) gives `headerRight` an
+ *   intrinsic-content-sized container, not a guaranteed fixed-height one
+ *   like the app's old custom AppHeader — a `top: '50%'` trick against a
+ *   0-height parent would collapse this to nothing.
  * - Both the collapsed icon and the expanded input+close row stay mounted
  *   the whole time, cross-fading via opacity derived from the same width
  *   shared value — conditionally mounting/unmounting them on a boolean
@@ -99,35 +103,41 @@ export default function HeaderSearchToggle({
   }));
 
   return (
-    <Animated.View style={[styles.box, boxStyle, { right: rightOffset, backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
-      <Animated.View style={[StyleSheet.absoluteFillObject, collapsedStyle, collapsedPointerEvents]}>
-        <TouchableOpacity onPress={openBox} style={styles.collapsedBtn} hitSlop={8}>
-          <Ionicons name="search-outline" size={20} color={colors.textMuted} />
-        </TouchableOpacity>
-      </Animated.View>
+    <View style={styles.wrapper}>
+      <Animated.View style={[styles.box, boxStyle, { right: rightOffset, backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
+        <Animated.View style={[StyleSheet.absoluteFillObject, collapsedStyle, collapsedPointerEvents]}>
+          <TouchableOpacity onPress={openBox} style={styles.collapsedBtn} hitSlop={8}>
+            <Ionicons name="search-outline" size={20} color={colors.textMuted} />
+          </TouchableOpacity>
+        </Animated.View>
 
-      <Animated.View style={[styles.expandedRow, expandedStyle, expandedPointerEvents]}>
-        <Ionicons name="search-outline" size={16} color={colors.textMuted} style={{ marginRight: 8 }} />
-        <TextInput
-          ref={inputRef}
-          style={[styles.input, { color: colors.text }]}
-          placeholder={placeholder}
-          placeholderTextColor={colors.textMuted}
-          value={query}
-          onChangeText={(t) => { setQuery(t); onQueryChange(t); }}
-          returnKeyType="search"
-        />
-        <TouchableOpacity onPress={closeBox} hitSlop={8}>
-          <Ionicons name="close" size={20} color={colors.textMuted} />
-        </TouchableOpacity>
+        <Animated.View style={[styles.expandedRow, expandedStyle, expandedPointerEvents]}>
+          <Ionicons name="search-outline" size={16} color={colors.textMuted} style={{ marginRight: 8 }} />
+          <TextInput
+            ref={inputRef}
+            style={[styles.input, { color: colors.text }]}
+            placeholder={placeholder}
+            placeholderTextColor={colors.textMuted}
+            value={query}
+            onChangeText={(t) => { setQuery(t); onQueryChange(t); }}
+            returnKeyType="search"
+          />
+          <TouchableOpacity onPress={closeBox} hitSlop={8}>
+            <Ionicons name="close" size={20} color={colors.textMuted} />
+          </TouchableOpacity>
+        </Animated.View>
       </Animated.View>
-    </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  // Plain (non-absolute) fixed-height element — establishes real layout
+  // space regardless of what container renders this component, so `box`
+  // below has something reliable to position itself against.
+  wrapper: { height: 38, justifyContent: 'center' },
   box: {
-    position: 'absolute', height: 38, top: '50%', marginTop: -19, right: 0,
+    position: 'absolute', height: 38, top: 0, right: 0,
     flexDirection: 'row', alignItems: 'center', borderRadius: 10, borderWidth: 1, paddingHorizontal: 8, overflow: 'hidden',
   },
   collapsedBtn: { flex: 1, alignItems: 'center', justifyContent: 'center' },
