@@ -1,0 +1,17 @@
+diff --git a/node_modules/expo/ios/AppDelegates/EXReactRootViewFactory.h b/node_modules/expo/ios/AppDelegates/EXReactRootViewFactory.h
+index 2daec5d..11434c6 100644
+--- a/node_modules/expo/ios/AppDelegates/EXReactRootViewFactory.h
++++ b/node_modules/expo/ios/AppDelegates/EXReactRootViewFactory.h
+@@ -8,6 +8,12 @@
+ NS_ASSUME_NONNULL_BEGIN
+ 
+ @class EXReactDelegate;
++// Upstream bug (expo/expo#45298): this header uses RCTDevMenuConfiguration*
++// as a parameter type below but never declares or imports it, so any build
++// where RCTAppDelegateUmbrella.h's conditional #import happens not to pull
++// in React/RCTDevMenu.h first fails with "expected a type". A forward
++// declaration is enough here since the type is only ever used as a pointer.
++@class RCTDevMenuConfiguration;
+ 
+ NS_SWIFT_NAME(ExpoReactRootViewFactory)
+ @interface EXReactRootViewFactory : RCTRootViewFactory
