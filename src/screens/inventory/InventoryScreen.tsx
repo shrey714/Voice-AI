@@ -15,7 +15,8 @@ import EmptyState from '../../components/common/EmptyState';
 import { SkeletonList } from '../../components/common/Skeleton';
 import CollapsibleFab, { useFabScroll } from '../../components/common/CollapsibleFab';
 import ProductCard from '../../components/inventory/ProductCard';
-import HeaderSearchToggle from '../../components/common/HeaderSearchToggle';
+import InlineSearchBar from '../../components/common/InlineSearchBar';
+import LiquidHeaderIconButton from '../../components/common/LiquidHeaderIconButton';
 import { useTranslation } from '../../hooks/useTranslation';
 
 
@@ -28,6 +29,7 @@ export default function InventoryScreen({ route, navigation }: any) {
   const CATEGORIES = ['All', ...(settings.productCategories ?? [])];
 
   const [search, setSearch] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [sortBy, setSortBy] = useState<'name' | 'stock' | 'price'>('name');
   const [stockProduct, setStockProduct] = useState<Product | null>(null);
@@ -101,22 +103,22 @@ export default function InventoryScreen({ route, navigation }: any) {
           ) : null}
         </View>
       ),
+      // Plain flex row, not absolutely-positioned siblings — see this file's
+      // header comment / AppNavigator's useHeaderOpts for why.
       headerRight: () => (
-        <>
-          {/* Absolutely positioned, pinned to the header's true right edge —
-              same convention as the filter buttons in Bill History / Online
-              Orders / Suppliers / Purchases. HeaderSearchToggle's
-              rightOffset reserves this button's width + gap. */}
-          <TouchableOpacity
-            style={[s.csvBtn, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <LiquidHeaderIconButton
+            icon="doc.text"
+            androidIcon="document-text-outline"
+            color={colors.textMuted}
             onPress={() => navigation.navigate('CsvImport')}
-            accessibilityLabel="Import CSV"
-            accessibilityRole="button"
-          >
-            <Ionicons name="document-text-outline" size={18} color={colors.textMuted} />
-          </TouchableOpacity>
-          <HeaderSearchToggle onQueryChange={setSearch} placeholder={t('searchProducts')} rightOffset={46} />
-        </>
+          />
+          <LiquidHeaderIconButton
+            icon="magnifyingglass"
+            androidIcon="search-outline"
+            onPress={() => setSearchOpen(v => !v)}
+          />
+        </View>
       ),
     });
   }, [navigation, products.length, lowStockCount, colors, t]);
@@ -125,6 +127,14 @@ export default function InventoryScreen({ route, navigation }: any) {
 
   return (
     <View style={[{ backgroundColor: colors.bg, flex: 1 }]}>
+      {searchOpen && (
+        <InlineSearchBar
+          value={search}
+          onChangeText={setSearch}
+          placeholder={t('searchProducts')}
+          onClose={() => setSearchOpen(false)}
+        />
+      )}
       {/* Scrollable area — category bar floats above the list within this container */}
       <View style={{ flex: 1, overflow: 'hidden' }}>
         <ScrollHideBar translateY={catTranslate} bgColor={colors.bg} onLayout={onBarLayout}>
@@ -255,11 +265,6 @@ export default function InventoryScreen({ route, navigation }: any) {
 }
 
 const makeStyles = (c: any) => StyleSheet.create({
-  // CSV button — absolutely positioned in the shared AppHeader, pinned to
-  // its true right edge (always visible), same convention as the filter
-  // buttons in Bill History / Online Orders / Suppliers / Purchases.
-  // HeaderSearchToggle's rightOffset reserves this button's width + gap.
-  csvBtn: { position: 'absolute', right: 0, top: '50%', marginTop: -19, width: 38, height: 38, borderRadius: 10, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
 
   // Sort button — fixed at the left of the category strip (not scrollable).
   sortBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, justifyContent: 'center', borderWidth: 0.5, marginLeft: 8 },

@@ -91,7 +91,7 @@ const LiquidBottomSheet = forwardRef<LiquidBottomSheetRef, LiquidBottomSheetProp
           <IOSBottomSheet isPresented={isOpen} onIsPresentedChange={handleIOSPresentedChange} fitToContents={!heightFraction}>
             <IOSGroup modifiers={[presentationDetents(detents), presentationDragIndicator('visible')]}>
               <IOSRNHostView matchContents>
-                <View style={{ backgroundColor: colors.surface }}>{children}</View>
+                <View>{children}</View>
               </IOSRNHostView>
             </IOSGroup>
           </IOSBottomSheet>

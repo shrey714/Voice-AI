@@ -12,7 +12,8 @@ import { fonts } from '../theme/typography';
 import { formatCurrency } from '../utils/helpers';
 import EmptyState from '../components/common/EmptyState';
 import CollapsibleFab, { useFabScroll } from '../components/common/CollapsibleFab';
-import HeaderSearchToggle from '../components/common/HeaderSearchToggle';
+import InlineSearchBar from '../components/common/InlineSearchBar';
+import LiquidHeaderIconButton from '../components/common/LiquidHeaderIconButton';
 import { Purchase } from '../types';
 
 function formatDate(ts: number) {
@@ -24,6 +25,7 @@ export default function PurchasesScreen({ navigation }: any) {
   const { t } = useTranslation();
   const { purchases, suppliers, settings } = useAppStore();
   const [search, setSearch] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
   const [filterSupplierId, setFilterSupplierId] = useState<string | null>(null);
   const { extended, onScroll } = useFabScroll();
   const { translateY: chipTranslate, onListScroll, onBarLayout, listPaddingTop } = useScrollHideBar({ onScroll });
@@ -45,13 +47,13 @@ export default function PurchasesScreen({ navigation }: any) {
 
   const s = makeStyles(colors);
 
-  // Search lives in the shared AppHeader now — same convention as Bill
-  // History / Suppliers / Online Orders.
   useEffect(() => {
     navigation.setOptions({
-      headerRight: () => <HeaderSearchToggle onQueryChange={setSearch} placeholder={t('searchPurchases')} hasBackButton />,
+      headerRight: () => (
+        <LiquidHeaderIconButton icon="magnifyingglass" androidIcon="search-outline" onPress={() => setSearchOpen(v => !v)} />
+      ),
     });
-  }, [navigation, t]);
+  }, [navigation]);
 
   const renderItem = ({ item: purchase, index }: { item: Purchase; index: number }) => {
     const outstanding = Math.max(0, purchase.totalAmount - purchase.paidAmount);
@@ -112,6 +114,14 @@ export default function PurchasesScreen({ navigation }: any) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      {searchOpen && (
+        <InlineSearchBar
+          value={search}
+          onChangeText={setSearch}
+          placeholder={t('searchPurchases')}
+          onClose={() => setSearchOpen(false)}
+        />
+      )}
       <View style={{ flex: 1, overflow: 'hidden' }}>
         {suppliers.length > 0 && (
           <ScrollHideBar translateY={chipTranslate} bgColor={colors.bg} onLayout={onBarLayout}>

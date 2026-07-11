@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { navigationRef, switchAppMode } from './navigationRef';
-import LiquidModeSwitchAccessory from '../components/common/LiquidModeSwitchAccessory';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeBottomTabNavigator } from '@react-navigation/bottom-tabs/unstable';
@@ -80,8 +79,14 @@ const OnlineTab = Platform.OS === 'ios' ? createNativeBottomTabNavigator() : cre
 // iOS: no `header` override at all — native-stack renders its own real
 // UINavigationBar (automatic Liquid Glass translucency on iOS 26+, native
 // large-type rendering, native edge-swipe-to-go-back). `title`/`headerRight`
-// on individual Screens already work unchanged, since native-stack reads the
-// exact same option shape the old custom AppHeader did.
+// on individual Screens work unchanged, since native-stack reads the exact
+// same option shape the old custom AppHeader did — AS LONG AS headerRight
+// content uses plain flex layout, not `position: 'absolute'` percentage
+// centering. Several screens' custom header buttons used exactly that
+// (assuming AppHeader's specific fixed-height container, which native-stack
+// doesn't provide the same way) and broke; every one of those has been
+// rebuilt as a plain flex row — see InventoryScreen, BillHistoryScreen,
+// OnlineInventoryScreen, OnlineOrdersScreen, PurchasesScreen, SupplierScreen.
 // Android: keeps the custom AppHeader (no native Liquid Glass equivalent to
 // gain there, and it already matches the app's Material-ish look).
 function useHeaderOpts() {
@@ -215,6 +220,12 @@ function tabIcon(ionicon: { off: any; on: any }, sf: { off: string; on: string }
   );
 }
 
+// Never actually navigated to — see the "SwitchToOnline"/"SwitchToLocal"
+// Screens below, which intercept tabPress and never let selection through.
+function NoopScreen() {
+  return null;
+}
+
 function LocalTabs() {
   const { colors } = useAppTheme();
   const onlineShopEnabled = useAppStore(s => s.settings.onlineShopEnabled);
@@ -225,15 +236,6 @@ function LocalTabs() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
-        // iOS 26+ only (ignored elsewhere) — a real native Liquid Glass
-        // button beside the tab bar itself, switching into the Online
-        // portion. Only shopkeepers who've turned on Online Shop see it,
-        // same gate DashboardScreen's CTA card already uses.
-        ...(Platform.OS === 'ios' && onlineShopEnabled ? {
-          bottomAccessory: () => (
-            <LiquidModeSwitchAccessory icon="storefront" tintColor={colors.primary} onPress={() => switchAppMode('online')} />
-          ),
-        } : null),
       } as any}
     >
       <LocalTab.Screen
@@ -269,6 +271,35 @@ function LocalTabs() {
           tabBarStyle: tabBarStyleFor(route),
         })) as any}
       />
+      {onlineShopEnabled && (
+        <LocalTab.Screen
+          name="SwitchToOnline"
+          component={NoopScreen}
+          options={{
+            title: 'Online',
+            tabBarIcon: tabIcon({ off: 'storefront-outline', on: 'storefront-outline' }, { off: 'storefront', on: 'storefront' }),
+            // iOS 26+: `systemItem: 'search'` is what makes the native tab
+            // bar render this as a separate button beside the main pill
+            // (real UITabBarController/HIG behavior, not a library
+            // invention) — tabBarIcon/tabBarLabel below override its
+            // default search glyph/label while keeping that placement.
+            // tabBarSelectionEnabled: false + the tabPress listener below
+            // means it's never actually "selected" as a tab; it only fires
+            // the mode switch. Both are iOS-only options — Android's
+            // classic bottom-tabs navigator ignores them and this just
+            // renders as a normal (non-separated) 6th tab item, which
+            // still works via the same tabPress interception.
+            tabBarSystemItem: 'search',
+            tabBarSelectionEnabled: false,
+          } as any}
+          listeners={{
+            tabPress: (e: any) => {
+              e.preventDefault();
+              switchAppMode('online');
+            },
+          }}
+        />
+      )}
     </LocalTab.Navigator>
   );
 }
@@ -282,13 +313,6 @@ function OnlineTabs() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
-        // Reciprocal of LocalTabs' accessory — always available here since
-        // you can only be in Online mode if it's already enabled.
-        ...(Platform.OS === 'ios' ? {
-          bottomAccessory: () => (
-            <LiquidModeSwitchAccessory icon="house" tintColor={colors.primary} onPress={() => switchAppMode('local')} />
-          ),
-        } : null),
       } as any}
     >
       <OnlineTab.Screen
@@ -305,6 +329,22 @@ function OnlineTabs() {
         name="OnlineInventory"
         component={OnlineInventoryStackNav}
         options={{ title: 'Products', tabBarIcon: tabIcon({ off: 'cube-outline', on: 'cube' }, { off: 'shippingbox', on: 'shippingbox.fill' }) } as any}
+      />
+      <OnlineTab.Screen
+        name="SwitchToLocal"
+        component={NoopScreen}
+        options={{
+          title: 'In-Store',
+          tabBarIcon: tabIcon({ off: 'home-outline', on: 'home-outline' }, { off: 'house', on: 'house' }),
+          tabBarSystemItem: 'search',
+          tabBarSelectionEnabled: false,
+        } as any}
+        listeners={{
+          tabPress: (e: any) => {
+            e.preventDefault();
+            switchAppMode('local');
+          },
+        }}
       />
     </OnlineTab.Navigator>
   );

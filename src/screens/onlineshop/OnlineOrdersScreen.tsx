@@ -17,7 +17,8 @@ import { useAppStore } from '../../stores/useAppStore';
 import EmptyState from '../../components/common/EmptyState';
 import { OnlineOrdersSkeleton } from '../../components/common/Skeleton';
 import DatePickerSheet, { DatePickerSheetRef } from '../../components/common/DatePickerSheet';
-import HeaderSearchToggle from '../../components/common/HeaderSearchToggle';
+import InlineSearchBar from '../../components/common/InlineSearchBar';
+import LiquidHeaderIconButton from '../../components/common/LiquidHeaderIconButton';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 type PeriodFilter = 'today' | 'week' | 'month' | 'all' | 'custom';
@@ -65,6 +66,7 @@ export default function OnlineOrdersScreen({ navigation, route }: any) {
   const [customFrom, setCustomFrom] = useState<Date | null>(null);
   const [customTo, setCustomTo] = useState<Date | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
   const { translateY: stripTranslate, onListScroll, onBarLayout, listPaddingTop } = useScrollHideBar();
 
   const filterSheetRef = useRef<AppBottomSheetRef>(null);
@@ -74,34 +76,29 @@ export default function OnlineOrdersScreen({ navigation, route }: any) {
   const activeFilterCount = (activeTab !== 'all' ? 1 : 0) + (periodFilter !== 'today' ? 1 : 0);
   const s = makeStyles(colors);
 
-  // Both buttons live in the shared AppHeader now, as independent siblings
-  // (NOT wrapped in an extra row View) — HeaderSearchToggle's
-  // `position: absolute` anchors to its *immediate* parent, which needs to
-  // stay AppHeader's actual `right` slot for its right:0/full-width math to
-  // be correct. Wrapping it in another row would re-anchor it to that small
-  // wrapper instead. The filter button sits at the header's true right edge
-  // (right: 0) and always stays visible; HeaderSearchToggle reserves that
-  // same width via `rightOffset` so it rests just to the filter button's
-  // left and only ever expands leftward, never covering the filter button.
+  // Plain flex row, not absolutely-positioned siblings — see
+  // AppNavigator's useHeaderOpts comment for why.
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <>
-          <TouchableOpacity
-            style={[s.filterBtn, { backgroundColor: activeFilterCount > 0 ? colors.primary : colors.surfaceHigh, borderColor: activeFilterCount > 0 ? colors.primary : colors.border }]}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <LiquidHeaderIconButton
+            icon="line.3.horizontal.decrease.circle"
+            androidIcon="options-outline"
+            color={activeFilterCount > 0 ? colors.primary : colors.textMuted}
             onPress={openFilterSheet}
-            accessibilityLabel="Open filters"
-            accessibilityRole="button"
-          >
-            <Ionicons name="options-outline" size={18} color={activeFilterCount > 0 ? '#fff' : colors.textMuted} />
-            {activeFilterCount > 0 && (
-              <View style={[s.filterBadge, { backgroundColor: '#fff' }]}>
-                <Text style={[s.filterBadgeText, { color: colors.primary }]}>{activeFilterCount}</Text>
+            badge={activeFilterCount > 0 ? (
+              <View style={[s.filterBadge, { backgroundColor: colors.primary }]}>
+                <Text style={[s.filterBadgeText, { color: '#fff' }]}>{activeFilterCount}</Text>
               </View>
-            )}
-          </TouchableOpacity>
-          <HeaderSearchToggle onQueryChange={setSearchQuery} placeholder="Search customer, phone, product…" rightOffset={46} />
-        </>
+            ) : undefined}
+          />
+          <LiquidHeaderIconButton
+            icon="magnifyingglass"
+            androidIcon="search-outline"
+            onPress={() => setSearchOpen(v => !v)}
+          />
+        </View>
       ),
     });
   }, [navigation, colors, activeFilterCount, openFilterSheet, s]);
@@ -220,6 +217,14 @@ export default function OnlineOrdersScreen({ navigation, route }: any) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      {searchOpen && (
+        <InlineSearchBar
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Search customer, phone, product…"
+          onClose={() => setSearchOpen(false)}
+        />
+      )}
       <View style={{ flex: 1, overflow: 'hidden' }}>
         {/* Active filter strip — always visible so the current period + status
             selection reads as "selected", not just when non-default; slides
@@ -350,10 +355,8 @@ export default function OnlineOrdersScreen({ navigation, route }: any) {
 
 const makeStyles = (c: any) =>
   StyleSheet.create({
-    // Absolutely positioned, pinned to the header's true right edge — always
-    // visible; HeaderSearchToggle's `rightOffset` (see headerRight useEffect
-    // above) reserves this button's width + gap so it never covers it.
-    filterBtn: { position: 'absolute', right: 0, top: '50%', marginTop: -19, width: 38, height: 38, borderRadius: 10, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
+    // Positioned relative to LiquidHeaderIconButton's own fixed-size
+    // wrapper, not the header container, so this stays safe.
     filterBadge: { position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
     filterBadgeText: { fontSize: 10, fontFamily: fonts.extraBold },
 

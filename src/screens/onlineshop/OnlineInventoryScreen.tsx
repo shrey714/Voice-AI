@@ -12,7 +12,8 @@ import { useOnlineShopStore } from '../../stores/useOnlineShopStore';
 import { OnlineInventorySkeleton } from '../../components/common/Skeleton';
 import EmptyState from '../../components/common/EmptyState';
 import CollapsibleFab, { useFabScroll } from '../../components/common/CollapsibleFab';
-import HeaderSearchToggle from '../../components/common/HeaderSearchToggle';
+import InlineSearchBar from '../../components/common/InlineSearchBar';
+import LiquidHeaderIconButton from '../../components/common/LiquidHeaderIconButton';
 import { formatCurrency } from '../../utils/helpers';
 import { OnlineProduct } from '../../types/online';
 import { Product } from '../../types';
@@ -29,16 +30,18 @@ export default function OnlineInventoryScreen({ navigation }: any) {
   const { settings } = useAppStore();
   const { onlineProducts, isLoadingOnlineProducts, fetchOnlineProducts, deleteOnlineProduct } = useOnlineShopStore();
   const [search, setSearch] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const { extended, onScroll } = useFabScroll();
   const importSheetRef = useRef<AppBottomSheetRef>(null);
   const s = makeStyles(colors);
 
-  // See HeaderSearchToggle.tsx for how/why this expands the way it does.
   useEffect(() => {
     navigation.setOptions({
-      headerRight: () => <HeaderSearchToggle onQueryChange={setSearch} placeholder="Search online listings…" />,
+      headerRight: () => (
+        <LiquidHeaderIconButton icon="magnifyingglass" androidIcon="search-outline" onPress={() => setSearchOpen(v => !v)} />
+      ),
     });
   }, [navigation]);
 
@@ -106,6 +109,14 @@ export default function OnlineInventoryScreen({ navigation }: any) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      {searchOpen && (
+        <InlineSearchBar
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search online listings…"
+          onClose={() => setSearchOpen(false)}
+        />
+      )}
 
       {filtered.length === 0 ? (
         <View style={s.emptyWrap}>

@@ -15,7 +15,8 @@ import { formatCurrency, sanitizeDecimal } from '../utils/helpers';
 import EmptyState from '../components/common/EmptyState';
 import CollapsibleFab, { useFabScroll } from '../components/common/CollapsibleFab';
 import ProductCard from '../components/inventory/ProductCard';
-import HeaderSearchToggle from '../components/common/HeaderSearchToggle';
+import InlineSearchBar from '../components/common/InlineSearchBar';
+import LiquidHeaderIconButton from '../components/common/LiquidHeaderIconButton';
 
 const PAYMENT_MODES_KEYS = [
   { key: 'cash', tKey: 'cash' as const, icon: 'cash-outline' },
@@ -37,6 +38,7 @@ export default function SupplierScreen() {
   const [editingStockId, setEditingStockId] = useState<string | null>(null);
   const [stockInput, setStockInput] = useState('');
   const [search, setSearch] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
   const { extended, onScroll } = useFabScroll();
 
   // Payment recording sheet — uses paymentSupplier (separate from selectedSupplier)
@@ -61,13 +63,13 @@ export default function SupplierScreen() {
       )
     : suppliers;
 
-  // Search lives in the shared AppHeader now — same convention as Bill
-  // History / Online Orders.
   useEffect(() => {
     navigation.setOptions({
-      headerRight: () => <HeaderSearchToggle onQueryChange={setSearch} placeholder={t('searchSuppliers')} hasBackButton />,
+      headerRight: () => (
+        <LiquidHeaderIconButton icon="magnifyingglass" androidIcon="search-outline" onPress={() => setSearchOpen(v => !v)} />
+      ),
     });
-  }, [navigation, t]);
+  }, [navigation]);
 
   const formSheetRef = useRef<AppBottomSheetRef>(null);
   const detailSheetRef = useRef<AppBottomSheetRef>(null);
@@ -185,6 +187,14 @@ export default function SupplierScreen() {
 
   return (
     <View style={[s.container, { backgroundColor: c.bg }]}>
+      {searchOpen && (
+        <InlineSearchBar
+          value={search}
+          onChangeText={setSearch}
+          placeholder={t('searchSuppliers')}
+          onClose={() => setSearchOpen(false)}
+        />
+      )}
 
       <FlatList
         data={filtered}

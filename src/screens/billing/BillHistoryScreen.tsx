@@ -21,7 +21,8 @@ import EmptyState from '../../components/common/EmptyState';
 import { SkeletonList } from '../../components/common/Skeleton';
 import FadeSlideIn from '../../components/common/FadeSlideIn';
 import DatePickerSheet, { DatePickerSheetRef } from '../../components/common/DatePickerSheet';
-import HeaderSearchToggle from '../../components/common/HeaderSearchToggle';
+import InlineSearchBar from '../../components/common/InlineSearchBar';
+import LiquidHeaderIconButton from '../../components/common/LiquidHeaderIconButton';
 
 // Converts a number to Indian English words (for invoice)
 function amountInWords(n: number): string {
@@ -58,6 +59,7 @@ export default function BillHistoryScreen() {
   const [payFilter, setPayFilter] = useState<PayFilter>('all');
   const [returnedOnly, setReturnedOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
   const [customFrom, setCustomFrom] = useState<Date | null>(null);
   const [customTo, setCustomTo] = useState<Date | null>(null);
   const rangePickerRef = useRef<DatePickerSheetRef>(null);
@@ -88,33 +90,32 @@ export default function BillHistoryScreen() {
 
   const s = makeStyles(colors);
 
-  // Search + filter buttons live in the shared AppHeader now — same
-  // convention as OnlineOrdersScreen. Filter button pinned to the header's
-  // true right edge (right: 0, always visible); HeaderSearchToggle reserves
-  // that width via rightOffset so it rests just to its left and only ever
-  // expands leftward, never covering the filter button.
+  // Plain flex row, not absolutely-positioned siblings — see
+  // AppNavigator's useHeaderOpts comment for why.
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <>
-          <TouchableOpacity
-            style={[s.filterBtn, { backgroundColor: activeFilterCount > 0 ? colors.primary : colors.surfaceHigh, borderColor: activeFilterCount > 0 ? colors.primary : colors.border }]}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <LiquidHeaderIconButton
+            icon="line.3.horizontal.decrease.circle"
+            androidIcon="options-outline"
+            color={activeFilterCount > 0 ? colors.primary : colors.textMuted}
             onPress={openFilterSheet}
-            accessibilityLabel="Open filters"
-            accessibilityRole="button"
-          >
-            <Ionicons name="options-outline" size={18} color={activeFilterCount > 0 ? '#fff' : colors.textMuted} />
-            {activeFilterCount > 0 && (
-              <View style={[s.filterBadge, { backgroundColor: '#fff' }]}>
-                <Text style={[s.filterBadgeText, { color: colors.primary }]}>{activeFilterCount}</Text>
+            badge={activeFilterCount > 0 ? (
+              <View style={[s.filterBadge, { backgroundColor: colors.primary }]}>
+                <Text style={[s.filterBadgeText, { color: '#fff' }]}>{activeFilterCount}</Text>
               </View>
-            )}
-          </TouchableOpacity>
-          <HeaderSearchToggle onQueryChange={setSearchQuery} placeholder={t('customerPhoneProduct')} rightOffset={46} />
-        </>
+            ) : undefined}
+          />
+          <LiquidHeaderIconButton
+            icon="magnifyingglass"
+            androidIcon="search-outline"
+            onPress={() => setSearchOpen(v => !v)}
+          />
+        </View>
       ),
     });
-  }, [navigation, colors, activeFilterCount, openFilterSheet, s, t]);
+  }, [navigation, colors, activeFilterCount, openFilterSheet, s]);
 
   const openDetail = useCallback((bill: Bill) => {
     setSelectedBill(bill);
@@ -364,6 +365,14 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
 
   return (
     <View style={[s.container, { backgroundColor: colors.bg }]}>
+      {searchOpen && (
+        <InlineSearchBar
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder={t('customerPhoneProduct')}
+          onClose={() => setSearchOpen(false)}
+        />
+      )}
 
       {/* Summary bar */}
     <View style={[s.header, { backgroundColor: colors.surface }]}>  
@@ -838,11 +847,8 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
 
 const makeStyles = (c: any) => StyleSheet.create({
   container: { flex: 1 },
-  // Search + filter row
-  // Absolutely positioned in the shared AppHeader, pinned to its true right
-  // edge (always visible) — HeaderSearchToggle's rightOffset reserves this
-  // button's width + gap so it never gets covered while expanding.
-  filterBtn: { position: 'absolute', right: 0, top: '50%', marginTop: -19, width: 38, height: 38, borderRadius: 10, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
+  // Filter badge — positioned relative to LiquidHeaderIconButton's own
+  // fixed-size wrapper, not the header container, so this stays safe.
   filterBadge: { position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
   filterBadgeText: { fontSize: 10, fontFamily: fonts.extraBold },
   // Active filter strip
