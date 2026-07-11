@@ -8,11 +8,9 @@ export function navigateTo(screen: string, params?: Record<string, any>) {
 }
 
 // The Local/Online portion switch IS a real navigate('Local' | 'Online') on
-// the root tab navigator (see AppNavigator's RootTab.Navigator) — but code
-// outside that component (push-notification deep links, Home's CTA card)
-// doesn't have direct access to that navigator's `navigation` prop, only
-// this module-level ref. AppNavigator registers a closure over its own
-// `navigation` here once on mount; callers just fire-and-forget.
+// the root stack navigator (see AppNavigator's RootStack.Navigator) — this
+// module-level ref is what lets code outside that component (push-notification
+// deep links, Home's CTA card) reach it without prop-drilling.
 //
 // For a deep link that also needs to land on a specific nested screen (e.g.
 // a tapped order notification), don't call this and then separately
@@ -22,12 +20,7 @@ export function navigateTo(screen: string, params?: Record<string, any>) {
 // navigateTo('Online', { screen: ..., params: { screen: ..., params: {...} } })
 // call instead — see usePushSetup.ts's handleNotificationTap for the pattern.
 type Mode = 'local' | 'online';
-let modeSwitcher: ((mode: Mode) => void) | null = null;
-
-export function registerModeSwitcher(fn: (mode: Mode) => void) {
-  modeSwitcher = fn;
-}
 
 export function switchAppMode(mode: Mode) {
-  modeSwitcher?.(mode);
+  navigationRef.current?.navigate((mode === 'online' ? 'Online' : 'Local') as never);
 }

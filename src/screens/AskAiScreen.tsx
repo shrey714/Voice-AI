@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platfor
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView, MotiText } from 'moti';
-import { BlurView } from 'expo-blur';
+import GlassSurface from '../components/common/GlassSurface';
 import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
@@ -231,7 +231,7 @@ function Composer({ colors, s, insets, isDark, t }: { colors: any; s: any; inset
 
   return (
     <View style={[s.composerWrap, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-      <BlurView intensity={50} tint={isDark ? 'dark' : 'light'} experimentalBlurMethod="dimezisBlurView" style={s.pill}>
+      <GlassSurface tint={isDark ? 'dark' : 'light'} isInteractive style={s.pill}>
         <TouchableOpacity
           style={s.micBtn}
           hitSlop={8}
@@ -275,7 +275,7 @@ function Composer({ colors, s, insets, isDark, t }: { colors: any; s: any; inset
             </LinearGradient>
           </TouchableOpacity>
         )}
-      </BlurView>
+      </GlassSurface>
     </View>
   );
 }

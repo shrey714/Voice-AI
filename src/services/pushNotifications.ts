@@ -43,12 +43,17 @@ export async function registerForPushNotifications(): Promise<string | null> {
     }
 
     if (Platform.OS === 'android') {
+      // No `sound` key here on purpose — expo-notifications' Android channel
+      // manager treats any string value (including the literal 'default') as
+      // a filename to resolve against bundled sound resources; the system's
+      // actual default notification sound only kicks in when the key is
+      // omitted entirely. We ship no custom sound files (see app.json's
+      // expo-notifications plugin `sounds: []`), so omit it here too.
       await Notifications.setNotificationChannelAsync('online-orders', {
         name: 'Online Orders',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#5B7567',
-        sound: 'default',
       });
     }
 

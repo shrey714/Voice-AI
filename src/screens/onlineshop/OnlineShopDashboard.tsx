@@ -10,7 +10,9 @@ import Animated, {
   withTiming,
   interpolate,
   interpolateColor,
+  runOnJS,
 } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -41,16 +43,16 @@ const TRACK_PAD = 6;
  * translucent white for the "off" state, solid white for "on", so it reads
  * correctly against colors.primary in both light and dark theme (the
  * gradient's exact hue shifts a little between modes; white-on-gradient
- * doesn't need to know which). Tap anywhere on the switch to flip it — a
- * physical drag isn't used here: this screen sits inside the app's
- * swipeable tab pager, and any nested horizontal drag control fights that
- * pager's own gesture recognizer at the native level on both platforms
- * (whichever gesture system the nested control uses). A tap never competes
- * for that arena, so it's the reliable choice here.
+ * doesn't need to know which). Tap the knob OR drag it across the track to
+ * flip it. A physical drag used to fight this screen's parent swipeable tab
+ * pager's own gesture recognizer at the native level — that pager is gone
+ * (replaced by native bottom tabs), so the drag is safe to add back
+ * alongside the original tap.
  */
 function PowerToggle({ isOpen, disabled, loading, onChange, colors }: { isOpen: boolean; disabled: boolean; loading: boolean; onChange: (wantOpen: boolean) => void; colors: any }) {
   const [trackWidth, setTrackWidth] = useState(0);
   const progress = useSharedValue(isOpen ? 1 : 0);
+  const dragStartProgress = useSharedValue(0);
   const travel = Math.max(0, trackWidth - THUMB - TRACK_PAD * 2);
 
   // External state (e.g. a pull-to-refresh pulling fresh config) re-syncs the knob.
@@ -58,12 +60,40 @@ function PowerToggle({ isOpen, disabled, loading, onChange, colors }: { isOpen: 
     progress.value = withTiming(isOpen ? 1 : 0, { duration: 200 });
   }, [isOpen]);
 
-  const handlePress = useCallback(() => {
-    if (disabled || loading) return;
-    const wantOpen = !isOpen;
+  const commit = useCallback((wantOpen: boolean) => {
+    if (wantOpen === isOpen) return;
     Haptics.notificationAsync(wantOpen ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning);
     onChange(wantOpen);
-  }, [disabled, loading, isOpen, onChange]);
+  }, [isOpen, onChange]);
+
+  const handlePress = useCallback(() => {
+    if (disabled || loading) return;
+    commit(!isOpen);
+  }, [disabled, loading, isOpen, commit]);
+
+  // Drag the knob across the track — same commit path as a tap, just driven
+  // by gesture position instead of a fixed flip. Only activates after a
+  // deliberate horizontal move (activeOffsetX) so a plain tap on the knob
+  // still falls through to its own TouchableOpacity untouched.
+  const panGesture = Gesture.Pan()
+    .enabled(!disabled && !loading && travel > 0)
+    .activeOffsetX([-8, 8])
+    .failOffsetY([-16, 16])
+    .onBegin(() => {
+      dragStartProgress.value = progress.value;
+    })
+    .onUpdate((e) => {
+      const next = dragStartProgress.value + e.translationX / travel;
+      progress.value = Math.max(0, Math.min(1, next));
+    })
+    .onEnd(() => {
+      const wantOpen = progress.value > 0.5;
+      progress.value = withTiming(wantOpen ? 1 : 0, { duration: 200 });
+      runOnJS(commit)(wantOpen);
+    })
+    .onTouchesCancelled(() => {
+      progress.value = withTiming(isOpen ? 1 : 0, { duration: 200 });
+    });
 
   const trackStyle = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(progress.value, [0, 1], ['rgba(255,255,255,0.14)', 'rgba(255,255,255,0.95)']),
@@ -76,11 +106,14 @@ function PowerToggle({ isOpen, disabled, loading, onChange, colors }: { isOpen: 
 
   return (
     <View style={styles.toggleOuter} onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}>
+      <GestureDetector gesture={panGesture}>
       <Animated.View style={[styles.toggleTrack, trackStyle]}>
         <Animated.Text style={[styles.toggleLabel, styles.toggleLabelOff, offLabelStyle]}>CLOSED</Animated.Text>
         <Animated.Text style={[styles.toggleLabel, styles.toggleLabelOn, { color: colors.primary }, onLabelStyle]}>YOU'RE LIVE</Animated.Text>
 
-        {/* Only the knob itself is tappable — the track/labels are just display. */}
+        {/* The knob is both draggable (via the track's GestureDetector above)
+            and tappable — a plain tap doesn't move enough to trigger the pan's
+            activeOffsetX, so it falls through to this TouchableOpacity. */}
         <Animated.View style={[styles.toggleThumb, thumbStyle]}>
           <TouchableOpacity
             activeOpacity={0.85}
@@ -89,7 +122,7 @@ function PowerToggle({ isOpen, disabled, loading, onChange, colors }: { isOpen: 
             style={styles.toggleKnobFace}
             accessibilityRole="switch"
             accessibilityState={{ checked: isOpen, disabled: disabled || loading }}
-            accessibilityLabel={isOpen ? 'Shop is live, tap to close' : 'Shop is closed, tap to go live'}
+            accessibilityLabel={isOpen ? 'Shop is live, tap to close or drag' : 'Shop is closed, tap to go live or drag'}
           >
             {loading ? (
               <ActivityIndicator size="small" color={isOpen ? colors.primary : colors.danger} />
@@ -99,6 +132,7 @@ function PowerToggle({ isOpen, disabled, loading, onChange, colors }: { isOpen: 
           </TouchableOpacity>
         </Animated.View>
       </Animated.View>
+      </GestureDetector>
 
       {/* Halo rings live OUTSIDE the track (which clips to its pill shape
           via overflow:hidden for the background color) — same transform as
@@ -307,7 +341,7 @@ export default function OnlineShopDashboard({ navigation }: any) {
 
             <View style={styles.toggleWrap}>
               <PowerToggle isOpen={isOpen} disabled={isSavingConfig} loading={isSavingConfig} onChange={setShopOpen} colors={colors} />
-              <Text style={styles.toggleHint}>{isSavingConfig ? 'Saving…' : isOpen ? 'Tap to close' : 'Tap to go live'}</Text>
+              <Text style={styles.toggleHint}>{isSavingConfig ? 'Saving…' : isOpen ? 'Tap or drag to close' : 'Tap or drag to go live'}</Text>
             </View>
           </MotiView>
         </LinearGradient>
