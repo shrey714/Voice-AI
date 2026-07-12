@@ -47,11 +47,19 @@ export default function CollapsibleFab({ icon, label, extended, onPress, bottom 
     <TouchableOpacity activeOpacity={0.88} onPress={onPress} style={[styles.fabShadow, { bottom }]}>
       <View style={[styles.fab, !glass && { backgroundColor: colors.primary }]}>
         {glass && (
+          // `isInteractive` deliberately omitted (and pointerEvents:'none'
+          // set) — GlassView is a real interactive UIKit responder when
+          // `isInteractive` is true (that's what drives the native
+          // "squish on press" glass feedback), and as an absolute-fill
+          // layer sitting inside this already-tappable TouchableOpacity it
+          // was intercepting the touch before TouchableOpacity's own
+          // onPress ever fired — this is a purely decorative background
+          // layer, not the tap target itself.
           <GlassView
             glassEffectStyle="regular"
             tintColor={colors.primary}
             colorScheme={isDark ? 'dark' : 'light'}
-            isInteractive
+            pointerEvents="none"
             style={StyleSheet.absoluteFillObject}
           />
         )}

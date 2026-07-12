@@ -86,12 +86,26 @@ const LiquidBottomSheet = forwardRef<LiquidBottomSheetRef, LiquidBottomSheetProp
 
     // `Host` defaults to following the OS's system appearance if
     // `colorScheme` isn't set — but this app's dark mode is its own setting
-    // (can be forced on/off independent of the system, see theme/index.tsx),
-    // so without this the native sheet's chrome (background material,
-    // drag indicator, etc.) could render light while the rest of the app is
-    // dark, or vice versa. This is what caused the sheet to show a white
-    // background while the app was in dark mode.
+    // (can be forced on/off independent of the system, see theme/index.tsx).
     const colorScheme = isDark ? 'dark' : 'light';
+
+    // Only mount the native sheet apparatus while actually open — on BOTH
+    // platforms. This used to be Android-only (`if (!isOpen) return null`
+    // was below, after the iOS branch), which meant the iOS `Host` was
+    // *always* mounted as a full-screen `absoluteFillObject` overlay with
+    // `pointerEvents: 'box-none'`, even while the sheet was closed. `Host`
+    // is a custom Fabric-hosted native view (bridging to a UIHostingController),
+    // not a plain RN `View` — its `pointerEvents` translation to native
+    // hit-testing apparently doesn't behave the same way plain RN views do,
+    // and that permanently-mounted invisible overlay was swallowing touches
+    // for the ENTIRE screen underneath it (broke scrolling, broke every
+    // button) on every screen that used a bottom sheet — while screens with
+    // no sheet at all worked perfectly. Unmounting entirely when closed
+    // sidesteps this regardless of the exact native cause, and as a side
+    // effect forces a fresh mount (picking up the current `colorScheme`)
+    // each time the sheet opens, instead of relying on a prop update
+    // reaching an already-mounted native view correctly.
+    if (!isOpen) return null;
 
     if (Platform.OS === 'ios') {
       const detents: PresentationDetent[] = heightFraction ? [{ fraction: heightFraction }] : ['medium', 'large'];
@@ -108,7 +122,6 @@ const LiquidBottomSheet = forwardRef<LiquidBottomSheetRef, LiquidBottomSheetProp
       );
     }
 
-    if (!isOpen) return null;
     return (
       <AndroidHost colorScheme={colorScheme} style={[StyleSheet.absoluteFillObject, { pointerEvents: 'box-none' }]}>
         <ModalBottomSheet

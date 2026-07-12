@@ -231,7 +231,12 @@ function Composer({ colors, s, insets, isDark, t }: { colors: any; s: any; inset
 
   return (
     <View style={[s.composerWrap, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-      <GlassSurface tint={isDark ? 'dark' : 'light'} isInteractive style={s.pill}>
+      {/* isInteractive deliberately omitted — same reason as CollapsibleFab:
+          this glass surface wraps genuinely separate tappable children (mic,
+          text input, send), it isn't the tap target itself, and
+          isInteractive risks the glass layer intercepting touches meant for
+          them. */}
+      <GlassSurface tint={isDark ? 'dark' : 'light'} style={s.pill}>
         <TouchableOpacity
           style={s.micBtn}
           hitSlop={8}
