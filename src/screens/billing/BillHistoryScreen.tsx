@@ -25,6 +25,7 @@ import FadeSlideIn from '../../components/common/FadeSlideIn';
 import DatePickerSheet, { DatePickerSheetRef } from '../../components/common/DatePickerSheet';
 import InlineSearchBar from '../../components/common/InlineSearchBar';
 import LiquidHeaderIconButton from '../../components/common/LiquidHeaderIconButton';
+import { useConfirm } from '../../components/common/ConfirmDialogProvider';
 
 // Converts a number to Indian English words (for invoice)
 function amountInWords(n: number): string {
@@ -55,6 +56,7 @@ export default function BillHistoryScreen() {
   const { colors } = useAppTheme();
   const navigation = useNavigation();
   const { t } = useTranslation();
+  const { confirm } = useConfirm();
   const { bills, returns, products, settings, processReturn } = useAppStore();
   const dataReady = useAppStore(st => st.dataReady);
   const [filter, setFilter] = useState<Filter>('today');
@@ -215,29 +217,24 @@ export default function BillHistoryScreen() {
 
     const refund = parseFloat(returnRefundAmt) || 0;
 
-    Alert.alert(
-      'Confirm Return',
-      `Return ${items.length} item type${items.length > 1 ? 's' : ''}${refund > 0 ? ` · Refund ${settings.currency}${refund.toFixed(2)}` : ''}?\n\nReturned stock will be added back to inventory.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Process Return',
-          style: 'destructive',
-          onPress: async () => {
-            setProcessingReturn(true);
-            try {
-              await processReturn(bill.id, items, refund, returnReason);
-              closeReturnSheet();
-              Alert.alert(t('returnProcessed'), t('stockRestocked'));
-            } catch {
-              Alert.alert(t('error'), t('couldNotProcess'));
-            } finally {
-              setProcessingReturn(false);
-            }
-          },
-        },
-      ]
-    );
+    const ok = await confirm({
+      title: 'Confirm Return',
+      message: `Return ${items.length} item type${items.length > 1 ? 's' : ''}${refund > 0 ? ` · Refund ${settings.currency}${refund.toFixed(2)}` : ''}?\n\nReturned stock will be added back to inventory.`,
+      confirmLabel: 'Process Return',
+      destructive: true,
+    });
+    if (!ok) return;
+
+    setProcessingReturn(true);
+    try {
+      await processReturn(bill.id, items, refund, returnReason);
+      closeReturnSheet();
+      Alert.alert(t('returnProcessed'), t('stockRestocked'));
+    } catch {
+      Alert.alert(t('error'), t('couldNotProcess'));
+    } finally {
+      setProcessingReturn(false);
+    }
   };
 
   const shareOnWhatsApp = (bill: Bill) => {

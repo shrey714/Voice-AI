@@ -23,6 +23,7 @@ import EmptyState from '../../components/common/EmptyState';
 import AppModal from '../../components/common/AppModal';
 import LiquidButton from '../../components/common/LiquidButton';
 import SheetHeader from '../../components/common/SheetHeader';
+import { useConfirm } from '../../components/common/ConfirmDialogProvider';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
 
@@ -31,6 +32,7 @@ const initials = (name: string) => name.trim().split(/\s+/).slice(0, 2).map(w =>
 export default function BillingScreen({ navigation }: any) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
+  const { confirm, confirmActions } = useConfirm();
   const { products, cart, addToCart, removeFromCart, updateCartQuantity, clearCart, checkout, settings, templates, saveTemplate, renameTemplate, deleteTemplate } = useAppStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -105,21 +107,32 @@ export default function BillingScreen({ navigation }: any) {
     };
 
     if (cart.length > 0) {
-      Alert.alert(t('loadTemplate').replace('{name}', template.name), t('whatShouldHappenToCart'), [
-        { text: t('cancel'), style: 'cancel' },
-        { text: t('addToCart'), onPress: () => doLoad(true) },
-        { text: t('replaceCart'), style: 'destructive', onPress: () => doLoad(false) },
-      ]);
+      confirmActions({
+        title: t('loadTemplate').replace('{name}', template.name),
+        message: t('whatShouldHappenToCart'),
+        actions: [
+          { label: t('addToCart'), value: 'add' },
+          { label: t('replaceCart'), value: 'replace', destructive: true },
+        ],
+        cancelLabel: t('cancel'),
+      }).then(choice => {
+        if (choice === 'add') doLoad(true);
+        else if (choice === 'replace') doLoad(false);
+      });
     } else {
       doLoad(false);
     }
   }, [cart, products, clearCart, addToCart]);
 
-  const handleDeleteTemplate = useCallback((id: string, name: string) => {
-    Alert.alert(t('deleteTemplateConfirm').replace('{name}', name), t('permanentlyRemoved'), [
-      { text: t('cancel'), style: 'cancel' },
-      { text: t('delete'), style: 'destructive', onPress: () => deleteTemplate(id) },
-    ]);
+  const handleDeleteTemplate = useCallback(async (id: string, name: string) => {
+    const ok = await confirm({
+      title: t('deleteTemplateConfirm').replace('{name}', name),
+      message: t('permanentlyRemoved'),
+      confirmLabel: t('delete'),
+      cancelLabel: t('cancel'),
+      destructive: true,
+    });
+    if (ok) deleteTemplate(id);
   }, [deleteTemplate]);
 
   const handleSaveTemplate = async () => {
@@ -249,11 +262,14 @@ export default function BillingScreen({ navigation }: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       toast.error(t('notInInventory').replace('{barcode}', barcode));
       // Delay Alert until the full-screen modal has fully closed, otherwise it conflicts on Android
-      setTimeout(() => {
-        Alert.alert(t('addToInventory'), t('noProductWithBarcode').replace('{barcode}', barcode), [
-          { text: t('cancel'), style: 'cancel' },
-          { text: t('create'), onPress: () => navigation.navigate('Inventory', { screen: 'InventoryMain', params: { openAdd: true, prefillBarcode: barcode } }) },
-        ]);
+      setTimeout(async () => {
+        const ok = await confirm({
+          title: t('addToInventory'),
+          message: t('noProductWithBarcode').replace('{barcode}', barcode),
+          confirmLabel: t('create'),
+          cancelLabel: t('cancel'),
+        });
+        if (ok) navigation.navigate('Inventory', { screen: 'InventoryMain', params: { openAdd: true, prefillBarcode: barcode } });
       }, 500);
     }
   };

@@ -11,6 +11,7 @@ import { supabase } from '../lib/supabase';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
 import { useScreenRadius } from '../utils/screenRadius';
+import { useConfirm } from '../components/common/ConfirmDialogProvider';
 
 const LANGUAGES: { code: Language; label: string; native: string }[] = [
   { code: 'en', label: 'English', native: 'English' },
@@ -31,6 +32,7 @@ export default function SettingsScreen({ navigation }: any) {
   const { t } = useTranslation();
   const { colors, themeMode, setThemeMode } = useAppTheme();
   const { settings, updateSettings, resetApp, factoryReset } = useAppStore();
+  const { confirm } = useConfirm();
   const s = makeStyles(colors);
   const radius = useScreenRadius();
   const [erasing, setErasing] = useState(false);
@@ -41,34 +43,36 @@ export default function SettingsScreen({ navigation }: any) {
   // Erase data only clears business records — products, bills, expenses,
   // customers, suppliers. Shop profile (name, phone, UPI, GST) is kept, and
   // the user stays signed in.
-  const handleEraseData = () => {
-    Alert.alert(t('eraseDataConfirmTitle'), t('eraseDataConfirmMsg'), [
-      { text: t('cancel'), style: 'cancel' },
-      {
-        text: t('eraseData'), style: 'destructive', onPress: async () => {
-          setErasing(true);
-          try { await resetApp(); } finally { setErasing(false); }
-        },
-      },
-    ]);
+  const handleEraseData = async () => {
+    const ok = await confirm({
+      title: t('eraseDataConfirmTitle'),
+      message: t('eraseDataConfirmMsg'),
+      confirmLabel: t('eraseData'),
+      cancelLabel: t('cancel'),
+      destructive: true,
+    });
+    if (!ok) return;
+    setErasing(true);
+    try { await resetApp(); } finally { setErasing(false); }
   };
 
   // Logging out is a full factory reset: every table including settings, so
   // onboarding runs again for whoever uses the device next. Online-shop
   // orders live in the cloud and come back on re-login.
-  const handleLogout = () => {
-    Alert.alert(t('logOutConfirmTitle'), t('logOutConfirmMsg'), [
-      { text: t('cancel'), style: 'cancel' },
-      {
-        text: t('logOut'), style: 'destructive', onPress: async () => {
-          setLoggingOut(true);
-          try {
-            await factoryReset();
-            await supabase.auth.signOut();
-          } finally { setLoggingOut(false); }
-        },
-      },
-    ]);
+  const handleLogout = async () => {
+    const ok = await confirm({
+      title: t('logOutConfirmTitle'),
+      message: t('logOutConfirmMsg'),
+      confirmLabel: t('logOut'),
+      cancelLabel: t('cancel'),
+      destructive: true,
+    });
+    if (!ok) return;
+    setLoggingOut(true);
+    try {
+      await factoryReset();
+      await supabase.auth.signOut();
+    } finally { setLoggingOut(false); }
   };
 
   const NavRow = ({ icon, label, sub, onPress, last }: { icon: IoniconsName; label: string; sub: string; onPress: () => void; last?: boolean }) => (

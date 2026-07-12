@@ -19,12 +19,14 @@ import EmptyState from '../components/common/EmptyState';
 import CollapsibleFab, { useFabScroll } from '../components/common/CollapsibleFab';
 import FadeSlideIn from '../components/common/FadeSlideIn';
 import { BUILTIN_EXPENSE_CATEGORIES, CUSTOM_EXPENSE_ICON } from '../constants/options';
+import { useConfirm } from '../components/common/ConfirmDialogProvider';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
 export default function ExpensesScreen() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
+  const { confirm } = useConfirm();
   const { expenses, addExpense, deleteExpense, settings, suppliers } = useAppStore();
   // Built-in categories + the user's custom ones (managed in Manage Lists).
   const CATEGORIES = useMemo<{ key: string; label: string; icon: IoniconsName }[]>(() => [
@@ -60,22 +62,23 @@ export default function ExpensesScreen() {
     closeForm();
   };
 
-  const handleDelete = (expense: Expense) => {
-    if (expense.category === 'supplier') {
-      Alert.alert(
-        t('warningLinkedRecord'),
-        t('deleteLinkedMsg').replace('{title}', expense.title),
-        [
-          { text: t('cancel'), style: 'cancel' },
-          { text: t('deleteAnyway'), style: 'destructive', onPress: () => deleteExpense(expense.id) },
-        ]
-      );
-    } else {
-      Alert.alert(t('deleteExpense'), t('deleteExpenseConfirm').replace('{title}', expense.title), [
-        { text: t('cancel'), style: 'cancel' },
-        { text: t('delete'), style: 'destructive', onPress: () => deleteExpense(expense.id) },
-      ]);
-    }
+  const handleDelete = async (expense: Expense) => {
+    const ok = expense.category === 'supplier'
+      ? await confirm({
+          title: t('warningLinkedRecord'),
+          message: t('deleteLinkedMsg').replace('{title}', expense.title),
+          confirmLabel: t('deleteAnyway'),
+          cancelLabel: t('cancel'),
+          destructive: true,
+        })
+      : await confirm({
+          title: t('deleteExpense'),
+          message: t('deleteExpenseConfirm').replace('{title}', expense.title),
+          confirmLabel: t('delete'),
+          cancelLabel: t('cancel'),
+          destructive: true,
+        });
+    if (ok) deleteExpense(expense.id);
   };
 
   const getCatInfo = (key: string) => CATEGORIES.find(c => c.key === key) || CATEGORIES[4];

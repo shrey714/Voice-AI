@@ -14,6 +14,7 @@ import { StockTakeSession, StockTakeItem } from '../types';
 import { SkeletonList } from '../components/common/Skeleton';
 import { getCompletedStockTakeSessions, getStockTakeItems, deleteAllCompletedStockTakeSessions } from '../db/database';
 import { useTranslation } from '../hooks/useTranslation';
+import { useConfirm } from '../components/common/ConfirmDialogProvider';
 
 function fmtDateTime(ts: number) {
   return new Date(ts).toLocaleDateString('en-IN', {
@@ -31,6 +32,7 @@ function fmtDateShort(ts: number) {
 export default function StockTakeHistoryScreen({ navigation }: any) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
+  const { confirm } = useConfirm();
   const insets = useSafeAreaInsets();
   const [sessions, setSessions] = useState<StockTakeSession[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,22 +42,18 @@ export default function StockTakeHistoryScreen({ navigation }: any) {
 
   const sheetRef = useRef<LiquidBottomSheetRef>(null);
 
-  const handleDeleteAll = useCallback(() => {
-    Alert.alert(
-      t('deleteAllHistory'),
-      `This will permanently delete ${sessions.length} stock take session${sessions.length !== 1 ? 's' : ''} and all their records. This cannot be undone.`,
-      [
-        { text: t('cancel'), style: 'cancel' },
-        {
-          text: t('delete'),
-          style: 'destructive',
-          onPress: async () => {
-            await deleteAllCompletedStockTakeSessions();
-            setSessions([]);
-          },
-        },
-      ]
-    );
+  const handleDeleteAll = useCallback(async () => {
+    const ok = await confirm({
+      title: t('deleteAllHistory'),
+      message: `This will permanently delete ${sessions.length} stock take session${sessions.length !== 1 ? 's' : ''} and all their records. This cannot be undone.`,
+      confirmLabel: t('delete'),
+      cancelLabel: t('cancel'),
+      destructive: true,
+    });
+    if (ok) {
+      await deleteAllCompletedStockTakeSessions();
+      setSessions([]);
+    }
   }, [sessions.length]);
 
   useLayoutEffect(() => {

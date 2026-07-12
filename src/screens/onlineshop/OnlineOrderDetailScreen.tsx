@@ -11,6 +11,7 @@ import { useAppStore } from '../../stores/useAppStore';
 import LiquidButton from '../../components/common/LiquidButton';
 import { OrderStatus } from '../../types/online';
 import { toast } from '../../utils/toast';
+import { useConfirm } from '../../components/common/ConfirmDialogProvider';
 
 const STATUS_COLOR: Record<OrderStatus, string> = {
   pending: '#A98545',
@@ -31,6 +32,7 @@ function formatDateTime(iso: string) {
 export default function OnlineOrderDetailScreen({ route, navigation }: any) {
   const { colors } = useAppTheme();
   const { settings } = useAppStore();
+  const { confirm } = useConfirm();
   const { orders, updateOrderStatus, fetchOrderById } = useOnlineShopStore();
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
@@ -92,23 +94,22 @@ export default function OnlineOrderDetailScreen({ route, navigation }: any) {
       ready: 'Order marked as ready',
       completed: 'Order completed',
     };
-    Alert.alert(labels[action], msg[action], [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: labels[action], style: action === 'rejected' ? 'destructive' : 'default',
-        onPress: async () => {
-          setLoading(true);
-          try {
-            await updateOrderStatus(order.id, action);
-            toast.success(successMsg[action]);
-          } catch (e: any) {
-            toast.error('Could not update order', { description: e?.message ?? 'Check your connection and try again.' });
-          } finally {
-            setLoading(false);
-          }
-        },
-      },
-    ]);
+    const ok = await confirm({
+      title: labels[action],
+      message: msg[action],
+      confirmLabel: labels[action],
+      destructive: action === 'rejected',
+    });
+    if (!ok) return;
+    setLoading(true);
+    try {
+      await updateOrderStatus(order.id, action);
+      toast.success(successMsg[action]);
+    } catch (e: any) {
+      toast.error('Could not update order', { description: e?.message ?? 'Check your connection and try again.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

@@ -8,6 +8,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { backupNow, restoreNow, getBackupMeta } from '../../services/cloudSync';
 import { useAppStore } from '../../stores/useAppStore';
 import { BackupSectionSkeleton } from '../common/Skeleton';
+import { useConfirm } from '../common/ConfirmDialogProvider';
 
 // Pull every loader so a restore refreshes the whole in-memory store at once.
 function reloadAllStores() {
@@ -27,6 +28,7 @@ function formatWhen(iso: string | null): string {
 
 export default function BackupSection({ colors }: { colors: any }) {
   const s = makeStyles(colors);
+  const { confirm } = useConfirm();
   const { session } = useAuth();
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -58,26 +60,22 @@ export default function BackupSection({ colors }: { colors: any }) {
     finally { setBusy(false); setStatus(''); }
   };
 
-  const handleRestore = () => {
-    Alert.alert(
-      'Restore from cloud?',
-      'This will REPLACE the data on this device with your last cloud backup. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Restore', style: 'destructive', onPress: async () => {
-            setBusy(true);
-            try {
-              const ok = await restoreNow(imgProgress('Downloading'));
-              if (!ok) { Alert.alert('Nothing to restore', 'You have no cloud backup yet.'); return; }
-              await reloadAllStores();
-              Alert.alert('Restore complete', 'Your data and photos have been restored.');
-            } catch (e: any) { Alert.alert('Restore failed', e.message); }
-            finally { setBusy(false); setStatus(''); }
-          },
-        },
-      ]
-    );
+  const handleRestore = async () => {
+    const ok = await confirm({
+      title: 'Restore from cloud?',
+      message: 'This will REPLACE the data on this device with your last cloud backup. This cannot be undone.',
+      confirmLabel: 'Restore',
+      destructive: true,
+    });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      const restored = await restoreNow(imgProgress('Downloading'));
+      if (!restored) { Alert.alert('Nothing to restore', 'You have no cloud backup yet.'); return; }
+      await reloadAllStores();
+      Alert.alert('Restore complete', 'Your data and photos have been restored.');
+    } catch (e: any) { Alert.alert('Restore failed', e.message); }
+    finally { setBusy(false); setStatus(''); }
   };
 
   return (

@@ -21,6 +21,7 @@ import EmptyState from '../components/common/EmptyState';
 import CollapsibleFab, { useFabScroll } from '../components/common/CollapsibleFab';
 import FadeSlideIn from '../components/common/FadeSlideIn';
 import { SkeletonList } from '../components/common/Skeleton';
+import { useConfirm } from '../components/common/ConfirmDialogProvider';
 
 // Customers who owe money, largest balance first.
 const sortedDebtors = (customers: Customer[], balances: Record<string, number>): Customer[] =>
@@ -29,6 +30,7 @@ const sortedDebtors = (customers: Customer[], balances: Record<string, number>):
 export default function UdhaarScreen() {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
+  const { confirm, confirmActions } = useConfirm();
   const { settings, bills } = useAppStore();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [balances, setBalances] = useState<Record<string, number>>({});
@@ -110,11 +112,15 @@ export default function UdhaarScreen() {
     addCustomerSheetRef.current?.expand();
   };
 
-  const confirmDeleteCustomer = (customer: Customer) => {
-    Alert.alert(t('deleteCustomer'), t('removeCustomerConfirm').replace('{name}', customer.name), [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => { await db.deleteCustomer(customer.id); closeCustomerDetail(); await loadData(); }},
-    ]);
+  const confirmDeleteCustomer = async (customer: Customer) => {
+    const ok = await confirm({
+      title: t('deleteCustomer'),
+      message: t('removeCustomerConfirm').replace('{name}', customer.name),
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      destructive: true,
+    });
+    if (ok) { await db.deleteCustomer(customer.id); closeCustomerDetail(); await loadData(); }
   };
 
   const addTransaction = async () => {
@@ -204,11 +210,18 @@ export default function UdhaarScreen() {
               <FadeSlideIn index={index}>
                 <TouchableOpacity style={[s.customerCard, { backgroundColor: colors.surface }]}
                   onPress={() => openCustomer(customer)}
-                  onLongPress={() => Alert.alert(customer.name, 'What would you like to do?', [
-                    { text: 'Edit', onPress: () => editCustomer(customer) },
-                    { text: 'Delete', style: 'destructive', onPress: () => confirmDeleteCustomer(customer) },
-                    { text: 'Cancel', style: 'cancel' },
-                  ])}>
+                  onLongPress={() => confirmActions({
+                    title: customer.name,
+                    message: 'What would you like to do?',
+                    actions: [
+                      { label: 'Edit', value: 'edit' },
+                      { label: 'Delete', value: 'delete', destructive: true },
+                    ],
+                    cancelLabel: 'Cancel',
+                  }).then(choice => {
+                    if (choice === 'edit') editCustomer(customer);
+                    else if (choice === 'delete') confirmDeleteCustomer(customer);
+                  })}>
                   <View style={[s.avatar, { backgroundColor: hasBalance ? colors.danger + '15' : colors.success + '15' }]}>
                     <Text style={[s.avatarText, { color: hasBalance ? colors.danger : colors.success }]}>{customer.name[0].toUpperCase()}</Text>
                   </View>

@@ -28,6 +28,7 @@ import { useAppStore } from './src/stores/useAppStore';
 import { useOnlineShopStore } from './src/stores/useOnlineShopStore';
 import { ThemeProvider, useAppTheme } from './src/theme';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
+import { ConfirmDialogProvider } from './src/components/common/ConfirmDialogProvider';
 import { usePushSetup } from './src/hooks/usePushSetup';
 import { fonts } from './src/theme/typography';
 
@@ -82,6 +83,7 @@ function AppLoader() {
 
   return (
     <PaperProvider theme={paperTheme}>
+      <ConfirmDialogProvider>
       {error ? (
         <ErrorScreen message={error} onRetry={handleRetry} />
       ) : !settingsReady || authLoading ? (
@@ -97,6 +99,7 @@ function AppLoader() {
           <AppNavigator />
         </AiProvider>
       )}
+      </ConfirmDialogProvider>
     </PaperProvider>
   );
 }

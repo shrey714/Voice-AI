@@ -9,10 +9,12 @@ import { fonts } from '../theme/typography';
 import { StockTakeItem } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import LiquidButton from '../components/common/LiquidButton';
+import { useConfirm } from '../components/common/ConfirmDialogProvider';
 
 export default function StockTakeReviewScreen({ navigation }: any) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
+  const { confirm } = useConfirm();
   const { stockTakeItems, commitStockTake, cancelStockTake } = useAppStore();
   const [showAll, setShowAll] = useState(false);
   const [committing, setCommitting] = useState(false);
@@ -38,41 +40,37 @@ export default function StockTakeReviewScreen({ navigation }: any) {
 
   const displayItems = showAll ? countedItems : discrepancies;
 
-  const handleCommit = () => {
+  const handleCommit = async () => {
     if (countedItems.length === 0) {
       Alert.alert(t('nothingToCommit'), t('noProductsCountedYet'));
       return;
     }
-    Alert.alert(
-      t('confirmStockUpdate'),
-      `This will update quantities for ${countedItems.length} product${countedItems.length !== 1 ? 's' : ''} to match your counts. ${summary.skipped > 0 ? `${summary.skipped} skipped products will not be changed.` : ''}\n\nThis cannot be undone.`,
-      [
-        { text: t('cancel'), style: 'cancel' },
-        {
-          text: t('confirmAndUpdate'),
-          style: 'destructive',
-          onPress: async () => {
-            setCommitting(true);
-            try {
-              await commitStockTake();
-              navigation.navigate('StockTake');
-              // Show success on the landing screen via a small alert
-              setTimeout(() => {
-                Alert.alert(
-                  t('stockTakeComplete'),
-                  `${summary.counted} products updated.\n${summary.short} short · ${summary.over} over · ${summary.exact} exact${summary.skipped > 0 ? ` · ${summary.skipped} skipped` : ''}`,
-                  [{ text: 'Done' }]
-                );
-              }, 400);
-            } catch {
-              Alert.alert('Error', t('failedToUpdate'));
-            } finally {
-              setCommitting(false);
-            }
-          },
-        },
-      ]
-    );
+    const ok = await confirm({
+      title: t('confirmStockUpdate'),
+      message: `This will update quantities for ${countedItems.length} product${countedItems.length !== 1 ? 's' : ''} to match your counts. ${summary.skipped > 0 ? `${summary.skipped} skipped products will not be changed.` : ''}\n\nThis cannot be undone.`,
+      confirmLabel: t('confirmAndUpdate'),
+      cancelLabel: t('cancel'),
+      destructive: true,
+    });
+    if (!ok) return;
+
+    setCommitting(true);
+    try {
+      await commitStockTake();
+      navigation.navigate('StockTake');
+      // Show success on the landing screen via a small alert
+      setTimeout(() => {
+        Alert.alert(
+          t('stockTakeComplete'),
+          `${summary.counted} products updated.\n${summary.short} short · ${summary.over} over · ${summary.exact} exact${summary.skipped > 0 ? ` · ${summary.skipped} skipped` : ''}`,
+          [{ text: 'Done' }]
+        );
+      }, 400);
+    } catch {
+      Alert.alert('Error', t('failedToUpdate'));
+    } finally {
+      setCommitting(false);
+    }
   };
 
   const renderItem = ({ item, index }: { item: StockTakeItem; index: number }) => {

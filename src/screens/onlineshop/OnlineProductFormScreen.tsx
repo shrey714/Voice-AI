@@ -11,6 +11,7 @@ import { Product } from '../../types';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
 import { toast } from '../../utils/toast';
+import { useConfirm } from '../../components/common/ConfirmDialogProvider';
 
 const emptyForm = { name: '', category: 'General', storePrice: '', onlinePrice: '', quantity: '', unit: 'pcs', imageUrl: '' as string | null, localImageUri: '', isVisible: true };
 
@@ -24,6 +25,7 @@ const emptyForm = { name: '', category: 'General', storePrice: '', onlinePrice: 
 export default function OnlineProductFormScreen({ route, navigation }: any) {
   const { colors } = useAppTheme();
   const { settings } = useAppStore();
+  const { confirmActions } = useConfirm();
   const { createOnlineProduct, updateOnlineProduct, isSavingProduct } = useOnlineShopStore();
 
   const editing: OnlineProduct | null = route?.params?.editing ?? null;
@@ -103,22 +105,22 @@ export default function OnlineProductFormScreen({ route, navigation }: any) {
     }
   };
 
-  const pickImage = () => {
-    Alert.alert('Product photo', 'Choose a source', [
-      {
-        text: 'Take photo', onPress: async () => {
-          const r = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.5 });
-          if (!r.canceled && r.assets[0]) setForm((f) => ({ ...f, localImageUri: r.assets[0].uri, imageUrl: null }));
-        },
-      },
-      {
-        text: 'Gallery', onPress: async () => {
-          const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.5 });
-          if (!r.canceled && r.assets[0]) setForm((f) => ({ ...f, localImageUri: r.assets[0].uri, imageUrl: null }));
-        },
-      },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+  const pickImage = async () => {
+    const choice = await confirmActions({
+      title: 'Product photo',
+      message: 'Choose a source',
+      actions: [
+        { label: 'Take photo', value: 'camera' },
+        { label: 'Gallery', value: 'gallery' },
+      ],
+    });
+    if (choice === 'camera') {
+      const r = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.5 });
+      if (!r.canceled && r.assets[0]) setForm((f) => ({ ...f, localImageUri: r.assets[0].uri, imageUrl: null }));
+    } else if (choice === 'gallery') {
+      const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.5 });
+      if (!r.canceled && r.assets[0]) setForm((f) => ({ ...f, localImageUri: r.assets[0].uri, imageUrl: null }));
+    }
   };
 
   const saveRef = useRef(handleSave);

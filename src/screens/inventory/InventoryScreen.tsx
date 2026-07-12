@@ -19,12 +19,14 @@ import LiquidHeaderMenu from '../../components/common/LiquidHeaderMenu';
 import LiquidButton from '../../components/common/LiquidButton';
 import SheetHeader from '../../components/common/SheetHeader';
 import { useTranslation } from '../../hooks/useTranslation';
+import { useConfirm } from '../../components/common/ConfirmDialogProvider';
 
 
 
 export default function InventoryScreen({ route, navigation }: any) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
+  const { confirm, confirmActions } = useConfirm();
   const { products, deleteProduct, updateProduct, settings } = useAppStore();
   const dataReady = useAppStore(st => st.dataReady);
   const CATEGORIES = ['All', ...(settings.productCategories ?? [])];
@@ -75,11 +77,15 @@ export default function InventoryScreen({ route, navigation }: any) {
     });
   }, [products, search, categoryFilter, sortBy]);
 
-  const handleDelete = (product: Product) => {
-    Alert.alert(t('deleteProduct'), t('deleteProductConfirm').replace('{name}', product.name), [
-      { text: t('cancel'), style: 'cancel' },
-      { text: t('delete'), style: 'destructive', onPress: () => deleteProduct(product.id) },
-    ]);
+  const handleDelete = async (product: Product) => {
+    const ok = await confirm({
+      title: t('deleteProduct'),
+      message: t('deleteProductConfirm').replace('{name}', product.name),
+      confirmLabel: t('delete'),
+      cancelLabel: t('cancel'),
+      destructive: true,
+    });
+    if (ok) deleteProduct(product.id);
   };
 
   const lowStockCount = products.filter(p => p.quantity <= p.lowStockThreshold).length;
@@ -182,11 +188,17 @@ export default function InventoryScreen({ route, navigation }: any) {
       </View>{/* end scrollable area */}
 
       <CollapsibleFab bottom={90} icon="add" label="Add Product" extended={extended} onPress={() => {
-        Alert.alert(t('addStock'), undefined, [
-          { text: t('newProduct'), onPress: () => navigation.navigate('ProductForm', {}) },
-          { text: t('receiveStockGrn'), onPress: () => navigation.navigate('More', { screen: 'PurchaseForm', params: {} }) },
-          { text: t('cancel'), style: 'cancel' },
-        ]);
+        confirmActions({
+          title: t('addStock'),
+          actions: [
+            { label: t('newProduct'), value: 'new' },
+            { label: t('receiveStockGrn'), value: 'grn' },
+          ],
+          cancelLabel: t('cancel'),
+        }).then(choice => {
+          if (choice === 'new') navigation.navigate('ProductForm', {});
+          else if (choice === 'grn') navigation.navigate('More', { screen: 'PurchaseForm', params: {} });
+        });
       }} />
 
       {/* Stock Adjust Sheet */}

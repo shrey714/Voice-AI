@@ -14,6 +14,7 @@ import { fonts } from '../theme/typography';
 import { formatCurrency, sanitizeDecimal, sanitizeInteger } from '../utils/helpers';
 import { Product, PurchaseItem } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
+import { useConfirm } from '../components/common/ConfirmDialogProvider';
 
 interface FormItem extends PurchaseItem {
   originalCostPrice: number;
@@ -28,6 +29,7 @@ const PAYMENT_MODES = [
 export default function PurchaseFormScreen({ route, navigation }: any) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
+  const { confirm } = useConfirm();
   const { products, suppliers, createPurchase, settings } = useAppStore();
 
   const prefillSupplierId: string | undefined = route?.params?.supplierId;
@@ -142,32 +144,21 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
     // Prompt sequentially for each changed item
     const costPriceUpdates: Record<string, number> = {};
 
-    const promptNext = (index: number) => {
+    const promptNext = async (index: number) => {
       if (index >= changed.length) {
         // All prompts answered — proceed to save
         doSave(costPriceUpdates);
         return;
       }
       const item = changed[index];
-      Alert.alert(
-        t('costPriceChanged'),
-        `${item.productName}\nStored cost: ${formatCurrency(item.originalCostPrice, settings.currency)}\nPurchase cost: ${formatCurrency(item.costPrice, settings.currency)}\n\n${t('updateStoredCost')}`,
-        [
-          {
-            text: t('update'),
-            onPress: () => {
-              costPriceUpdates[item.productId] = item.costPrice;
-              promptNext(index + 1);
-            },
-          },
-          {
-            text: t('skip'),
-            style: 'cancel',
-            onPress: () => promptNext(index + 1),
-          },
-        ],
-        { cancelable: false }
-      );
+      const update = await confirm({
+        title: t('costPriceChanged'),
+        message: `${item.productName}\nStored cost: ${formatCurrency(item.originalCostPrice, settings.currency)}\nPurchase cost: ${formatCurrency(item.costPrice, settings.currency)}\n\n${t('updateStoredCost')}`,
+        confirmLabel: t('update'),
+        cancelLabel: t('skip'),
+      });
+      if (update) costPriceUpdates[item.productId] = item.costPrice;
+      promptNext(index + 1);
     };
 
     promptNext(0);

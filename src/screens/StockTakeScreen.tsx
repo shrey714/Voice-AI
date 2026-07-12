@@ -8,6 +8,7 @@ import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
 import { useTranslation } from '../hooks/useTranslation';
 import LiquidButton from '../components/common/LiquidButton';
+import { useConfirm } from '../components/common/ConfirmDialogProvider';
 
 function formatDate(ts: number) {
   return new Date(ts).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -16,6 +17,7 @@ function formatDate(ts: number) {
 export default function StockTakeScreen({ navigation }: any) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
+  const { confirm } = useConfirm();
   const { activeStockTake, stockTakeItems, products, startStockTake, cancelStockTake, settings } = useAppStore();
   const CATEGORIES = ['All', ...(settings.productCategories ?? [])];
   const [scope, setScope] = useState('all');
@@ -44,15 +46,15 @@ export default function StockTakeScreen({ navigation }: any) {
     }
   };
 
-  const handleDiscard = () => {
-    Alert.alert(
-      t('discardStockTake'),
-      t('discardStockTakeMsg'),
-      [
-        { text: t('keepCounting'), style: 'cancel' },
-        { text: t('discard'), style: 'destructive', onPress: cancelStockTake },
-      ]
-    );
+  const handleDiscard = async () => {
+    const ok = await confirm({
+      title: t('discardStockTake'),
+      message: t('discardStockTakeMsg'),
+      confirmLabel: t('discard'),
+      cancelLabel: t('keepCounting'),
+      destructive: true,
+    });
+    if (ok) cancelStockTake();
   };
 
   const s = makeStyles(colors);

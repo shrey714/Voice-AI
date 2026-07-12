@@ -19,6 +19,7 @@ import { formatCurrency } from '../../utils/helpers';
 import { OnlineProduct } from '../../types/online';
 import { Product } from '../../types';
 import { toast } from '../../utils/toast';
+import { useConfirm } from '../../components/common/ConfirmDialogProvider';
 
 /**
  * Online catalog — a fully independent list of listings, fetched straight
@@ -29,6 +30,7 @@ import { toast } from '../../utils/toast';
 export default function OnlineInventoryScreen({ navigation }: any) {
   const { colors } = useAppTheme();
   const { settings } = useAppStore();
+  const { confirm, confirmActions } = useConfirm();
   const { onlineProducts, isLoadingOnlineProducts, fetchOnlineProducts, deleteOnlineProduct } = useOnlineShopStore();
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -71,11 +73,17 @@ export default function OnlineInventoryScreen({ navigation }: any) {
   }, [onlineProducts, search]);
 
   const handleAdd = () => {
-    Alert.alert('Add online product', 'Start from a product you already sell in-store, or create a brand-new online-only listing.', [
-      { text: 'Import from local shop', onPress: () => importSheetRef.current?.expand() },
-      { text: 'Create new product', onPress: () => navigation.navigate('OnlineProductForm', {}) },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    confirmActions({
+      title: 'Add online product',
+      message: 'Start from a product you already sell in-store, or create a brand-new online-only listing.',
+      actions: [
+        { label: 'Import from local shop', value: 'import' },
+        { label: 'Create new product', value: 'create' },
+      ],
+    }).then(choice => {
+      if (choice === 'import') importSheetRef.current?.expand();
+      else if (choice === 'create') navigation.navigate('OnlineProductForm', {});
+    });
   };
 
   const handleImportPick = (product: Product) => {
@@ -83,23 +91,23 @@ export default function OnlineInventoryScreen({ navigation }: any) {
     navigation.navigate('OnlineProductForm', { importFrom: product });
   };
 
-  const handleDelete = (product: OnlineProduct) => {
-    Alert.alert('Remove listing?', `"${product.name}" will be removed from your online shop. This cannot be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove', style: 'destructive', onPress: async () => {
-          setDeletingId(product.id);
-          try {
-            await deleteOnlineProduct(product.id);
-            toast.success('Listing removed');
-          } catch (e: any) {
-            toast.error('Could not remove listing', { description: e?.message });
-          } finally {
-            setDeletingId(null);
-          }
-        },
-      },
-    ]);
+  const handleDelete = async (product: OnlineProduct) => {
+    const ok = await confirm({
+      title: 'Remove listing?',
+      message: `"${product.name}" will be removed from your online shop. This cannot be undone.`,
+      confirmLabel: 'Remove',
+      destructive: true,
+    });
+    if (!ok) return;
+    setDeletingId(product.id);
+    try {
+      await deleteOnlineProduct(product.id);
+      toast.success('Listing removed');
+    } catch (e: any) {
+      toast.error('Could not remove listing', { description: e?.message });
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const visibleCount = onlineProducts.filter((p) => p.isVisible).length;

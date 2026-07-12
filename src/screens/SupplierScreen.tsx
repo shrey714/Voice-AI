@@ -19,6 +19,7 @@ import CollapsibleFab, { useFabScroll } from '../components/common/CollapsibleFa
 import ProductCard from '../components/inventory/ProductCard';
 import InlineSearchBar from '../components/common/InlineSearchBar';
 import LiquidHeaderIconButton from '../components/common/LiquidHeaderIconButton';
+import { useConfirm } from '../components/common/ConfirmDialogProvider';
 
 const PAYMENT_MODES_KEYS = [
   { key: 'cash', tKey: 'cash' as const, icon: 'cash-outline' },
@@ -31,6 +32,7 @@ const emptyForm = { name: '', phone: '', email: '', address: '', notes: '' };
 export default function SupplierScreen() {
   const { colors: c } = useAppTheme();
   const { t } = useTranslation();
+  const { confirm, confirmActions } = useConfirm();
   const { suppliers, products, expenses, supplierLedger, purchases, settings, addSupplier, updateSupplier, deleteSupplier, updateProduct, deleteProduct, recordSupplierPayment } = useAppStore();
   const navigation = useNavigation<any>();
 
@@ -102,15 +104,19 @@ export default function SupplierScreen() {
     closeFormSheet();
   };
 
-  const confirmDeleteSupplier = (supplier: Supplier) => {
+  const confirmDeleteSupplier = async (supplier: Supplier) => {
     const linkedCount = products.filter(p => p.supplierId === supplier.id).length;
     const msg = linkedCount > 0
       ? `Remove ${supplier.name}? ${linkedCount} product${linkedCount > 1 ? 's' : ''} will be unlinked but NOT deleted.`
       : `Remove ${supplier.name}?`;
-    Alert.alert(t('deleteSupplier'), msg, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => { await deleteSupplier(supplier.id); closeDetailSheet(); } },
-    ]);
+    const ok = await confirm({
+      title: t('deleteSupplier'),
+      message: msg,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      destructive: true,
+    });
+    if (ok) { await deleteSupplier(supplier.id); closeDetailSheet(); }
   };
 
   const openPaymentSheet = (supplier: Supplier) => {
@@ -174,15 +180,15 @@ export default function SupplierScreen() {
     setEditingStockId(null);
   };
 
-  const confirmDeleteProduct = (product: Product) => {
-    Alert.alert(
-      t('deleteProduct'),
-      t('deleteProductConfirm').replace('{name}', product.name),
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => deleteProduct(product.id) },
-      ]
-    );
+  const confirmDeleteProduct = async (product: Product) => {
+    const ok = await confirm({
+      title: t('deleteProduct'),
+      message: t('deleteProductConfirm').replace('{name}', product.name),
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      destructive: true,
+    });
+    if (ok) deleteProduct(product.id);
   };
 
   const s = makeStyles(c);
@@ -559,11 +565,17 @@ export default function SupplierScreen() {
                           showMargin={false}
                           onAddStock={() => editingStockId === p.id ? setEditingStockId(null) : startEditStock(p)}
                           onMenu={() =>
-                            Alert.alert(p.name, undefined, [
-                              { text: t('edit') + ' ' + t('product'), onPress: () => handleEditProduct(p) },
-                              { text: t('deleteProduct'), style: 'destructive', onPress: () => confirmDeleteProduct(p) },
-                              { text: t('cancel'), style: 'cancel' },
-                            ])
+                            confirmActions({
+                              title: p.name,
+                              actions: [
+                                { label: t('edit') + ' ' + t('product'), value: 'edit' },
+                                { label: t('deleteProduct'), value: 'delete', destructive: true },
+                              ],
+                              cancelLabel: t('cancel'),
+                            }).then(choice => {
+                              if (choice === 'edit') handleEditProduct(p);
+                              else if (choice === 'delete') confirmDeleteProduct(p);
+                            })
                           }
                         />
 

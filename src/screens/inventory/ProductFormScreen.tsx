@@ -13,12 +13,14 @@ import { identifyProductFromImage, getVisionApiKey } from '../../services/vision
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
 import LiquidTextField from '../../components/common/LiquidTextField';
+import { useConfirm } from '../../components/common/ConfirmDialogProvider';
 
 const GST_RATES = [0, 5, 12, 18, 28]; // government-fixed slabs — not user-editable
 const emptyForm = { name: '', category: 'General', costPrice: '', sellingPrice: '', quantity: '', barcode: '', unit: 'pcs', lowStockThreshold: '5', imageUri: '', supplierId: '', gstRate: 0, hsnCode: '', expiryDay: '', expiryMonth: '', expiryYear: '' };
 
 export default function ProductFormScreen({ route, navigation }: any) {
   const { t } = useTranslation();
+  const { confirm, confirmActions } = useConfirm();
   const { colors } = useAppTheme();
   const { addProduct, updateProduct, settings, products, suppliers } = useAppStore();
 
@@ -138,14 +140,14 @@ export default function ProductFormScreen({ route, navigation }: any) {
 
     // Warn (don't block) when selling below cost — it might be an intentional clearance.
     if (costPrice > 0 && sellingPrice < costPrice) {
-      Alert.alert(
-        t('sellingBelowCost'),
-        `Selling price (${formatCurrency(sellingPrice, settings.currency)}) is below cost (${formatCurrency(costPrice, settings.currency)}). You'll lose money on each sale.`,
-        [
-          { text: t('cancel'), style: 'cancel' },
-          { text: t('saveAnyway'), style: 'destructive', onPress: () => doSave(data) },
-        ]
-      );
+      const ok = await confirm({
+        title: t('sellingBelowCost'),
+        message: `Selling price (${formatCurrency(sellingPrice, settings.currency)}) is below cost (${formatCurrency(costPrice, settings.currency)}). You'll lose money on each sale.`,
+        confirmLabel: t('saveAnyway'),
+        cancelLabel: t('cancel'),
+        destructive: true,
+      });
+      if (ok) doSave(data);
       return;
     }
 
@@ -162,29 +164,33 @@ export default function ProductFormScreen({ route, navigation }: any) {
       if (!result.ok) { Alert.alert('Vision API Error', result.error); return; }
       const { name, category, labels, rawTexts } = result;
       if (!name) { Alert.alert(t('nothingIdentified'), t('tryClearerPhoto')); return; }
-      Alert.alert(t('productIdentified'), `Name: "${name}"\nCategory: ${category}\n\nApply?`, [
-        { text: t('apply'), onPress: () => setForm(f => ({ ...f, name, category })) },
-        { text: t('skip'), style: 'cancel' },
-      ]);
+      const apply = await confirm({
+        title: t('productIdentified'),
+        message: `Name: "${name}"\nCategory: ${category}\n\nApply?`,
+        confirmLabel: t('apply'),
+        cancelLabel: t('skip'),
+      });
+      if (apply) setForm(f => ({ ...f, name, category }));
     } finally { setVisionLoading(false); }
   };
 
-  const pickImage = () => {
-    Alert.alert(t('productPhoto'), t('chooseSource'), [
-      {
-        text: t('takePhoto'), onPress: async () => {
-          const r = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.5 });
-          if (!r.canceled && r.assets[0]) await handleImagePicked(r.assets[0].uri);
-        }
-      },
-      {
-        text: t('galleryLabel'), onPress: async () => {
-          const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.5 });
-          if (!r.canceled && r.assets[0]) await handleImagePicked(r.assets[0].uri);
-        }
-      },
-      { text: t('cancel'), style: 'cancel' },
-    ]);
+  const pickImage = async () => {
+    const choice = await confirmActions({
+      title: t('productPhoto'),
+      message: t('chooseSource'),
+      actions: [
+        { label: t('takePhoto'), value: 'camera' },
+        { label: t('galleryLabel'), value: 'gallery' },
+      ],
+      cancelLabel: t('cancel'),
+    });
+    if (choice === 'camera') {
+      const r = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.5 });
+      if (!r.canceled && r.assets[0]) await handleImagePicked(r.assets[0].uri);
+    } else if (choice === 'gallery') {
+      const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.5 });
+      if (!r.canceled && r.assets[0]) await handleImagePicked(r.assets[0].uri);
+    }
   };
 
   // Render the Save action in the shared navigator header (AppHeader).

@@ -7,10 +7,12 @@ import BackupSection from '../components/settings/BackupSection';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
 import { useTranslation } from '../hooks/useTranslation';
+import { useConfirm } from '../components/common/ConfirmDialogProvider';
 
 export default function BackupRestoreScreen() {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
+  const { confirm } = useConfirm();
   const [backupWorking, setBackupWorking] = useState(false);
   const s = makeStyles(colors);
 
@@ -45,17 +47,19 @@ export default function BackupRestoreScreen() {
             title={t('importFromFile')}
             icon="square.and.arrow.up"
             onPress={async () => {
-              Alert.alert(t('importBackup'), t('importBackupConfirm'), [
-                { text: t('cancel'), style: 'cancel' },
-                { text: t('importWord'), onPress: async () => {
-                  setBackupWorking(true);
-                  try {
-                    const result = await importBackup();
-                    if (result) Alert.alert(t('importComplete'), `Products: ${result.products}\nBills: ${result.bills}\nExpenses: ${result.expenses}\nCustomers: ${result.customers}\nSuppliers: ${result.suppliers}`);
-                  } catch (e: any) { Alert.alert('Error', e.message || 'Import failed'); }
-                  finally { setBackupWorking(false); }
-                }},
-              ]);
+              const ok = await confirm({
+                title: t('importBackup'),
+                message: t('importBackupConfirm'),
+                confirmLabel: t('importWord'),
+                cancelLabel: t('cancel'),
+              });
+              if (!ok) return;
+              setBackupWorking(true);
+              try {
+                const result = await importBackup();
+                if (result) Alert.alert(t('importComplete'), `Products: ${result.products}\nBills: ${result.bills}\nExpenses: ${result.expenses}\nCustomers: ${result.customers}\nSuppliers: ${result.suppliers}`);
+              } catch (e: any) { Alert.alert('Error', e.message || 'Import failed'); }
+              finally { setBackupWorking(false); }
             }}
             disabled={backupWorking}
             variant="glass"
