@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
-import { Alert, Platform, View } from 'react-native';
+import { Alert, Platform, StyleSheet, View } from 'react-native';
 import { Host, ConfirmationDialog, Button as SwiftUIButton, Text as SwiftUIText } from '@expo/ui/swift-ui';
 import { useAppTheme } from '../../theme';
 
@@ -91,14 +91,18 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
     <ConfirmContext.Provider value={{ confirm, confirmActions }}>
       {children}
       {Platform.OS === 'ios' && (
-        <Host style={{ width: 0, height: 0 }} colorScheme={isDark ? 'dark' : 'light'}>
+        // Full-screen, touch-transparent when idle — a zero-size anchor here
+        // collapses to the screen's (0,0) corner and SwiftUI presents the
+        // confirmationDialog pinned to that corner instead of centered/full-width.
+        <View style={StyleSheet.absoluteFillObject} pointerEvents={pending ? 'auto' : 'none'}>
+        <Host style={StyleSheet.absoluteFillObject} colorScheme={isDark ? 'dark' : 'light'}>
           <ConfirmationDialog
             title={pending?.options.title ?? ''}
             isPresented={!!pending}
             onIsPresentedChange={handleIsPresentedChange}
           >
             <ConfirmationDialog.Trigger>
-              <View style={{ width: 0, height: 0 }} />
+              <View style={StyleSheet.absoluteFillObject} pointerEvents="none" />
             </ConfirmationDialog.Trigger>
             <ConfirmationDialog.Actions>
               {pending?.kind === 'confirm' && (
@@ -140,6 +144,7 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
             ) : null}
           </ConfirmationDialog>
         </Host>
+        </View>
       )}
     </ConfirmContext.Provider>
   );
