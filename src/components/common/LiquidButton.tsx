@@ -4,7 +4,7 @@ import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { type SFSymbol } from 'sf-symbols-typescript';
 import { Host, Button as SwiftUIButton } from '@expo/ui/swift-ui';
-import { buttonStyle, tint, disabled as disabledMod, frame, cornerRadius } from '@expo/ui/swift-ui/modifiers';
+import { buttonStyle, tint, disabled as disabledMod, frame, cornerRadius, background, shapes } from '@expo/ui/swift-ui/modifiers';
 import PressableScale from './PressableScale';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
@@ -108,9 +108,22 @@ export default function LiquidButton({
             systemImage={loading ? undefined : icon}
             onPress={onPress}
             modifiers={[
+              // `frame` first, same reasoning as LiquidTextField: modifiers
+              // apply to the view's size at that point, so anything sizing
+              // or painting the box needs the concrete pixel size locked in
+              // before it, not after.
+              ...(fullWidth ? [frame({ width: measuredWidth, height })] : [frame({ height })]),
+              // `glass` (unfilled/secondary) buttons render as a hairline
+              // outline with no real fill — next to invisible stacked on an
+              // already-transparent `LiquidBottomSheet`, which is why
+              // secondary actions (Cancel, etc.) were showing up as bare
+              // text with no visible button bounds at all. Backing them
+              // with the same dimmed `surfaceHigh` tone used for text
+              // fields gives them a real, visible boundary without looking
+              // like a solid opaque button (that's still `glassProminent`).
+              ...(variant === 'glass' ? [background(colors.surfaceHigh + 'CC', shapes.roundedRectangle({ cornerRadius: height / 2 }))] : []),
               buttonStyle(swiftUIStyle),
               ...(tintColor ? [tint(tintColor)] : []),
-              ...(fullWidth ? [frame({ width: measuredWidth, height })] : [frame({ height })]),
               cornerRadius(height / 2),
               disabledMod(isDisabled),
             ]}

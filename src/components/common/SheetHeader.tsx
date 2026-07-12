@@ -31,15 +31,19 @@ export default function SheetHeader({
   const { colors } = useAppTheme();
   return (
     <View style={[styles.header, { borderBottomColor: colors.border }]}>
-      <View style={{ flex: 1, marginRight: 12 }}>
+      <View style={{ flex: 1, marginRight: 16 }}>
         <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>{title}</Text>
         {subtitle ? (
           <Text style={[styles.subtitle, { color: colors.textMuted }]} numberOfLines={1}>{subtitle}</Text>
         ) : null}
       </View>
       {onClose && (
-        <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-          <Ionicons name="close" size={22} color={colors.textSub} />
+        <TouchableOpacity
+          onPress={onClose}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          style={[styles.closeBtn, { backgroundColor: colors.surfaceHigh }]}
+        >
+          <Ionicons name="close" size={18} color={colors.textSub} />
         </TouchableOpacity>
       )}
     </View>
@@ -49,13 +53,24 @@ export default function SheetHeader({
 const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
+    // The close button sits center-aligned against the *title* line, not
+    // the whole (title + subtitle) block — `flex-start` + a small top
+    // offset instead of `center` keeps it level with the title even when a
+    // subtitle is present, rather than drifting to the vertical middle of
+    // both lines.
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: SHEET_PADDING,
-    paddingVertical: 14,
+    // Extra top padding gives the header real room under the drag handle
+    // instead of the title crowding right up against it, and the taller
+    // bottom padding + border reads as a deliberate divider rather than a
+    // cramped one-line strip.
+    paddingTop: 20,
+    paddingBottom: 18,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    marginBottom: 14,
+    marginBottom: 16,
   },
-  title: { fontFamily: fonts.extraBold, fontSize: 17 },
-  subtitle: { fontFamily: fonts.medium, fontSize: 12, marginTop: 2 },
+  title: { fontFamily: fonts.extraBold, fontSize: 19 },
+  subtitle: { fontFamily: fonts.medium, fontSize: 13, marginTop: 3 },
+  closeBtn: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
 });

@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { Platform, TextInput, StyleSheet } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Platform, TextInput, View, StyleSheet, type LayoutChangeEvent } from 'react-native';
 import { Host, TextField as SwiftUITextField, type TextFieldRef } from '@expo/ui/swift-ui';
 import { glassEffect, textFieldStyle, padding, keyboardType as keyboardTypeMod, frame, lineLimit, background, shapes } from '@expo/ui/swift-ui/modifiers';
 import { useAppTheme } from '../../theme';
@@ -49,15 +49,47 @@ export default function LiquidTextField({
   useEffect(() => {
     if (Platform.OS === 'ios' && value !== lastEmitted.current) {
       lastEmitted.current = value;
-      ref.current?.setText(value);
+      // Deferred + caught: a common case is a parent hydrating this field's
+      // `value` from async-loaded data (e.g. opening "Edit Product") right
+      // after this field first mounts — the JS ref is already attached, but
+      // the underlying Fabric native view hasn't finished its first commit
+      // yet, so calling `setText` immediately throws "Unable to find the
+      // 'TextFieldView' view with tag" as an unhandled promise rejection
+      // (`setText` returns a Promise). Pushing the call to the next tick
+      // gives that commit time to land; the `.catch` is a last-resort
+      // safety net for any other timing edge (e.g. the field having
+      // unmounted again by the time the tick fires) so it never surfaces as
+      // an uncaught crash either way.
+      setTimeout(() => { ref.current?.setText(value).catch(() => {}); }, 0);
     }
   }, [value]);
 
+  const [measuredWidth, setMeasuredWidth] = useState(0);
+  const onLayout = (e: LayoutChangeEvent) => {
+    const w = e.nativeEvent.layout.width;
+    if (w > 0 && w !== measuredWidth) setMeasuredWidth(w);
+  };
+
   if (Platform.OS === 'ios') {
+    const fieldHeight = multiline ? Math.max(height, 80) : height;
+
+    // Reserve layout space immediately so nothing jumps once the real width
+    // is measured on the first layout pass — same pattern LiquidButton uses
+    // for the same reason (SwiftUI's `frame` needs a concrete pixel width,
+    // not `maxWidth: Infinity`, which doesn't survive the JSON bridge).
+    if (measuredWidth === 0) {
+      return <View style={[{ height: fieldHeight, width: '100%' }, style]} onLayout={onLayout} />;
+    }
+
     return (
-      // colorScheme: this app's dark mode is its own setting, independent
-      // of the OS's — Host defaults to following the system otherwise.
-      <Host colorScheme={isDark ? 'dark' : 'light'} style={[{ height: multiline ? Math.max(height, 80) : height, width: '100%' }, style]}>
+      // onLayout lives on this plain wrapping View, not `Host` — `Host` is a
+      // custom Fabric-hosted view (see LiquidButton/LiquidBottomSheet for
+      // the same established gotcha) and its RN prop passthrough doesn't
+      // reliably behave like a plain View's.
+      <View style={[{ height: fieldHeight, width: '100%' }, style]} onLayout={onLayout}>
+      {/* colorScheme: this app's dark mode is its own setting, independent
+          of the OS's — Host defaults to following the system otherwise. */}
+      <Host colorScheme={isDark ? 'dark' : 'light'} style={{ height: fieldHeight, width: measuredWidth }}>
         <SwiftUITextField
           ref={ref}
           defaultValue={value}
@@ -66,6 +98,16 @@ export default function LiquidTextField({
           axis={multiline ? 'vertical' : 'horizontal'}
           onValueChange={(v) => { lastEmitted.current = v; onChangeText(v); }}
           modifiers={[
+            // `frame` MUST come before `background`/`glassEffect` — SwiftUI
+            // modifiers apply to the view's current size at the point
+            // they're applied, so a `background` before `frame` only paints
+            // the field's unconstrained intrinsic (text-hugging) size, not
+            // the full box — which is exactly why fields were rendering as
+            // a barely-visible thin line instead of a proper input box.
+            // Giving it a concrete measured `width` (not `maxWidth`, see
+            // above) plus `height` first means everything layered after
+            // actually fills the real box.
+            frame({ width: measuredWidth, height: fieldHeight }),
             // A pure `glassEffect` here reads as nearly invisible against an
             // already-transparent `LiquidBottomSheet` — there's no longer a
             // solid surface behind it to contrast against, so the field's
@@ -78,11 +120,12 @@ export default function LiquidTextField({
             glassEffect({ glass: { variant: 'regular' }, shape: 'roundedRectangle', cornerRadius: 12 }),
             textFieldStyle('plain'),
             padding({ horizontal: 14, vertical: multiline ? 10 : 0 }),
-            ...(multiline ? [lineLimit({ min: 3, max: 8 })] : [frame({ height })]),
+            ...(multiline ? [lineLimit({ min: 3, max: 8 })] : []),
             keyboardTypeMod(keyboardType),
           ]}
         />
       </Host>
+      </View>
     );
   }
 

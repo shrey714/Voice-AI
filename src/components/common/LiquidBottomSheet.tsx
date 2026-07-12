@@ -58,29 +58,52 @@ export interface LiquidBottomSheetProps {
 const LiquidBottomSheet = forwardRef<LiquidBottomSheetRef, LiquidBottomSheetProps>(
   ({ children, onDismiss, heightFraction }, ref) => {
     const { colors, isDark } = useAppTheme();
-    const [isOpen, setIsOpen] = useState(false);
+    // `mounted` gates whether the native Host is in the React tree at all
+    // (kept false whenever fully closed — see the touch-blocking comment
+    // below). `presented` is the value actually bound to the native sheet's
+    // `isPresented`/visibility — it's what drives the slide-down close
+    // animation. These used to be the same single `isOpen` flag, which
+    // meant calling `close()`/`dismiss()` set it straight to `false` and
+    // *instantly* unmounted the Host mid-animation instead of letting the
+    // native sheet slide out first — that's what was showing as a blank/
+    // empty sheet flash every time a Cancel/X/Close button was tapped
+    // (dragging the sheet down or tapping outside it never hit this path,
+    // since those already went through the animation-complete callback
+    // below first). Now `close()`/`dismiss()` only flip `presented` to
+    // false and let the real native animation run; `mounted` only turns
+    // off once that animation genuinely finishes.
+    const [mounted, setMounted] = useState(false);
+    const [presented, setPresented] = useState(false);
     const androidRef = useRef<ModalBottomSheetRef>(null);
 
+    const open = useCallback(() => {
+      setMounted(true);
+      setPresented(true);
+    }, []);
+
+    const requestClose = useCallback(() => {
+      if (Platform.OS === 'android') androidRef.current?.hide();
+      setPresented(false);
+    }, []);
+
     useImperativeHandle(ref, () => ({
-      expand: () => setIsOpen(true),
-      present: () => setIsOpen(true),
-      close: () => {
-        if (Platform.OS === 'android') androidRef.current?.hide();
-        setIsOpen(false);
-      },
-      dismiss: () => {
-        if (Platform.OS === 'android') androidRef.current?.hide();
-        setIsOpen(false);
-      },
+      expand: open,
+      present: open,
+      close: requestClose,
+      dismiss: requestClose,
     }));
 
-    const handleIOSPresentedChange = useCallback((presented: boolean) => {
-      setIsOpen(presented);
-      if (!presented) onDismiss?.();
+    const handleIOSPresentedChange = useCallback((isPresented: boolean) => {
+      setPresented(isPresented);
+      if (!isPresented) {
+        setMounted(false);
+        onDismiss?.();
+      }
     }, [onDismiss]);
 
     const handleAndroidDismissRequest = useCallback(() => {
-      setIsOpen(false);
+      setPresented(false);
+      setMounted(false);
       onDismiss?.();
     }, [onDismiss]);
 
@@ -89,29 +112,32 @@ const LiquidBottomSheet = forwardRef<LiquidBottomSheetRef, LiquidBottomSheetProp
     // (can be forced on/off independent of the system, see theme/index.tsx).
     const colorScheme = isDark ? 'dark' : 'light';
 
-    // Only mount the native sheet apparatus while actually open — on BOTH
-    // platforms. This used to be Android-only (`if (!isOpen) return null`
-    // was below, after the iOS branch), which meant the iOS `Host` was
-    // *always* mounted as a full-screen `absoluteFillObject` overlay with
-    // `pointerEvents: 'box-none'`, even while the sheet was closed. `Host`
-    // is a custom Fabric-hosted native view (bridging to a UIHostingController),
-    // not a plain RN `View` — its `pointerEvents` translation to native
-    // hit-testing apparently doesn't behave the same way plain RN views do,
-    // and that permanently-mounted invisible overlay was swallowing touches
-    // for the ENTIRE screen underneath it (broke scrolling, broke every
-    // button) on every screen that used a bottom sheet — while screens with
-    // no sheet at all worked perfectly. Unmounting entirely when closed
-    // sidesteps this regardless of the exact native cause, and as a side
-    // effect forces a fresh mount (picking up the current `colorScheme`)
-    // each time the sheet opens, instead of relying on a prop update
-    // reaching an already-mounted native view correctly.
-    if (!isOpen) return null;
+    // Only mount the native sheet apparatus while actually open (i.e. not
+    // fully closed) — on BOTH platforms. This used to be Android-only
+    // (`if (!isOpen) return null` was below, after the iOS branch), which
+    // meant the iOS `Host` was *always* mounted as a full-screen
+    // `absoluteFillObject` overlay with `pointerEvents: 'box-none'`, even
+    // while the sheet was closed. `Host` is a custom Fabric-hosted native
+    // view (bridging to a UIHostingController), not a plain RN `View` — its
+    // `pointerEvents` translation to native hit-testing apparently doesn't
+    // behave the same way plain RN views do, and that permanently-mounted
+    // invisible overlay was swallowing touches for the ENTIRE screen
+    // underneath it (broke scrolling, broke every button) on every screen
+    // that used a bottom sheet — while screens with no sheet at all worked
+    // perfectly. Unmounting once genuinely closed sidesteps this regardless
+    // of the exact native cause, and as a side effect forces a fresh mount
+    // (picking up the current `colorScheme`) each time the sheet opens,
+    // instead of relying on a prop update reaching an already-mounted
+    // native view correctly. Gating on `mounted` (not `presented`) is what
+    // keeps the Host alive through the close *animation* — see the comment
+    // on those two state variables above.
+    if (!mounted) return null;
 
     if (Platform.OS === 'ios') {
       const detents: PresentationDetent[] = heightFraction ? [{ fraction: heightFraction }] : ['medium', 'large'];
       return (
         <IOSHost colorScheme={colorScheme} style={[StyleSheet.absoluteFillObject, { pointerEvents: 'box-none' }]}>
-          <IOSBottomSheet isPresented={isOpen} onIsPresentedChange={handleIOSPresentedChange} fitToContents={!heightFraction}>
+          <IOSBottomSheet isPresented={presented} onIsPresentedChange={handleIOSPresentedChange} fitToContents={!heightFraction}>
             {/* No explicit `background()` here on purpose. The earlier fix
                 painted a solid theme color over this group to work around
                 dark mode not reaching the sheet's system-drawn chrome — but

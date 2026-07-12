@@ -99,7 +99,7 @@ export default function StockTakeScreen({ navigation }: any) {
                 icon="play.fill"
                 onPress={() => navigation.navigate('StockTakeCount')}
                 variant="glassProminent"
-                style={{ flex: 2 }}
+                style={{ flex: 1 }}
               />
               <LiquidButton
                 title={t('discard')}

@@ -619,7 +619,7 @@ export default function BillingScreen({ navigation }: any) {
               onPress={handleCheckout}
               loading={processing}
               variant="glassProminent"
-              style={{ flex: 2 }}
+              style={{ flex: 1 }}
             />
           </View>
         </ScrollView>

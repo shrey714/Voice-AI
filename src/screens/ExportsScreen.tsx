@@ -12,6 +12,7 @@ import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
 import { useTranslation } from '../hooks/useTranslation';
 import LiquidButton from '../components/common/LiquidButton';
+import LiquidTabs from '../components/common/LiquidTabs';
 import { formatCurrency, formatDate, startOfDay, endOfDay, startOfWeek, startOfMonth } from '../utils/helpers';
 import { Bill, Expense, Product } from '../types';
 
@@ -315,18 +316,11 @@ export default function ExportsScreen() {
 
       {/* Report type tabs */}
       <View style={[s.searchRow, {backgroundColor: colors.surface}]}>
-        <View style={[s.tabRow, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
-          {REPORT_TYPES.map(rt => (
-            <TouchableOpacity
-              key={rt.key}
-              style={[s.tabBtn, report === rt.key && { backgroundColor: colors.primary }]}
-              onPress={() => setReport(rt.key)}
-            >
-              <Ionicons name={rt.icon} size={15} color={report === rt.key ? '#fff' : colors.textMuted} />
-              <Text style={[s.tabBtnText, { color: report === rt.key ? '#fff' : colors.textSub }]}>{rt.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <LiquidTabs
+          tabs={REPORT_TYPES.map(rt => ({ key: rt.key, label: rt.label, icon: rt.icon }))}
+          selected={report}
+          onSelect={(key) => setReport(key as ReportType)}
+        />
       </View>
 
       {/* Period chips */}
@@ -488,8 +482,5 @@ const makeStyles = (c: any) => StyleSheet.create({
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
   chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5 },
   chipText: { fontFamily: fonts.bold, fontSize: 13 },
-  tabRow: { flexDirection: 'row', borderRadius: 10, padding: 6, borderWidth: 1, borderColor: c.border },
-  tabBtn: { flex: 1, padding: 8, borderRadius: 6, alignItems: 'center', flexDirection: 'row', justifyContent:'center', gap: 10 },
-  tabBtnText: { fontFamily: fonts.bold, fontSize: 13 },
   exportRow: { flexDirection: 'row', gap: 12 },
 });

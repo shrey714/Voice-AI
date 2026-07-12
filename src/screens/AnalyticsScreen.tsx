@@ -10,6 +10,7 @@ import { formatCurrency, startOfDay, startOfWeek, startOfMonth } from '../utils/
 import { computeSalesStats, makeCostOf, returnGstImpact, salesHeat } from '../utils/stats';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
+import LiquidTabs from '../components/common/LiquidTabs';
 
 const { width } = Dimensions.get('window');
 type Period = 'daily' | 'weekly' | 'monthly';
@@ -115,15 +116,11 @@ export default function AnalyticsScreen() {
 
       {/* Period filter */}
     <View style={[s.searchRow, {backgroundColor: colors.surface }]}>
-      <View style={[s.periodRow, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
-        {(['daily', 'weekly', 'monthly'] as Period[]).map(f => (
-          <TouchableOpacity key={f} style={[s.periodBtn, period === f && { backgroundColor: colors.primary }]} onPress={() => setPeriod(f)}>
-            <Text style={[s.periodBtnText, { color: period === f ? '#fff' : colors.textSub }]}>
-              {t(f)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      <LiquidTabs
+        tabs={(['daily', 'weekly', 'monthly'] as Period[]).map(f => ({ key: f, label: t(f) }))}
+        selected={period}
+        onSelect={(key) => setPeriod(key as Period)}
+      />
     </View>
 
       
@@ -361,11 +358,6 @@ export default function AnalyticsScreen() {
 }
 
 const makeStyles = (c: any) => StyleSheet.create({
-  // Period selector — cleaner, better spaced
-  periodRow: { flexDirection: 'row', borderRadius: 10, padding: 6, borderWidth: 1, borderColor: c.border },
-  periodBtn: { flex: 1, padding: 8, borderRadius: 6, alignItems: 'center' },
-  periodBtnText: { fontFamily: fonts.bold, fontSize: 13 },
-
   // period filter
   searchRow: { flexDirection: 'row', gap: 10, padding: 8.5, alignItems: 'center', borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
 

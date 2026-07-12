@@ -7,6 +7,7 @@ import LiquidBottomSheet, { LiquidBottomSheetRef } from '../components/common/Li
 import LiquidTextField from '../components/common/LiquidTextField';
 import LiquidButton from '../components/common/LiquidButton';
 import SheetHeader from '../components/common/SheetHeader';
+import LiquidTabs from '../components/common/LiquidTabs';
 import { useAppStore } from '../stores/useAppStore';
 import { useTranslation } from '../hooks/useTranslation';
 import { formatCurrency, formatDate, formatTime, generateId, sanitizeDecimal } from '../utils/helpers';
@@ -298,23 +299,15 @@ export default function UdhaarScreen() {
               </View>
 
               {/* Tab switcher */}
-              <View style={[s.tabRow, { borderBottomColor: colors.border }]}>
-                {(['ledger', 'bills'] as const).map(tab => (
-                  <TouchableOpacity
-                    key={tab}
-                    style={[s.tab, detailTab === tab && { borderBottomColor: colors.primary }]}
-                    onPress={() => setDetailTab(tab)}
-                  >
-                    <Ionicons
-                      name={tab === 'ledger' ? 'book-outline' : 'receipt-outline'}
-                      size={13}
-                      color={detailTab === tab ? colors.primary : colors.textMuted}
-                    />
-                    <Text style={[s.tabText, { color: detailTab === tab ? colors.primary : colors.textMuted }]}>
-                      {tab === 'ledger' ? t('ledger') : `${t('purchaseHistory')}${customerBills.length > 0 ? ` (${customerBills.length})` : ''}`}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+              <View style={{ marginBottom: 12 }}>
+                <LiquidTabs
+                  tabs={[
+                    { key: 'ledger', label: t('ledger'), icon: 'book-outline' },
+                    { key: 'bills', label: `${t('purchaseHistory')}${customerBills.length > 0 ? ` (${customerBills.length})` : ''}`, icon: 'receipt-outline' },
+                  ]}
+                  selected={detailTab}
+                  onSelect={(key) => setDetailTab(key as 'ledger' | 'bills')}
+                />
               </View>
 
               {detailTab === 'ledger' ? (
@@ -511,9 +504,6 @@ const makeStyles = (c: any) => StyleSheet.create({
   txAmt: { fontFamily: fonts.extraBold, fontSize: 16, marginLeft: 8 },
   detailActions: { flexDirection: 'row', gap: 10, marginTop: 16, paddingBottom: 20 },
   detailActionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 13, borderRadius: 14, gap: 6 },
-  tabRow: { flexDirection: 'row', borderBottomWidth: StyleSheet.hairlineWidth, marginBottom: 12 },
-  tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 10, borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  tabText: { fontFamily: fonts.bold, fontSize: 13 },
   billRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, gap: 10 },
   billIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   modePill: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
