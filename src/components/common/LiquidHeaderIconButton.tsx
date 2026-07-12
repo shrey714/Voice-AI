@@ -33,13 +33,15 @@ export default function LiquidHeaderIconButton({
   /** Small dot/count badge in the top-right corner. */
   badge?: React.ReactNode;
 }) {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const tintColor = color ?? colors.primary;
 
   if (Platform.OS === 'ios') {
     return (
       <View style={{ width: SIZE, height: SIZE }}>
-        <Host style={{ width: SIZE, height: SIZE }}>
+        {/* colorScheme: this app's dark mode is its own setting, independent
+            of the OS's — Host defaults to following the system otherwise. */}
+        <Host colorScheme={isDark ? 'dark' : 'light'} style={{ width: SIZE, height: SIZE }}>
           <SwiftUIButton
             onPress={onPress}
             modifiers={[buttonStyle('glass'), tint(tintColor), frame({ width: SIZE, height: SIZE }), cornerRadius(SIZE / 2)]}

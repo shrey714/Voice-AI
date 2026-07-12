@@ -57,7 +57,7 @@ export interface LiquidBottomSheetProps {
  */
 const LiquidBottomSheet = forwardRef<LiquidBottomSheetRef, LiquidBottomSheetProps>(
   ({ children, onDismiss, heightFraction }, ref) => {
-    const { colors } = useAppTheme();
+    const { colors, isDark } = useAppTheme();
     const [isOpen, setIsOpen] = useState(false);
     const androidRef = useRef<ModalBottomSheetRef>(null);
 
@@ -84,10 +84,19 @@ const LiquidBottomSheet = forwardRef<LiquidBottomSheetRef, LiquidBottomSheetProp
       onDismiss?.();
     }, [onDismiss]);
 
+    // `Host` defaults to following the OS's system appearance if
+    // `colorScheme` isn't set — but this app's dark mode is its own setting
+    // (can be forced on/off independent of the system, see theme/index.tsx),
+    // so without this the native sheet's chrome (background material,
+    // drag indicator, etc.) could render light while the rest of the app is
+    // dark, or vice versa. This is what caused the sheet to show a white
+    // background while the app was in dark mode.
+    const colorScheme = isDark ? 'dark' : 'light';
+
     if (Platform.OS === 'ios') {
       const detents: PresentationDetent[] = heightFraction ? [{ fraction: heightFraction }] : ['medium', 'large'];
       return (
-        <IOSHost style={[StyleSheet.absoluteFillObject, { pointerEvents: 'box-none' }]}>
+        <IOSHost colorScheme={colorScheme} style={[StyleSheet.absoluteFillObject, { pointerEvents: 'box-none' }]}>
           <IOSBottomSheet isPresented={isOpen} onIsPresentedChange={handleIOSPresentedChange} fitToContents={!heightFraction}>
             <IOSGroup modifiers={[presentationDetents(detents), presentationDragIndicator('visible')]}>
               <IOSRNHostView matchContents>
@@ -101,7 +110,7 @@ const LiquidBottomSheet = forwardRef<LiquidBottomSheetRef, LiquidBottomSheetProp
 
     if (!isOpen) return null;
     return (
-      <AndroidHost style={[StyleSheet.absoluteFillObject, { pointerEvents: 'box-none' }]}>
+      <AndroidHost colorScheme={colorScheme} style={[StyleSheet.absoluteFillObject, { pointerEvents: 'box-none' }]}>
         <ModalBottomSheet
           ref={androidRef}
           onDismissRequest={handleAndroidDismissRequest}

@@ -31,8 +31,19 @@ export function useOrderRealtime(shopId: string | null) {
   useEffect(() => {
     if (!shopId) return;
 
+    // supabase-js keeps an internal registry of channels keyed by topic
+    // name — `removeChannel()` (the cleanup below) sends an async
+    // unsubscribe that doesn't necessarily finish before a fast remount's
+    // effect creates a "new" channel with the same name. `channel()` can
+    // then hand back the OLD (already-subscribed) registry entry instead of
+    // a fresh one, and calling `.on()` on an already-subscribed channel
+    // throws "cannot add postgres_changes callbacks... after subscribe()".
+    // Rapidly toggling Local/Online mode (which mounts/unmounts this hook's
+    // owning screen repeatedly) hits exactly this race. A unique suffix per
+    // mount guarantees this run never collides with a still-tearing-down
+    // channel from a previous run.
     const channel = supabase
-      .channel(`orders:${shopId}`)
+      .channel(`orders:${shopId}:${Date.now()}:${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         {

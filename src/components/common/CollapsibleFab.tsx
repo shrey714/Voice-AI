@@ -31,7 +31,7 @@ interface Props {
 }
 
 export default function CollapsibleFab({ icon, label, extended, onPress, bottom = 110 }: Props) {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const [labelW, setLabelW] = useState(0); // natural label width, measured once
   // Real native Liquid Glass background on iOS 26+ (tinted with the app's
   // brand color, same as Apple's own floating action buttons), a plain
@@ -50,6 +50,7 @@ export default function CollapsibleFab({ icon, label, extended, onPress, bottom 
           <GlassView
             glassEffectStyle="regular"
             tintColor={colors.primary}
+            colorScheme={isDark ? 'dark' : 'light'}
             isInteractive
             style={StyleSheet.absoluteFillObject}
           />

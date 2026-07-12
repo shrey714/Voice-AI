@@ -211,31 +211,34 @@ function tabIcon(ionicon: { off: any; on: any }, sf: { off: string; on: string }
   );
 }
 
-// Never actually navigated to. `tabBarSelectionEnabled: false` on the
-// Screen options below means the native tab bar never actually selects this
-// tab, so its component is never mounted at all — the tabPress listener
-// (registered where these Screens are used) is the sole trigger.
+// Never actually navigated to — the tabPress listener (registered where
+// these Screens are used) is the sole trigger, blocked from ever completing
+// via DIFFERENT mechanisms per platform, because the two navigators aren't
+// API-equivalent here:
 //
-// Two earlier, broken attempts at this, for the record:
-//   1. tabBarSelectionEnabled:false + a tabPress listener that called
-//      e.preventDefault() — threw at runtime. Root cause found by reading
-//      the type definition directly: native bottom tabs' tabPress event is
-//      declared `canPreventDefault: false` (unlike classic bottom-tabs,
-//      where it IS preventable) — calling preventDefault() on a
-//      non-cancelable event is what crashed.
-//   2. A real, actually-selectable tab whose component fired
-//      switchAppMode() from a mount effect, reasoning the RootStack swap
-//      would unmount it before it mattered. It doesn't: native-stack keeps
-//      both 'Local' and 'Online' RootStack screens mounted (no
-//      unmountOnBlur), so LocalTab.Navigator's own internal "last selected
-//      tab" state persists as "SwitchToOnline" — switching back to Local
-//      later re-focuses that exact tab, its mount effect fires again, and
-//      it immediately switches back to Online. Repeat forever. This is
-//      what caused the screens to visibly ping-pong on their own after a
-//      fresh launch.
-// The fix combines both lessons: selection is natively blocked (so the
-// screen truly never mounts, no persisted-selection loop is possible), and
-// the tabPress handler only calls switchAppMode(), no preventDefault().
+//   iOS (createNativeBottomTabNavigator): `tabBarSelectionEnabled: false` in
+//   the Screen's options blocks selection at the native level, so this
+//   screen never mounts at all. Its tabPress event is declared
+//   `canPreventDefault: false` in the type — calling e.preventDefault() on
+//   it throws at runtime (confirmed the hard way first).
+//
+//   Android (createBottomTabNavigator, classic): does NOT support
+//   `tabBarSelectionEnabled`/`tabBarSystemItem` at all (absent from its
+//   options type) — they're silently ignored, so without a platform branch
+//   here the tab bar actually selects and navigates to this blank screen on
+//   tap, i.e. a black screen. Classic tabPress IS preventable
+//   (`canPreventDefault: true`), so Android needs e.preventDefault() to
+//   block that navigation — the exact opposite of what iOS needs.
+//
+// A third, separately-broken attempt before this one: a real, selectable
+// tab whose component fired switchAppMode() from a mount effect, reasoning
+// the RootStack swap would unmount it before it mattered. It doesn't:
+// native-stack keeps both 'Local' and 'Online' RootStack screens mounted
+// (no unmountOnBlur), so LocalTab.Navigator's own "last selected tab" state
+// persisted as "SwitchToOnline" — switching back to Local later re-focused
+// that exact tab, its mount effect fired again, and it immediately switched
+// back to Online. Repeat forever — this is what made the screens visibly
+// ping-pong on their own after a fresh launch.
 function NoopScreen() {
   return null;
 }
@@ -303,13 +306,15 @@ function LocalTabs() {
             // Android's classic bottom-tabs navigator ignores this option
             // and just renders it as a normal (non-separated) 5th tab.
             tabBarSystemItem: 'search',
-            // Native tab bar never actually selects this tab — see
-            // NoopScreen's comment above for why this matters.
+            // iOS-only — see NoopScreen's comment for why Android needs a
+            // different (preventDefault-based) mechanism instead.
             tabBarSelectionEnabled: false,
           } as any}
           listeners={{
-            // No e.preventDefault() here — see NoopScreen's comment.
-            tabPress: () => switchAppMode('online'),
+            tabPress: (e: any) => {
+              if (Platform.OS === 'android') e.preventDefault();
+              switchAppMode('online');
+            },
           }}
         />
       )}
@@ -350,10 +355,15 @@ function OnlineTabs() {
           title: 'In-Store',
           tabBarIcon: tabIcon({ off: 'home-outline', on: 'home-outline' }, { off: 'house', on: 'house' }),
           tabBarSystemItem: 'search',
+          // iOS-only — see NoopScreen's comment for why Android needs a
+          // different (preventDefault-based) mechanism instead.
           tabBarSelectionEnabled: false,
         } as any}
         listeners={{
-          tabPress: () => switchAppMode('local'),
+          tabPress: (e: any) => {
+            if (Platform.OS === 'android') e.preventDefault();
+            switchAppMode('local');
+          },
         }}
       />
     </OnlineTab.Navigator>

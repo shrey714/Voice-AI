@@ -53,7 +53,7 @@ export default function LiquidButton({
   fullWidth?: boolean;
   style?: any;
 }) {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const isDisabled = disabled || loading;
   const [measuredWidth, setMeasuredWidth] = useState(0);
 
@@ -71,7 +71,9 @@ export default function LiquidButton({
     }
     return (
       <View style={[fullWidth && { width: '100%' }, { height }, style]} onLayout={fullWidth ? onLayout : undefined}>
-        <Host style={{ width: fullWidth ? measuredWidth : undefined, height }} matchContents={!fullWidth ? { horizontal: true, vertical: true } : undefined}>
+        {/* colorScheme: this app's dark mode is its own setting, independent
+            of the OS's — Host defaults to following the system otherwise. */}
+        <Host colorScheme={isDark ? 'dark' : 'light'} style={{ width: fullWidth ? measuredWidth : undefined, height }} matchContents={!fullWidth ? { horizontal: true, vertical: true } : undefined}>
           <SwiftUIButton
             label={loading ? 'Loading…' : title}
             systemImage={loading ? undefined : icon}

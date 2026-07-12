@@ -43,7 +43,7 @@ export default function LiquidTextField({
   multiline?: boolean;
   style?: any;
 }) {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const ref = useRef<TextFieldRef>(null);
   const lastEmitted = useRef(value);
   useEffect(() => {
@@ -55,7 +55,9 @@ export default function LiquidTextField({
 
   if (Platform.OS === 'ios') {
     return (
-      <Host style={[{ height: multiline ? Math.max(height, 80) : height, width: '100%' }, style]}>
+      // colorScheme: this app's dark mode is its own setting, independent
+      // of the OS's — Host defaults to following the system otherwise.
+      <Host colorScheme={isDark ? 'dark' : 'light'} style={[{ height: multiline ? Math.max(height, 80) : height, width: '100%' }, style]}>
         <SwiftUITextField
           ref={ref}
           defaultValue={value}
