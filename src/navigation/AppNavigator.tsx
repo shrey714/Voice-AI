@@ -211,22 +211,32 @@ function tabIcon(ionicon: { off: any; on: any }, sf: { off: string; on: string }
   );
 }
 
-// Never actually navigated to — see the "SwitchToOnline"/"SwitchToLocal"
-// Screens below, which intercept tabPress and never let selection through.
-// These tabs are momentarily "selected" by React Navigation like any other
-// tab, but their whole point is to fire switchAppMode() the instant they
-// mount and never actually show anything — the RootStack swap to the other
-// portion happens right away, unmounting this before it'd ever be seen.
-// Deliberately NOT using `tabBarSelectionEnabled: false` + a `tabPress`
-// listener calling `preventDefault()` (tried first) — that combination
-// threw at runtime when tapped. A plain real tab selection + mount effect
-// sidesteps fighting the native selection model entirely.
-function SwitchToOnlineScreen() {
-  useEffect(() => { switchAppMode('online'); }, []);
-  return null;
-}
-function SwitchToLocalScreen() {
-  useEffect(() => { switchAppMode('local'); }, []);
+// Never actually navigated to. `tabBarSelectionEnabled: false` on the
+// Screen options below means the native tab bar never actually selects this
+// tab, so its component is never mounted at all — the tabPress listener
+// (registered where these Screens are used) is the sole trigger.
+//
+// Two earlier, broken attempts at this, for the record:
+//   1. tabBarSelectionEnabled:false + a tabPress listener that called
+//      e.preventDefault() — threw at runtime. Root cause found by reading
+//      the type definition directly: native bottom tabs' tabPress event is
+//      declared `canPreventDefault: false` (unlike classic bottom-tabs,
+//      where it IS preventable) — calling preventDefault() on a
+//      non-cancelable event is what crashed.
+//   2. A real, actually-selectable tab whose component fired
+//      switchAppMode() from a mount effect, reasoning the RootStack swap
+//      would unmount it before it mattered. It doesn't: native-stack keeps
+//      both 'Local' and 'Online' RootStack screens mounted (no
+//      unmountOnBlur), so LocalTab.Navigator's own internal "last selected
+//      tab" state persists as "SwitchToOnline" — switching back to Local
+//      later re-focuses that exact tab, its mount effect fires again, and
+//      it immediately switches back to Online. Repeat forever. This is
+//      what caused the screens to visibly ping-pong on their own after a
+//      fresh launch.
+// The fix combines both lessons: selection is natively blocked (so the
+// screen truly never mounts, no persisted-selection loop is possible), and
+// the tabPress handler only calls switchAppMode(), no preventDefault().
+function NoopScreen() {
   return null;
 }
 
@@ -281,7 +291,7 @@ function LocalTabs() {
       {onlineShopEnabled && (
         <LocalTab.Screen
           name="SwitchToOnline"
-          component={SwitchToOnlineScreen}
+          component={NoopScreen}
           options={{
             title: 'Online',
             tabBarIcon: tabIcon({ off: 'storefront-outline', on: 'storefront-outline' }, { off: 'storefront', on: 'storefront' }),
@@ -293,7 +303,14 @@ function LocalTabs() {
             // Android's classic bottom-tabs navigator ignores this option
             // and just renders it as a normal (non-separated) 5th tab.
             tabBarSystemItem: 'search',
+            // Native tab bar never actually selects this tab — see
+            // NoopScreen's comment above for why this matters.
+            tabBarSelectionEnabled: false,
           } as any}
+          listeners={{
+            // No e.preventDefault() here — see NoopScreen's comment.
+            tabPress: () => switchAppMode('online'),
+          }}
         />
       )}
     </LocalTab.Navigator>
@@ -328,12 +345,16 @@ function OnlineTabs() {
       />
       <OnlineTab.Screen
         name="SwitchToLocal"
-        component={SwitchToLocalScreen}
+        component={NoopScreen}
         options={{
           title: 'In-Store',
           tabBarIcon: tabIcon({ off: 'home-outline', on: 'home-outline' }, { off: 'house', on: 'house' }),
           tabBarSystemItem: 'search',
+          tabBarSelectionEnabled: false,
         } as any}
+        listeners={{
+          tabPress: () => switchAppMode('local'),
+        }}
       />
     </OnlineTab.Navigator>
   );
