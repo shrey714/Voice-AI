@@ -6,7 +6,7 @@ import {
   Group as IOSGroup,
   RNHostView as IOSRNHostView,
 } from '@expo/ui/swift-ui';
-import { presentationDetents, presentationDragIndicator, type PresentationDetent } from '@expo/ui/swift-ui/modifiers';
+import { presentationDetents, presentationDragIndicator, background, type PresentationDetent } from '@expo/ui/swift-ui/modifiers';
 import {
   Host as AndroidHost,
   ModalBottomSheet,
@@ -112,7 +112,24 @@ const LiquidBottomSheet = forwardRef<LiquidBottomSheetRef, LiquidBottomSheetProp
       return (
         <IOSHost colorScheme={colorScheme} style={[StyleSheet.absoluteFillObject, { pointerEvents: 'box-none' }]}>
           <IOSBottomSheet isPresented={isOpen} onIsPresentedChange={handleIOSPresentedChange} fitToContents={!heightFraction}>
-            <IOSGroup modifiers={[presentationDetents(detents), presentationDragIndicator('visible')]}>
+            {/* `Host`'s colorScheme prop only sets a SwiftUI
+                `.environment(\.colorScheme, …)` on its content (confirmed by
+                reading HostView.swift's ColorSchemeModifier) — it does NOT
+                reach the sheet's own system-drawn presentation chrome
+                (background material, grabber), which UIKit derives from the
+                presenting view controller's trait collection instead. That's
+                exactly why dark mode kept showing a light sheet background
+                despite the colorScheme prop being set correctly. Painting an
+                explicit `background()` here with the app's own
+                theme-tracked surface color sidesteps that gap entirely —
+                guaranteed correct because it's driven by our own `isDark`
+                state, not a native environment-propagation mechanism that
+                doesn't reliably reach system chrome. */}
+            <IOSGroup modifiers={[
+              presentationDetents(detents),
+              presentationDragIndicator('visible'),
+              background(colors.surface),
+            ]}>
               <IOSRNHostView matchContents>
                 <View>{children}</View>
               </IOSRNHostView>
