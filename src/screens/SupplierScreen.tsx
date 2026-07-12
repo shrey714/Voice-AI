@@ -281,10 +281,7 @@ export default function SupplierScreen() {
               />
             </View>
           ))}
-          <View style={s.btnRow}>
-            <LiquidButton title={t('cancel')} onPress={closeFormSheet} variant="glass" style={{ flex: 1 }} />
-            <LiquidButton title={t('save')} onPress={save} variant="glassProminent" style={{ flex: 1 }} />
-          </View>
+          <LiquidButton title={t('save')} onPress={save} variant="glassProminent" style={s.btnRow} />
         </ScrollView>
       </LiquidBottomSheet>
 
@@ -331,16 +328,13 @@ export default function SupplierScreen() {
             placeholder="e.g. partial payment"
             style={{ marginBottom: 16 }}
           />
-          <View style={s.btnRow}>
-            <LiquidButton title={t('cancel')} onPress={() => paymentSheetRef.current?.close()} variant="glass" style={{ flex: 1 }} />
-            <LiquidButton
-              title={savingPayment ? t('savingDots') : t('savePayment')}
-              onPress={savePayment}
-              loading={savingPayment}
-              tintColor={c.success}
-              style={{ flex: 1 }}
-            />
-          </View>
+          <LiquidButton
+            title={savingPayment ? t('savingDots') : t('savePayment')}
+            onPress={savePayment}
+            loading={savingPayment}
+            tintColor={c.success}
+            style={s.btnRow}
+          />
         </ScrollView>
       </LiquidBottomSheet>
 
@@ -640,7 +634,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   modalTitle: { fontFamily: fonts.extraBold, fontSize: 19, marginBottom: 16, paddingLeft: 8, paddingRight: 14 },
   fieldLabel: { fontFamily: fonts.bold, fontSize: 12, marginBottom: 6, paddingLeft: 4 },
   input: { borderRadius: 10, padding: 12, fontSize: 15, borderWidth: 1, fontFamily: fonts.regular },
-  btnRow: { flexDirection: 'row', gap: 8, marginTop: 10, paddingHorizontal: 8 },
+  btnRow: { marginTop: 10, paddingHorizontal: 8 },
   // `paddingTop` (not just `paddingBottom`) + a taller bottom gap before the
   // border — this sheet has its own bespoke avatar-header layout instead of
   // the shared `SheetHeader`, which was the one place that top spacing was

@@ -8,6 +8,7 @@ import LiquidTextField from '../components/common/LiquidTextField';
 import LiquidButton from '../components/common/LiquidButton';
 import SheetHeader from '../components/common/SheetHeader';
 import LiquidTabs from '../components/common/LiquidTabs';
+import LiquidHeaderIconButton from '../components/common/LiquidHeaderIconButton';
 import { useAppStore } from '../stores/useAppStore';
 import { useTranslation } from '../hooks/useTranslation';
 import { formatCurrency, formatDate, formatTime, generateId, sanitizeDecimal } from '../utils/helpers';
@@ -261,10 +262,7 @@ export default function UdhaarScreen() {
             value={newName} onChangeText={setNewName} placeholder={t('customerName') + ' *'} style={{ marginBottom: 14 }} />
           <LiquidTextField
             value={newPhone} onChangeText={setNewPhone} placeholder={t('phoneForWhatsapp')} keyboardType="phone-pad" style={{ marginBottom: 14 }} />
-          <View style={s.btnRow}>
-            <LiquidButton title={t('cancel')} onPress={closeAddCustomer} variant="glass" style={{ flex: 1 }} />
-            <LiquidButton title={t('save')} onPress={saveCustomer} variant="glassProminent" style={{ flex: 1 }} />
-          </View>
+          <LiquidButton title={t('save')} onPress={saveCustomer} variant="glassProminent" style={s.btnRow} />
         </ScrollView>
       </LiquidBottomSheet>
 
@@ -376,15 +374,12 @@ export default function UdhaarScreen() {
             value={txAmount} onChangeText={v => setTxAmount(sanitizeDecimal(v))} placeholder={`${t('amount')} (${settings.currency})`} keyboardType="numeric" style={{ marginBottom: 14 }} />
           <LiquidTextField
             value={txNote} onChangeText={setTxNote} placeholder={t('noteOptional')} style={{ marginBottom: 14 }} />
-          <View style={s.btnRow}>
-            <LiquidButton title={t('cancel')} onPress={closeAddTx} variant="glass" style={{ flex: 1 }} />
-            <LiquidButton
-              title={t('save')}
-              onPress={addTransaction}
-              tintColor={txType === 'debit' ? colors.danger : colors.success}
-              style={{ flex: 1 }}
-            />
-          </View>
+          <LiquidButton
+            title={t('save')}
+            onPress={addTransaction}
+            tintColor={txType === 'debit' ? colors.danger : colors.success}
+            style={s.btnRow}
+          />
         </ScrollView>
       </LiquidBottomSheet>
 
@@ -393,6 +388,11 @@ export default function UdhaarScreen() {
         ref={queueSheetRef}
         onDismiss={() => setQueueIndex(null)}
       >
+        <SheetHeader
+          title={t('remindAll')}
+          subtitle={queueIndex !== null && queueIndex < debtors.length ? `${queueIndex + 1} of ${debtors.length}` : undefined}
+          onClose={closeQueue}
+        />
         <ScrollView contentContainerStyle={s.sheetContent}>
           {queueIndex !== null && (
             queueIndex >= debtors.length ? (
@@ -410,10 +410,6 @@ export default function UdhaarScreen() {
               const preview = buildReminderMessage({ name: cust.name, balance: bal, settings });
               return (
                 <>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                    <Text style={[s.modalTitle, { color: colors.text, marginBottom: 0 }]}>{t('remindAll')}</Text>
-                    <Text style={{ fontFamily: fonts.bold, color: colors.textMuted }}>{queueIndex + 1} of {debtors.length}</Text>
-                  </View>
                   <View style={[s.balanceBanner, { backgroundColor: colors.danger + '10' }]}>
                     <Text style={[s.balanceBannerLabel, { color: colors.textSub }]}>{cust.name}{cust.phone ? ` · ${cust.phone}` : ''}</Text>
                     <Text style={[s.balanceBannerAmt, { color: colors.danger }]}>{formatCurrency(bal, settings.currency)}</Text>
@@ -431,24 +427,19 @@ export default function UdhaarScreen() {
                   )}
                   <Text style={[s.previewBox, { backgroundColor: colors.surfaceHigh, color: colors.textSub, borderColor: colors.border }]}>{preview}</Text>
                   <View style={s.btnRow}>
-                    <TouchableOpacity
-                      style={[s.queueNavBtn, { borderColor: colors.border, opacity: queueIndex === 0 ? 0.4 : 1 }]}
-                      onPress={queueBack}
-                      disabled={queueIndex === 0}
-                      accessibilityLabel="Previous customer"
-                      accessibilityRole="button">
-                      <Ionicons name="chevron-back" size={18} color={colors.textSub} />
-                    </TouchableOpacity>
-                    <LiquidButton title={t('skip')} onPress={queueAdvance} variant="glass" fullWidth={false} style={{ paddingHorizontal: 4 }} />
+                    <LiquidHeaderIconButton
+                      icon="chevron.left"
+                      androidIcon="chevron-back"
+                      onPress={queueIndex === 0 ? () => {} : queueBack}
+                      color={queueIndex === 0 ? colors.textMuted : colors.text}
+                    />
+                    <LiquidButton title={t('skip')} onPress={queueAdvance} variant="glass" style={{ flex: 1 }} />
                     {/* No standard SF Symbol for the WhatsApp logo, and
                         LiquidButton doesn't support arbitrary icon images —
                         text-only (WhatsApp-green tint) rather than forcing a
                         mismatched icon or a custom-layout button. */}
                     <LiquidButton title={t('sendAndNext')} onPress={queueSendCurrent} tintColor="#25D366" style={{ flex: 1 }} />
                   </View>
-                  <TouchableOpacity onPress={closeQueue} style={{ alignSelf: 'center', marginTop: 14 }}>
-                    <Text style={{ fontFamily: fonts.semiBold, color: colors.textMuted }}>{t('stop')}</Text>
-                  </TouchableOpacity>
                 </>
               );
             })()
@@ -468,7 +459,6 @@ const makeStyles = (c: any) => StyleSheet.create({
   remindAllText: { fontFamily: fonts.bold, fontSize: 12.5, color: '#fff' },
   remindedAgo: { fontFamily: fonts.medium, fontSize: 10.5, marginTop: 5 },
   previewBox: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 20, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: 14, marginBottom: 14 },
-  queueNavBtn: { width: 50, padding: 16, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   customerCard: { flexDirection: 'row', borderRadius: 10, padding: 14, marginBottom: 8, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, gap: 12 },
   avatar: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
   avatarText: { fontFamily: fonts.extraBold, fontSize: 22 },
@@ -481,7 +471,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   sheetContent: { paddingHorizontal: 20, paddingBottom: 24 },
   modalTitle: { fontFamily: fonts.extraBold, fontSize: 18, marginBottom: 16 },
   input: { borderRadius: 14, padding: 16, fontSize: 15, borderWidth: 1, marginBottom: 14, fontFamily: fonts.regular },
-  btnRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  btnRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8 },
   balanceBanner: { borderRadius: 16, padding: 16, alignItems: 'center', marginBottom: 16 },
   balanceBannerLabel: { fontFamily: fonts.medium, fontSize: 12 },
   balanceBannerAmt: { fontFamily: fonts.display, fontSize: 28, marginTop: 6 },

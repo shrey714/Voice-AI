@@ -510,16 +510,13 @@ function ShopInfoForm({ isOnline }: { isOnline: boolean }) {
               Customers who choose "Pickup from shop" will see the address above and a map link to your store.
             </Text>
 
-            <TouchableOpacity
-              style={[s.locateBtn, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}
+            <LiquidButton
+              title={isLocating ? 'Fetching location…' : 'Use current location'}
+              icon="location.fill"
               onPress={handleUseCurrentLocation}
-              disabled={isLocating}
-            >
-              <Ionicons name={isLocating ? 'sync' : 'locate'} size={17} color={colors.primary} />
-              <Text style={[s.locateBtnText, { color: colors.primary }]}>
-                {isLocating ? 'Fetching location…' : 'Use current location'}
-              </Text>
-            </TouchableOpacity>
+              loading={isLocating}
+              variant="glass"
+            />
 
             {latitude != null && longitude != null ? (
               <View style={s.locateStatus}>
@@ -616,8 +613,6 @@ const makeStyles = (c: any) =>
     switchSub: { fontFamily: fonts.regular, fontSize: 12, marginTop: 2 },
 
     scheduleHint: { fontFamily: fonts.regular, fontSize: 13, marginBottom: 12, lineHeight: 18 },
-    locateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 12, borderWidth: 1, padding: 13 },
-    locateBtnText: { fontFamily: fonts.bold, fontSize: 14 },
     locateStatus: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
     locateStatusText: { fontFamily: fonts.regular, fontSize: 12, flex: 1 },
     dayRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 10 },

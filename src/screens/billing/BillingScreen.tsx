@@ -612,16 +612,13 @@ export default function BillingScreen({ navigation }: any) {
             );
           })()}
 
-          <View style={s.modalBtns}>
-            <LiquidButton title={t('cancel')} onPress={closeCheckout} variant="glass" style={{ flex: 1 }} />
-            <LiquidButton
-              title={t('generateBill')}
-              onPress={handleCheckout}
-              loading={processing}
-              variant="glassProminent"
-              style={{ flex: 1 }}
-            />
-          </View>
+          <LiquidButton
+            title={t('generateBill')}
+            onPress={handleCheckout}
+            loading={processing}
+            variant="glassProminent"
+            style={s.modalBtns}
+          />
         </ScrollView>
         </>
         )}
@@ -930,7 +927,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   paymentBtn: { flex: 1, padding: 12, borderRadius: 12, borderWidth: 1.5, alignItems: 'center' },
   summaryBox: { borderRadius: 14, padding: 16, marginTop: 16 },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
-  modalBtns: { flexDirection: 'row', gap: 12, marginTop: 18 },
+  modalBtns: { marginTop: 18 },
   successSheetContent: { alignItems: 'center', paddingHorizontal: 24, paddingTop: 12, paddingBottom: 24 },
   successSheetIcon: { width: 76, height: 76, borderRadius: 38, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
   successSheetTitle: { fontFamily: fonts.display, fontSize: 20, marginBottom: 4 },

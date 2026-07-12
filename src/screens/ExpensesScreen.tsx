@@ -214,10 +214,7 @@ export default function ExpensesScreen() {
             placeholder={t('noteOptional')}
             value={note} onChangeText={setNote} style={{ marginBottom: 14 }} />
 
-          <View style={s.btnRow}>
-            <LiquidButton title={t('cancel')} onPress={closeForm} variant="glass" style={{ flex: 1 }} />
-            <LiquidButton title={t('save')} onPress={handleSave} variant="glassProminent" style={{ flex: 1 }} />
-          </View>
+          <LiquidButton title={t('save')} onPress={handleSave} variant="glassProminent" style={s.btnRow} />
         </ScrollView>
       </LiquidBottomSheet>
     </View>
@@ -253,5 +250,5 @@ const makeStyles = (c: any) => StyleSheet.create({
   fieldLabel: { fontFamily: fonts.bold, fontSize: 13, marginBottom: 8 },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   catChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1.5 },
-  btnRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  btnRow: { marginTop: 8 },
 });

@@ -218,25 +218,17 @@ export default function InventoryScreen({ route, navigation }: any) {
             placeholder={t('enterQtyToAdd')}
             keyboardType="numeric"
           />
-          <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
-            <LiquidButton
-              title={t('cancel')}
-              onPress={closeStockSheet}
-              variant="glass"
-              style={{ flex: 1 }}
-            />
-            <LiquidButton
-              title={t('addStock')}
-              onPress={() => {
-                const n = parseInt(stockQty);
-                if (isNaN(n)) { Alert.alert(t('error'), t('enterValidNumber')); return; }
-                if (stockProduct) updateProduct({ ...stockProduct, quantity: Math.max(0, stockProduct.quantity + n), updatedAt: Date.now() });
-                closeStockSheet();
-              }}
-              variant="glassProminent"
-              style={{ flex: 1 }}
-            />
-          </View>
+          <LiquidButton
+            title={t('addStock')}
+            onPress={() => {
+              const n = parseInt(stockQty);
+              if (isNaN(n)) { Alert.alert(t('error'), t('enterValidNumber')); return; }
+              if (stockProduct) updateProduct({ ...stockProduct, quantity: Math.max(0, stockProduct.quantity + n), updatedAt: Date.now() });
+              closeStockSheet();
+            }}
+            variant="glassProminent"
+            style={{ marginTop: 12 }}
+          />
         </ScrollView>
       </LiquidBottomSheet>
 
@@ -258,12 +250,6 @@ export default function InventoryScreen({ route, navigation }: any) {
             <Text style={[s.sheetLabel, { color: colors.danger }]}>{t('deleteProduct')}</Text>
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
           </TouchableOpacity>
-          <LiquidButton
-            title="Cancel"
-            onPress={closeMenuSheet}
-            variant="glass"
-            style={{ marginTop: 10 }}
-          />
         </View>
       </LiquidBottomSheet>
     </View>

@@ -138,9 +138,13 @@ export default function DayCloseScreen() {
                   <Text style={[s.denomSub, { color: colors.textMuted }]}>{formatCurrency(d * (parseInt(denoms[d] || '0') || 0), settings.currency)}</Text>
                 </View>
               ))}
-              <TouchableOpacity style={[s.denomApply, { backgroundColor: colors.primaryLight }]} onPress={() => setCounted(String(denomTotal))}>
-                <Text style={[s.denomApplyText, { color: colors.primary }]}>{t('useTotal')} {formatCurrency(denomTotal, settings.currency)}</Text>
-              </TouchableOpacity>
+              <LiquidButton
+                title={`${t('useTotal')} ${formatCurrency(denomTotal, settings.currency)}`}
+                onPress={() => setCounted(String(denomTotal))}
+                variant="glass"
+                height={40}
+                style={{ marginTop: 8 }}
+              />
             </View>
           )}
         </View>
@@ -226,8 +230,6 @@ const makeStyles = (c: any) => StyleSheet.create({
   denomNote: { fontFamily: fonts.bold, fontSize: 14, width: 44 },
   denomInput: { width: 64, textAlign: 'center', borderWidth: 1, borderRadius: 9, paddingVertical: 6, fontSize: 14, fontFamily: fonts.semiBold },
   denomSub: { fontFamily: fonts.medium, fontSize: 12.5, flex: 1, textAlign: 'right' },
-  denomApply: { borderRadius: 11, paddingVertical: 11, alignItems: 'center', marginTop: 8, marginBottom: 4 },
-  denomApplyText: { fontFamily: fonts.bold, fontSize: 13 },
 
   diffBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, padding: 16, marginBottom: 12 },
   diffLbl: { fontFamily: fonts.semiBold, fontSize: 12 },

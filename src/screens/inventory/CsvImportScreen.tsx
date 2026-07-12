@@ -123,10 +123,7 @@ export default function CsvImportScreen({ navigation }: any) {
       </View>
 
       {/* Pick file */}
-      <TouchableOpacity style={[s.pickBtn, { backgroundColor: colors.surface, borderColor: colors.primary }]} onPress={pickFile}>
-        <Ionicons name="folder-open-outline" size={24} color={colors.primary} />
-        <Text style={[s.pickBtnText, { color: colors.primary }]}>{fileName || t('chooseCsvFile')}</Text>
-      </TouchableOpacity>
+      <LiquidButton title={fileName || t('chooseCsvFile')} icon="folder" onPress={pickFile} variant="glass" />
 
       {/* Preview */}
       {rows.length > 0 && !done && (
@@ -166,7 +163,6 @@ export default function CsvImportScreen({ navigation }: any) {
             loading={importing}
             disabled={validRows.length === 0}
             variant="glassProminent"
-            height={52}
           />
         </>
       )}
@@ -177,10 +173,7 @@ export default function CsvImportScreen({ navigation }: any) {
           <Ionicons name="checkmark-circle-outline" size={56} color={colors.primary} style={{ marginBottom: 12 }} />
           <Text style={[s.successTitle, { color: colors.text }]}>{t('importCompleteExcl')}</Text>
           <Text style={[s.successSub, { color: colors.textSub }]}>{importedCount} {t('productsAddedToInventory')}</Text>
-          <TouchableOpacity style={[s.doneBtn, { backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', gap: 6 }]} onPress={() => navigation.goBack()}>
-            <Text style={s.doneBtnText}>{t('viewInventory')}</Text>
-            <Ionicons name="arrow-forward" size={16} color="#fff" />
-          </TouchableOpacity>
+          <LiquidButton title={t('viewInventory')} icon="arrow.right" onPress={() => navigation.goBack()} variant="glassProminent" />
         </View>
       )}
 
@@ -196,8 +189,6 @@ const makeStyles = (c: any) => StyleSheet.create({
   exampleBox: { borderRadius: 10, padding: 10 },
   exampleTitle: { fontSize: 11, marginBottom: 4 },
   exampleText: { fontFamily: 'monospace', fontSize: 11, lineHeight: 18 },
-  pickBtn: { borderRadius: 14, padding: 20, alignItems: 'center', borderStyle: 'dashed', borderWidth: 1.5, marginBottom: 16, flexDirection: 'row', justifyContent: 'center', gap: 10 },
-  pickBtnText: { fontFamily: fonts.bold, fontSize: 15 },
   previewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingHorizontal: 12 },
   previewTitle: { fontFamily: fonts.bold, fontSize: 15 },
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
@@ -205,11 +196,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   previewName: { fontFamily: fonts.semiBold, fontSize: 14 },
   previewMeta: { fontSize: 12, marginTop: 2 },
   moreRows: { textAlign: 'center', fontSize: 13, marginVertical: 8 },
-  importBtn: { borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 12, flexDirection: 'row', justifyContent: 'center', gap: 8 },
-  importBtnText: { color: '#fff', fontFamily: fonts.extraBold, fontSize: 16 },
   successCard: { borderRadius: 16, padding: 30, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, marginTop: 20, marginHorizontal: 12 },
   successTitle: { fontFamily: fonts.extraBold, fontSize: 22 },
   successSub: { fontSize: 14, marginTop: 6, marginBottom: 20 },
-  doneBtn: { paddingHorizontal: 28, paddingVertical: 13, borderRadius: 12 },
-  doneBtnText: { color: '#fff', fontFamily: fonts.bold, fontSize: 15 },
 });

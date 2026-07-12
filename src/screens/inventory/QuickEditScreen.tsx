@@ -224,9 +224,7 @@ export default function QuickEditScreen({ navigation }: any) {
           <Ionicons name="checkmark-circle" size={64} color={colors.success} />
           <Text style={[s.doneTitle, { color: colors.text }]}>{t('allDone')}</Text>
           <Text style={[s.doneSub, { color: colors.textMuted }]}>{stats.saved} {t('updated')} {t('sepDot')} {stats.skipped} {t('skipped')}</Text>
-          <TouchableOpacity style={[s.doneBtn, { backgroundColor: colors.primary }]} onPress={() => setStarted(false)}>
-            <Text style={s.doneBtnText}>{t('editAnotherSet')}</Text>
-          </TouchableOpacity>
+          <LiquidButton title={t('editAnotherSet')} onPress={() => setStarted(false)} variant="glassProminent" fullWidth={false} style={{ marginTop: 20 }} />
           <TouchableOpacity style={{ marginTop: 14 }} onPress={() => navigation.goBack()}>
             <Text style={{ fontFamily: fonts.semiBold, color: colors.textMuted }}>{t('done')}</Text>
           </TouchableOpacity>
@@ -307,10 +305,7 @@ export default function QuickEditScreen({ navigation }: any) {
       </View>
 
       <View style={[s.actions, { paddingBottom: 28 }]}>
-        <TouchableOpacity style={[s.actionBtn, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => commit('skip')} activeOpacity={0.85}>
-          <Ionicons name="play-skip-forward" size={20} color={colors.textMuted} />
-          <Text style={[s.actionLabel, { color: colors.textMuted }]}>{t('skip')}</Text>
-        </TouchableOpacity>
+        <LiquidButton title={t('skip')} icon="arrow.right" onPress={() => commit('skip')} variant="glass" style={{ flex: 1 }} />
         <LiquidButton title={t('saveAndNext')} icon="checkmark" onPress={() => commit('save')} variant="glassProminent" style={{ flex: 1 }} />
       </View>
     </KeyboardAvoidingView>
@@ -359,12 +354,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   marginText: { fontFamily: fonts.semiBold, fontSize: 13, marginTop: 10 },
 
   actions: { flexDirection: 'row', gap: 10, paddingHorizontal: 10, paddingTop: 10 },
-  actionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, borderRadius: 10, paddingHorizontal: 10, borderWidth: StyleSheet.hairlineWidth },
-  saveBtn: { flex: 1, borderWidth: 0 },
-  actionLabel: { fontFamily: fonts.bold, fontSize: 15 },
 
   doneTitle: { fontFamily: fonts.extraBold, fontSize: 22, marginTop: 14 },
   doneSub: { fontFamily: fonts.medium, fontSize: 14, marginTop: 6 },
-  doneBtn: { paddingHorizontal: 24, paddingVertical: 13, borderRadius: 14, marginTop: 24 },
-  doneBtnText: { fontFamily: fonts.bold, fontSize: 15, color: '#fff' },
 });

@@ -29,6 +29,7 @@ const SF_TO_IONICON: Partial<Record<SFSymbol, React.ComponentProps<typeof Ionico
   'eye': 'eye-outline',
   'icloud.and.arrow.down': 'cloud-download-outline',
   'icloud.and.arrow.up': 'cloud-upload-outline',
+  'location.fill': 'locate',
   'lock.fill': 'lock-closed',
   'play.fill': 'play',
   'plus': 'add',
@@ -67,7 +68,7 @@ export default function LiquidButton({
   tintColor: tintColorOverride,
   disabled = false,
   loading = false,
-  height = 50,
+  height = 54,
   fullWidth = true,
   style,
 }: {
@@ -85,7 +86,8 @@ export default function LiquidButton({
 }) {
   const { colors, isDark } = useAppTheme();
   const isDisabled = disabled || loading;
-  const [measuredWidth, setMeasuredWidth] = useState(0);
+  const [rowWidth, setRowWidth] = useState(0);
+  const [labelWidth, setLabelWidth] = useState(0);
 
   if (Platform.OS === 'ios') {
     // Every variant uses the SAME native `buttonStyle('glassProminent')` —
@@ -103,19 +105,64 @@ export default function LiquidButton({
       : variant === 'glass' ? colors.surfaceHigh
       : colors.primary
     );
-    const onLayout = (e: LayoutChangeEvent) => {
+    const onRowLayout = (e: LayoutChangeEvent) => {
       const w = e.nativeEvent.layout.width;
-      if (fullWidth && w > 0 && w !== measuredWidth) setMeasuredWidth(w);
+      if (w > 0 && w !== rowWidth) setRowWidth(w);
     };
+    // A caller puts two `fullWidth` buttons side by side by giving each
+    // `style={{ flex: 1 }}` (e.g. Cancel/Save pairs). Forcing `width: '100%'`
+    // onto the SAME wrapping View in that case fights the caller's own
+    // `flex: 1` in Yoga's layout — `width: 100%` and `flex: 1` together
+    // don't reliably resolve to "half the row" the way you'd expect, which
+    // is exactly what was producing the "tiny pill floating in an oversized
+    // empty flex slot" look. Only fall back to an explicit `width: '100%'`
+    // when the caller ISN'T already sizing this via flex — letting a real
+    // `flex`/`flexGrow` in `style` win outright otherwise.
+    const callerControlsWidth = style && (style.flex != null || style.flexGrow != null || style.width != null);
+    const outerWidthStyle = fullWidth && !callerControlsWidth ? { width: '100%' as const } : !fullWidth ? { alignSelf: 'flex-start' as const } : null;
+    // For `fullWidth`, target = the row's available width. For a compact
+    // button, `matchContents` (letting SwiftUI size itself to its own
+    // content) turned out to be exactly as unreliable as the width-prop
+    // issue below — buttons using it were rendering stuck at a tiny/near-
+    // invisible size (e.g. the date-range sheet's "Confirm"). So instead of
+    // trusting either SwiftUI's intrinsic sizing OR a post-mount prop
+    // update, a compact button's target width is computed the same way
+    // CollapsibleFab measures its label: an invisible off-screen RN `Text`
+    // using this same bold font, plus fixed padding/icon allowance — a
+    // deterministic RN-side measurement, not a SwiftUI-side guess.
+    const iconAllowance = icon ? 30 : 0;
+    const compactWidth = labelWidth > 0 ? Math.ceil(labelWidth) + 56 + iconAllowance : 0;
+    const targetWidth = fullWidth ? rowWidth : compactWidth;
     // Reserve layout space at `height` immediately so nothing jumps once the
     // real width is measured on the first layout pass.
-    if (fullWidth && measuredWidth === 0) {
-      return <View style={[{ height, width: '100%' }, style]} onLayout={onLayout} />;
+    if (targetWidth === 0) {
+      return (
+        <View style={[outerWidthStyle, { height }, style]} onLayout={fullWidth ? onRowLayout : undefined}>
+          {/* `position: 'absolute'` here would make this Text NOT
+              contribute to the wrapping View's size at all (absolutely
+              positioned children are removed from normal layout flow) —
+              with `alignSelf: 'flex-start'` and no explicit width on that
+              wrapping View, it would then have nothing to size itself
+              against and collapse to zero width, disappearing entirely.
+              This is exactly why compact buttons in a row (e.g. a queue's
+              "Skip" button) were vanishing. Keeping this Text in normal
+              flow (just invisible via `opacity: 0`) means the wrapping
+              View naturally sizes to it while still not being visibly
+              double-rendered. */}
+          {!fullWidth && (
+            <Text
+              numberOfLines={1}
+              style={{ opacity: 0, fontFamily: fonts.bold, fontSize: 16 }}
+              onLayout={(e) => { const w = e.nativeEvent.layout.width; if (w > 0 && w !== labelWidth) setLabelWidth(w); }}
+            >{title}</Text>
+          )}
+        </View>
+      );
     }
     return (
-      <View style={[fullWidth && { width: '100%' }, { height }, style]} onLayout={fullWidth ? onLayout : undefined}>
-        {/* `key={measuredWidth}` forces a fresh `Host` mount whenever the
-            measured width changes, instead of updating an already-mounted
+      <View style={[fullWidth ? { width: '100%' } : { alignSelf: 'flex-start' }, { height }, style]} onLayout={fullWidth ? onRowLayout : undefined}>
+        {/* `key={targetWidth}` forces a fresh `Host` mount whenever the
+            target width changes, instead of updating an already-mounted
             one's `style.width` prop. `Host` is a custom Fabric-hosted view
             (bridges to a UIHostingController) — like its other documented
             quirks elsewhere in this codebase (pointerEvents not behaving
@@ -130,7 +177,7 @@ export default function LiquidButton({
             always built fresh with the final correct size.
             colorScheme: this app's dark mode is its own setting, independent
             of the OS's — Host defaults to following the system otherwise. */}
-        <Host key={measuredWidth} colorScheme={isDark ? 'dark' : 'light'} style={{ width: fullWidth ? measuredWidth : undefined, height }} matchContents={!fullWidth ? { horizontal: true, vertical: true } : undefined}>
+        <Host key={targetWidth} colorScheme={isDark ? 'dark' : 'light'} style={{ width: targetWidth, height }}>
           <SwiftUIButton
             label={loading ? 'Loading…' : title}
             systemImage={loading ? undefined : icon}
@@ -147,7 +194,7 @@ export default function LiquidButton({
               // apply to the view's size at that point, so anything sizing
               // or painting the box needs the concrete pixel size locked in
               // before it, not after.
-              ...(fullWidth ? [frame({ width: measuredWidth, height })] : [frame({ height })]),
+              frame({ width: targetWidth, height }),
               buttonStyle('glassProminent'),
               tint(tintColor),
               cornerRadius(height / 2),
@@ -185,5 +232,5 @@ export default function LiquidButton({
 }
 
 const styles = StyleSheet.create({
-  androidBtn: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
+  androidBtn: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
 });
