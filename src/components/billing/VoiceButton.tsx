@@ -93,8 +93,19 @@ export default function VoiceButton({ onResult, style, color }: Props) {
       listeningRef.current = false;
       recordingActiveRef.current = false;
       if (vadIntervalRef.current !== null) clearInterval(vadIntervalRef.current);
-      try { recorder.stop(); } catch {}
-      try { setAudioModeAsync({ allowsRecording: false }); } catch {}
+      // `recorder.stop()`/`setAudioModeAsync()` both return Promises — a
+      // synchronous `try/catch` around calling them does NOT catch a
+      // rejection (the call itself doesn't throw; only the returned Promise
+      // rejects, later, after this synchronous block has already finished).
+      // `useAudioRecorder`'s own unmount teardown can release the native
+      // recorder around the same time this cleanup runs, so `recorder.stop()`
+      // racing against that would reject with "shared object already
+      // released" as a genuinely uncaught promise rejection — exactly what
+      // was surfacing as `[Error: Uncaught (in promise...)]`. `.catch()` on
+      // the promise itself (not a wrapping try/catch) is what actually
+      // silences it.
+      recorder.stop().catch(() => {});
+      setAudioModeAsync({ allowsRecording: false }).catch(() => {});
     };
   }, []);
 

@@ -226,8 +226,14 @@ function Composer({ colors, s, insets, isDark, t }: { colors: any; s: any; inset
     else if (!res.ok) toast.error(res.error || t('couldntTranscribe'));
   }, [recorder, language, sendText]);
 
-  // Stop any in-flight recording if the screen unmounts.
-  useEffect(() => () => { try { recorder.stop(); } catch {} ; setAudioModeAsync({ allowsRecording: false }).catch(() => {}); }, [recorder]);
+  // Stop any in-flight recording if the screen unmounts. `recorder.stop()`
+  // returns a Promise — a synchronous `try/catch` around calling it doesn't
+  // catch a rejection (only the returned Promise rejects, later); `.catch()`
+  // on the Promise itself is what actually silences it. See VoiceButton's
+  // identical fix for the full reasoning (the recorder can legitimately
+  // reject with "shared object already released" here, racing against
+  // `useAudioRecorder`'s own unmount teardown).
+  useEffect(() => () => { recorder.stop().catch(() => {}); setAudioModeAsync({ allowsRecording: false }).catch(() => {}); }, [recorder]);
 
   return (
     <View style={[s.composerWrap, { paddingBottom: Math.max(insets.bottom, 10) }]}>

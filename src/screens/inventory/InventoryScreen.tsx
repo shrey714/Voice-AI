@@ -1,7 +1,5 @@
 import React, { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { View, FlatList, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
-import { useScrollHideBar } from '../../hooks/useScrollHideBar';
-import ScrollHideBar from '../../components/common/ScrollHideBar';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import LiquidBottomSheet, { LiquidBottomSheetRef } from '../../components/common/LiquidBottomSheet';
@@ -17,6 +15,7 @@ import CollapsibleFab, { useFabScroll } from '../../components/common/Collapsibl
 import ProductCard from '../../components/inventory/ProductCard';
 import InlineSearchBar from '../../components/common/InlineSearchBar';
 import LiquidHeaderIconButton from '../../components/common/LiquidHeaderIconButton';
+import LiquidHeaderMenu from '../../components/common/LiquidHeaderMenu';
 import LiquidButton from '../../components/common/LiquidButton';
 import SheetHeader from '../../components/common/SheetHeader';
 import { useTranslation } from '../../hooks/useTranslation';
@@ -38,7 +37,6 @@ export default function InventoryScreen({ route, navigation }: any) {
   const [stockQty, setStockQty] = useState('');
   const [menuProduct, setMenuProduct] = useState<Product | null>(null);
   const { extended, onScroll } = useFabScroll();
-  const { translateY: catTranslate, onListScroll, onBarLayout, listPaddingTop } = useScrollHideBar({ onScroll });
 
   const stockSheetRef = useRef<LiquidBottomSheetRef>(null);
   const menuSheetRef = useRef<LiquidBottomSheetRef>(null);
@@ -120,10 +118,30 @@ export default function InventoryScreen({ route, navigation }: any) {
             androidIcon="search-outline"
             onPress={() => setSearchOpen(v => !v)}
           />
+          <LiquidHeaderMenu
+            icon="line.3.horizontal.decrease.circle"
+            androidIcon="options-outline"
+            sections={[
+              {
+                title: 'Sort by',
+                options: [
+                  { label: 'Name', value: 'name', selected: sortBy === 'name' },
+                  { label: 'Stock', value: 'stock', selected: sortBy === 'stock' },
+                  { label: 'Price', value: 'price', selected: sortBy === 'price' },
+                ],
+                onSelect: (v) => setSortBy(v as 'name' | 'stock' | 'price'),
+              },
+              {
+                title: t('category'),
+                options: CATEGORIES.map(cat => ({ label: cat, value: cat, selected: categoryFilter === cat })),
+                onSelect: setCategoryFilter,
+              },
+            ]}
+          />
         </View>
       ),
     });
-  }, [navigation, products.length, lowStockCount, colors, t]);
+  }, [navigation, products.length, lowStockCount, colors, t, sortBy, categoryFilter, CATEGORIES]);
 
   if (!dataReady) return <View style={{ flex: 1, backgroundColor: colors.bg }}><SkeletonList count={8} /></View>;
 
@@ -137,42 +155,15 @@ export default function InventoryScreen({ route, navigation }: any) {
           onClose={() => setSearchOpen(false)}
         />
       )}
-      {/* Scrollable area — category bar floats above the list within this container */}
+      {/* Scrollable area */}
       <View style={{ flex: 1, overflow: 'hidden' }}>
-        <ScrollHideBar translateY={catTranslate} bgColor={colors.bg} onLayout={onBarLayout}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {/* Sort button — fixed at the left, not part of the scrollable
-                category strip, with a separator marking it off. */}
-            <TouchableOpacity
-              style={[s.sortBtn, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
-              onPress={() => setSortBy(s => s === 'name' ? 'stock' : s === 'stock' ? 'price' : 'name')}>
-              <Ionicons name="swap-vertical-outline" size={14} color={colors.primary} />
-              <Text style={[s.sortBtnText, { color: colors.primary }]}>{sortBy}</Text>
-            </TouchableOpacity>
-            <View style={[s.sortSeparator, { backgroundColor: colors.border }]} />
-
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 8, gap: 8, paddingVertical: 8, alignItems: 'center' }}>
-              {CATEGORIES.map(cat => {
-                const active = categoryFilter === cat;
-                return (
-                  <TouchableOpacity key={cat}
-                    style={[s.catChip, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary : colors.surface }]}
-                    onPress={() => setCategoryFilter(cat)}>
-                    <Text style={[s.catChipText, { color: active ? '#fff' : colors.textSub }]}>{cat}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-        </ScrollHideBar>
-
         <FlatList
         data={filtered}
         keyExtractor={p => p.id}
         style={{ flex: 1 }}
-        onScroll={onListScroll}
+        onScroll={onScroll}
         scrollEventThrottle={16}
-        contentContainerStyle={{ paddingHorizontal: 8, paddingTop: listPaddingTop, paddingBottom: 150, flexGrow: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 8, paddingTop: 8, paddingBottom: 150, flexGrow: 1 }}
         renderItem={({ item, index }) => (
           <ProductCard
             product={item}
@@ -257,15 +248,6 @@ export default function InventoryScreen({ route, navigation }: any) {
 }
 
 const makeStyles = (c: any) => StyleSheet.create({
-
-  // Sort button — fixed at the left of the category strip (not scrollable).
-  sortBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, justifyContent: 'center', borderWidth: 0.5, marginLeft: 8 },
-  sortBtnText: { fontFamily: fonts.bold, fontSize: 12 },
-  sortSeparator: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch', marginVertical: 8, marginLeft: 8 },
-
-  // Category chips
-  catChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, borderWidth: 1 },
-  catChipText: { fontFamily: fonts.bold, fontSize: 13 },
 
   sheetContent: { paddingHorizontal: 20, paddingBottom: 24 },
   stockCurrent: { fontFamily: fonts.medium, fontSize: 14, marginBottom: 18 },
