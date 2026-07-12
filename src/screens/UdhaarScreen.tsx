@@ -6,6 +6,7 @@ import { MotiView } from 'moti';
 import LiquidBottomSheet, { LiquidBottomSheetRef } from '../components/common/LiquidBottomSheet';
 import LiquidTextField from '../components/common/LiquidTextField';
 import LiquidButton from '../components/common/LiquidButton';
+import SheetHeader from '../components/common/SheetHeader';
 import { useAppStore } from '../stores/useAppStore';
 import { useTranslation } from '../hooks/useTranslation';
 import { formatCurrency, formatDate, formatTime, generateId, sanitizeDecimal } from '../utils/helpers';
@@ -253,17 +254,15 @@ export default function UdhaarScreen() {
 
       {/* Add/Edit Customer Sheet */}
       <LiquidBottomSheet ref={addCustomerSheetRef}>
+        <SheetHeader title={editingCustomer ? t('editCustomer') : t('addCustomer')} onClose={closeAddCustomer} />
         <ScrollView contentContainerStyle={s.sheetContent}>
-          <Text style={[s.modalTitle, { color: colors.text }]}>{editingCustomer ? t('editCustomer') : t('addCustomer')}</Text>
           <LiquidTextField
             value={newName} onChangeText={setNewName} placeholder={t('customerName') + ' *'} style={{ marginBottom: 14 }} />
           <LiquidTextField
             value={newPhone} onChangeText={setNewPhone} placeholder={t('phoneForWhatsapp')} keyboardType="phone-pad" style={{ marginBottom: 14 }} />
           <View style={s.btnRow}>
-            <TouchableOpacity style={[s.cancelBtn, { borderColor: colors.border }]} onPress={closeAddCustomer}>
-              <Text style={{ color: colors.textSub, fontFamily: fonts.semiBold }}>{t('cancel')}</Text>
-            </TouchableOpacity>
-            <LiquidButton title={t('save')} onPress={saveCustomer} variant="glassProminent" height={48} style={{ flex: 1 }} />
+            <LiquidButton title={t('cancel')} onPress={closeAddCustomer} variant="glass" style={{ flex: 1 }} />
+            <LiquidButton title={t('save')} onPress={saveCustomer} variant="glassProminent" style={{ flex: 1 }} />
           </View>
         </ScrollView>
       </LiquidBottomSheet>
@@ -390,21 +389,18 @@ export default function UdhaarScreen() {
 
       {/* Add Transaction Sheet */}
       <LiquidBottomSheet ref={addTxSheetRef}>
+        <SheetHeader title={txType === 'debit' ? t('giveCredit') : t('paymentReceived')} onClose={closeAddTx} />
         <ScrollView contentContainerStyle={s.sheetContent}>
-          <Text style={[s.modalTitle, { color: colors.text }]}>{txType === 'debit' ? t('giveCredit') : t('paymentReceived')}</Text>
           <LiquidTextField
             value={txAmount} onChangeText={v => setTxAmount(sanitizeDecimal(v))} placeholder={`${t('amount')} (${settings.currency})`} keyboardType="numeric" style={{ marginBottom: 14 }} />
           <LiquidTextField
             value={txNote} onChangeText={setTxNote} placeholder={t('noteOptional')} style={{ marginBottom: 14 }} />
           <View style={s.btnRow}>
-            <TouchableOpacity style={[s.cancelBtn, { borderColor: colors.border }]} onPress={closeAddTx}>
-              <Text style={{ color: colors.textSub, fontFamily: fonts.semiBold }}>{t('cancel')}</Text>
-            </TouchableOpacity>
+            <LiquidButton title={t('cancel')} onPress={closeAddTx} variant="glass" style={{ flex: 1 }} />
             <LiquidButton
               title={t('save')}
               onPress={addTransaction}
               tintColor={txType === 'debit' ? colors.danger : colors.success}
-              height={48}
               style={{ flex: 1 }}
             />
           </View>
@@ -425,7 +421,7 @@ export default function UdhaarScreen() {
                 <Text style={{ fontFamily: fonts.regular, color: colors.textMuted, textAlign: 'center' }}>
                   {t('wentThroughAll').replace('{count}', String(debtors.length))}
                 </Text>
-                <LiquidButton title={t('close')} onPress={closeQueue} variant="glassProminent" height={48} style={{ marginTop: 22 }} />
+                <LiquidButton title={t('close')} onPress={closeQueue} variant="glassProminent" style={{ marginTop: 22 }} />
               </View>
             ) : (() => {
               const cust = debtors[queueIndex];
@@ -462,14 +458,12 @@ export default function UdhaarScreen() {
                       accessibilityRole="button">
                       <Ionicons name="chevron-back" size={18} color={colors.textSub} />
                     </TouchableOpacity>
-                    <TouchableOpacity style={[s.cancelBtn, { borderColor: colors.border }]} onPress={queueAdvance}>
-                      <Text style={{ color: colors.textSub, fontFamily: fonts.semiBold }}>{t('skip')}</Text>
-                    </TouchableOpacity>
+                    <LiquidButton title={t('skip')} onPress={queueAdvance} variant="glass" fullWidth={false} style={{ paddingHorizontal: 4 }} />
                     {/* No standard SF Symbol for the WhatsApp logo, and
                         LiquidButton doesn't support arbitrary icon images —
                         text-only (WhatsApp-green tint) rather than forcing a
                         mismatched icon or a custom-layout button. */}
-                    <LiquidButton title={t('sendAndNext')} onPress={queueSendCurrent} tintColor="#25D366" height={48} style={{ flex: 1 }} />
+                    <LiquidButton title={t('sendAndNext')} onPress={queueSendCurrent} tintColor="#25D366" style={{ flex: 1 }} />
                   </View>
                   <TouchableOpacity onPress={closeQueue} style={{ alignSelf: 'center', marginTop: 14 }}>
                     <Text style={{ fontFamily: fonts.semiBold, color: colors.textMuted }}>{t('stop')}</Text>
@@ -507,8 +501,6 @@ const makeStyles = (c: any) => StyleSheet.create({
   modalTitle: { fontFamily: fonts.extraBold, fontSize: 18, marginBottom: 16 },
   input: { borderRadius: 14, padding: 16, fontSize: 15, borderWidth: 1, marginBottom: 14, fontFamily: fonts.regular },
   btnRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
-  cancelBtn: { flex: 1, padding: 16, borderRadius: 14, borderWidth: 1, alignItems: 'center' },
-  primaryBtn: { flex: 1, padding: 16, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   detailHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
   balanceBanner: { borderRadius: 16, padding: 16, alignItems: 'center', marginBottom: 16 },
   balanceBannerLabel: { fontFamily: fonts.medium, fontSize: 12 },

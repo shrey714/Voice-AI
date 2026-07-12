@@ -8,6 +8,7 @@ import { MotiView } from 'moti';
 import LiquidBottomSheet, { LiquidBottomSheetRef } from '../components/common/LiquidBottomSheet';
 import LiquidTextField from '../components/common/LiquidTextField';
 import LiquidButton from '../components/common/LiquidButton';
+import SheetHeader from '../components/common/SheetHeader';
 import { useAppStore } from '../stores/useAppStore';
 import { useTranslation } from '../hooks/useTranslation';
 import { formatCurrency, formatDate, startOfDay, endOfDay, sanitizeDecimal } from '../utils/helpers';
@@ -165,9 +166,8 @@ export default function ExpensesScreen() {
       <CollapsibleFab bottom={90} icon="add" label={t('saveExpense')} extended={extended} onPress={openForm} />
 
       <LiquidBottomSheet ref={formSheetRef}>
-         <ScrollView contentContainerStyle={s.sheetContent}>
-          <Text style={[s.modalTitle, { color: colors.text }]}>{t('addExpense')}</Text>
-
+        <SheetHeader title={t('addExpense')} onClose={closeForm} />
+        <ScrollView contentContainerStyle={s.sheetContent}>
           <LiquidTextField
             placeholder={t('titlePlaceholder')}
             value={title} onChangeText={setTitle} style={{ marginBottom: 14 }} />
@@ -180,7 +180,7 @@ export default function ExpensesScreen() {
           <View style={s.chipWrap}>
             {CATEGORIES.map(cat => (
               <TouchableOpacity key={cat.key}
-                style={[s.catChip, { flexDirection: 'row', alignItems: 'center', gap: 6, borderColor: category === cat.key ? colors.primary : colors.border, backgroundColor: category === cat.key ? colors.primary : 'transparent' }]}
+                style={[s.catChip, { flexDirection: 'row', alignItems: 'center', gap: 6, borderColor: category === cat.key ? colors.primary : colors.border, backgroundColor: category === cat.key ? colors.primary : colors.surfaceHigh }]}
                 onPress={() => setCategory(cat.key)}>
                 <Ionicons name={cat.icon} size={14} color={category === cat.key ? '#fff' : colors.primary} />
                 <Text style={{ color: category === cat.key ? '#fff' : colors.textSub, fontFamily: fonts.semiBold, fontSize: 13 }}>
@@ -195,13 +195,13 @@ export default function ExpensesScreen() {
               <Text style={[s.fieldLabel, { color: colors.textSub }]}>{t('supplier')}</Text>
               <View style={s.chipWrap}>
                 <TouchableOpacity
-                  style={[s.catChip, { borderColor: !supplierId ? colors.primary : colors.border, backgroundColor: !supplierId ? colors.primary : 'transparent' }]}
+                  style={[s.catChip, { borderColor: !supplierId ? colors.primary : colors.border, backgroundColor: !supplierId ? colors.primary : colors.surfaceHigh }]}
                   onPress={() => setSupplierId('')}>
                   <Text style={{ color: !supplierId ? '#fff' : colors.textSub, fontFamily: fonts.semiBold, fontSize: 13 }}>{t('any')}</Text>
                 </TouchableOpacity>
                 {suppliers.map(sup => (
                   <TouchableOpacity key={sup.id}
-                    style={[s.catChip, { flexDirection: 'row', alignItems: 'center', gap: 6, borderColor: supplierId === sup.id ? colors.primary : colors.border, backgroundColor: supplierId === sup.id ? colors.primary : 'transparent' }]}
+                    style={[s.catChip, { flexDirection: 'row', alignItems: 'center', gap: 6, borderColor: supplierId === sup.id ? colors.primary : colors.border, backgroundColor: supplierId === sup.id ? colors.primary : colors.surfaceHigh }]}
                     onPress={() => setSupplierId(sup.id)}>
                     <Text style={{ color: supplierId === sup.id ? '#fff' : colors.textSub, fontFamily: fonts.semiBold, fontSize: 13 }}>{sup.name}</Text>
                   </TouchableOpacity>
@@ -215,10 +215,8 @@ export default function ExpensesScreen() {
             value={note} onChangeText={setNote} style={{ marginBottom: 14 }} />
 
           <View style={s.btnRow}>
-            <TouchableOpacity style={[s.cancelBtn, { borderColor: colors.border }]} onPress={closeForm}>
-              <Text style={{ color: colors.textSub, fontFamily: fonts.semiBold }}>{t('cancel')}</Text>
-            </TouchableOpacity>
-            <LiquidButton title={t('save')} onPress={handleSave} variant="glassProminent" height={48} style={{ flex: 1 }} />
+            <LiquidButton title={t('cancel')} onPress={closeForm} variant="glass" style={{ flex: 1 }} />
+            <LiquidButton title={t('save')} onPress={handleSave} variant="glassProminent" style={{ flex: 1 }} />
           </View>
         </ScrollView>
       </LiquidBottomSheet>
@@ -251,12 +249,9 @@ const makeStyles = (c: any) => StyleSheet.create({
   deleteBtnLabel: { fontFamily: fonts.semiBold, fontSize: 11 },
 
   sheetContent: { paddingHorizontal: 20, paddingBottom: 24 },
-  modalTitle: { fontFamily: fonts.extraBold, fontSize: 18, marginBottom: 16 },
   input: { borderRadius: 14, padding: 16, fontSize: 15, borderWidth: 1, marginBottom: 14, fontFamily: fonts.regular },
   fieldLabel: { fontFamily: fonts.bold, fontSize: 13, marginBottom: 8 },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   catChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1.5 },
   btnRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
-  cancelBtn: { flex: 1, padding: 16, borderRadius: 14, borderWidth: 1, alignItems: 'center' },
-  saveBtn: { flex: 1, padding: 16, borderRadius: 14, alignItems: 'center' },
 });

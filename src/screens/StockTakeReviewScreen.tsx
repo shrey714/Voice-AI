@@ -8,6 +8,7 @@ import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
 import { StockTakeItem } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
+import LiquidButton from '../components/common/LiquidButton';
 
 export default function StockTakeReviewScreen({ navigation }: any) {
   const { colors } = useAppTheme();
@@ -198,16 +199,15 @@ export default function StockTakeReviewScreen({ navigation }: any) {
         <TouchableOpacity style={[s.backBtn, {borderColor: colors.border}]} onPress={() => navigation.goBack()} accessibilityLabel="Go back" accessibilityRole="button">
            <Ionicons name="chevron-back" size={18} color={colors.textMuted} />
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[s.commitBtn, { backgroundColor: countedItems.length > 0 ? colors.primary : colors.surfaceHigh }]}
+        <LiquidButton
+          title={committing ? 'Updating inventory...' : `${t('confirmAndUpdate')} ${countedItems.length} Product${countedItems.length !== 1 ? 's' : ''}`}
+          icon="checkmark.circle"
           onPress={handleCommit}
-          disabled={committing || countedItems.length === 0}
-        >
-          <Ionicons name="checkmark-done-outline" size={18} color={countedItems.length > 0 ? '#fff' : colors.textMuted} />
-          <Text style={[s.commitBtnText, { color: countedItems.length > 0 ? '#fff' : colors.textMuted }]}>
-            {committing ? 'Updating inventory...' : `${t('confirmAndUpdate')} ${countedItems.length} Product${countedItems.length !== 1 ? 's' : ''}`}
-          </Text>
-        </TouchableOpacity>
+          loading={committing}
+          disabled={countedItems.length === 0}
+          variant="glassProminent"
+          style={{ flex: 1 }}
+        />
       </View>
     </View>
   );
@@ -237,7 +237,5 @@ const makeStyles = (c: any) => StyleSheet.create({
   diffText: { fontFamily: fonts.extraBold, fontSize: 13 },
 
   footer: { padding: 14, gap: 8, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, display:'flex', flexDirection: 'row', alignItems:'center' },
-  commitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, paddingHorizontal: 20, borderRadius: 10, flex: 1 },
-  commitBtnText: { fontFamily: fonts.extraBold, fontSize: 15 },
   backBtn: { paddingVertical: 14, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 10 },
 });

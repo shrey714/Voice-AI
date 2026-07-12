@@ -24,6 +24,7 @@ import { useOrderRealtime } from '../../hooks/useOrderRealtime';
 import { OnlineShopDashboardSkeleton } from '../../components/common/Skeleton';
 import AnimatedNumber from '../../components/common/AnimatedNumber';
 import PressableScale from '../../components/common/PressableScale';
+import LiquidButton from '../../components/common/LiquidButton';
 import { formatCurrency } from '../../utils/helpers';
 import { isShopOpenNow } from '../../utils/shopStatus';
 import { useAppStore } from '../../stores/useAppStore';
@@ -281,10 +282,13 @@ export default function OnlineShopDashboard({ navigation }: any) {
           </MotiView>
 
           <MotiView from={{ opacity: 0, translateY: 14 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 450, delay: 260 }} style={{ width: '100%' }}>
-            <PressableScale style={styles.launchBtn} onPress={() => navigation.navigate('ShopInfo')}>
-              <Text style={[styles.launchBtnText, { color: colors.primary }]}>Set Up Online Shop</Text>
-              <Ionicons name="arrow-forward" size={18} color={colors.primary} />
-            </PressableScale>
+            <LiquidButton
+              title="Set Up Online Shop"
+              icon="arrow.right"
+              onPress={() => navigation.navigate('ShopInfo')}
+              variant="glassProminent"
+              tintColor="#fff"
+            />
           </MotiView>
         </LinearGradient>
       </SafeAreaView>
@@ -451,8 +455,6 @@ const styles = StyleSheet.create({
   launchFeatureRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   launchFeatureIcon: { width: 30, height: 30, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' },
   launchFeatureText: { fontFamily: fonts.semiBold, fontSize: 14, color: '#fff', flex: 1 },
-  launchBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#fff', borderRadius: 16, paddingVertical: 16, marginTop: 30 },
-  launchBtnText: { fontFamily: fonts.extraBold, fontSize: 16 },
 
   hero: { paddingHorizontal: 20, paddingBottom: 30, borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
   heroShopName: { fontFamily: fonts.extraBold, fontSize: 22, color: '#fff', letterSpacing: -0.4 },

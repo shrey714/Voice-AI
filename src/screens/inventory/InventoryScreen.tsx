@@ -17,6 +17,8 @@ import CollapsibleFab, { useFabScroll } from '../../components/common/Collapsibl
 import ProductCard from '../../components/inventory/ProductCard';
 import InlineSearchBar from '../../components/common/InlineSearchBar';
 import LiquidHeaderIconButton from '../../components/common/LiquidHeaderIconButton';
+import LiquidButton from '../../components/common/LiquidButton';
+import SheetHeader from '../../components/common/SheetHeader';
 import { useTranslation } from '../../hooks/useTranslation';
 
 
@@ -198,9 +200,8 @@ export default function InventoryScreen({ route, navigation }: any) {
 
       {/* Stock Adjust Sheet */}
       <LiquidBottomSheet ref={stockSheetRef}>
+        <SheetHeader title={t('updateStockLabel')} subtitle={stockProduct?.name} onClose={closeStockSheet} />
         <ScrollView contentContainerStyle={s.sheetContent}>
-          <Text style={[s.stockTitle, { color: colors.text }]}>{t('updateStockLabel')}</Text>
-          <Text style={[s.stockProductName, { color: colors.primary }]}>{stockProduct?.name}</Text>
           <Text style={[s.stockCurrent, { color: colors.textMuted }]}>Current: {stockProduct?.quantity} {stockProduct?.unit}</Text>
           <View style={s.stockQuickRow}>
             {[1, 5, 10, 25, 50].map(n => (
@@ -218,27 +219,31 @@ export default function InventoryScreen({ route, navigation }: any) {
             keyboardType="numeric"
           />
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
-            <TouchableOpacity style={[s.stockBtn, { backgroundColor: colors.surfaceHigh }]} onPress={closeStockSheet}>
-              <Text style={{ color: colors.textSub, fontFamily: fonts.semiBold }}>{t('cancel')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.stockBtn, { backgroundColor: colors.primary }]}
+            <LiquidButton
+              title={t('cancel')}
+              onPress={closeStockSheet}
+              variant="glass"
+              style={{ flex: 1 }}
+            />
+            <LiquidButton
+              title={t('addStock')}
               onPress={() => {
                 const n = parseInt(stockQty);
                 if (isNaN(n)) { Alert.alert(t('error'), t('enterValidNumber')); return; }
                 if (stockProduct) updateProduct({ ...stockProduct, quantity: Math.max(0, stockProduct.quantity + n), updatedAt: Date.now() });
                 closeStockSheet();
-              }}>
-              <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{t('addStock')}</Text>
-            </TouchableOpacity>
+              }}
+              variant="glassProminent"
+              style={{ flex: 1 }}
+            />
           </View>
         </ScrollView>
       </LiquidBottomSheet>
 
       {/* Product Action Sheet (⋯ menu) */}
       <LiquidBottomSheet ref={menuSheetRef}>
+        <SheetHeader title={menuProduct?.name ?? ''} onClose={closeMenuSheet} />
         <View style={s.sheetContent}>
-          <Text style={[s.sheetTitle, { color: colors.text }]} numberOfLines={1}>{menuProduct?.name}</Text>
           <TouchableOpacity style={s.sheetRow} onPress={() => { const p = menuProduct; closeMenuSheet(); navigation.navigate('ProductForm', { product: p }); }}>
             <View style={[s.sheetIcon, { backgroundColor: colors.primaryLight }]}>
               <Ionicons name="pencil-outline" size={20} color={colors.primary} />
@@ -253,9 +258,12 @@ export default function InventoryScreen({ route, navigation }: any) {
             <Text style={[s.sheetLabel, { color: colors.danger }]}>{t('deleteProduct')}</Text>
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
           </TouchableOpacity>
-          <TouchableOpacity style={[s.sheetCancel, { backgroundColor: colors.surfaceHigh }]} onPress={closeMenuSheet}>
-            <Text style={{ color: colors.textSub, fontFamily: fonts.bold, fontSize: 15 }}>Cancel</Text>
-          </TouchableOpacity>
+          <LiquidButton
+            title="Cancel"
+            onPress={closeMenuSheet}
+            variant="glass"
+            style={{ marginTop: 10 }}
+          />
         </View>
       </LiquidBottomSheet>
     </View>
@@ -274,17 +282,12 @@ const makeStyles = (c: any) => StyleSheet.create({
   catChipText: { fontFamily: fonts.bold, fontSize: 13 },
 
   sheetContent: { paddingHorizontal: 20, paddingBottom: 24 },
-  stockTitle: { fontFamily: fonts.extraBold, fontSize: 18, marginBottom: 6 },
-  stockProductName: { fontFamily: fonts.bold, fontSize: 16, marginBottom: 4 },
   stockCurrent: { fontFamily: fonts.medium, fontSize: 14, marginBottom: 18 },
   stockQuickRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
   stockQuickBtn: { flex: 1, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
   stockQuickText: { fontFamily: fonts.bold, fontSize: 14 },
   stockInput: { borderRadius: 14, padding: 16, fontSize: 15, borderWidth: 1, marginBottom: 16 },
-  stockBtn: { flex: 1, padding: 16, borderRadius: 14, alignItems: 'center' },
-  sheetTitle: { fontFamily: fonts.bold, fontSize: 14, marginBottom: 8, paddingHorizontal: 4 },
   sheetRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, paddingHorizontal: 4 },
   sheetIcon: { width: 42, height: 42, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   sheetLabel: { flex: 1, fontFamily: fonts.semiBold, fontSize: 15 },
-  sheetCancel: { marginTop: 10, padding: 15, borderRadius: 14, alignItems: 'center' },
 });

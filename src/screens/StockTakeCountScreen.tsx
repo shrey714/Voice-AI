@@ -11,6 +11,7 @@ import { fonts } from '../theme/typography';
 import { StockTakeItem } from '../types';
 import { sanitizeInteger } from '../utils/helpers';
 import { useTranslation } from '../hooks/useTranslation';
+import LiquidButton from '../components/common/LiquidButton';
 
 interface Section {
   title: string;
@@ -156,16 +157,13 @@ export default function StockTakeCountScreen({ navigation }: any) {
 
       {/* Floating review button */}
       <View style={[s.footer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
-        <TouchableOpacity
-          style={[s.reviewBtn, { backgroundColor: countedCount > 0 ? colors.primary : colors.surfaceHigh }]}
+        <LiquidButton
+          title={countedCount > 0 ? `Review ${countedCount} counted` : t('countProductsFirst')}
+          icon="eye"
           onPress={handleReview}
           disabled={countedCount === 0}
-        >
-          <Ionicons name="eye-outline" size={18} color={countedCount > 0 ? '#fff' : colors.textMuted} />
-          <Text style={[s.reviewBtnText, { color: countedCount > 0 ? '#fff' : colors.textMuted }]}>
-            {countedCount > 0 ? `Review ${countedCount} counted` : t('countProductsFirst')}
-          </Text>
-        </TouchableOpacity>
+          variant="glassProminent"
+        />
       </View>
     </KeyboardAvoidingView>
   );
@@ -193,6 +191,4 @@ const makeStyles = (c: any) => StyleSheet.create({
   diffText: { fontFamily: fonts.extraBold, fontSize: 13 },
 
   footer: {  padding: 14, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, display:'flex', alignItems:'center', justifyContent:'center' },
-  reviewBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, paddingHorizontal: 20, borderRadius: 10 },
-  reviewBtnText: { fontFamily: fonts.extraBold, fontSize: 15 },
 });

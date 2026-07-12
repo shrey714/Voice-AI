@@ -6,6 +6,7 @@ import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import LiquidBottomSheet, { LiquidBottomSheetRef } from '../components/common/LiquidBottomSheet';
+import SheetHeader, { SHEET_PADDING } from '../components/common/SheetHeader';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
@@ -178,17 +179,10 @@ export default function StockTakeHistoryScreen({ navigation }: any) {
         <ScrollView
           contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 24) }}
         >
-          {/* Header */}
-          <View style={[s.sheetHeader, { borderBottomColor: colors.border }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={[s.sheetTitle, { color: colors.text }]}>
-                {selectedSession ? fmtDateShort(selectedSession.completedAt!) : ''}
-              </Text>
-              <Text style={[s.sheetSub, { color: colors.textMuted }]}>
-                {selectedSession?.scope === 'all' ? 'All products' : selectedSession?.scope ?? ''}
-              </Text>
-            </View>
-          </View>
+          <SheetHeader
+            title={selectedSession ? fmtDateShort(selectedSession.completedAt!) : ''}
+            subtitle={selectedSession?.scope === 'all' ? 'All products' : selectedSession?.scope ?? ''}
+          />
 
           {/* Summary stats */}
           {selectedSession?.summary && (() => {
@@ -309,14 +303,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   netPill: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
   netText: { fontFamily: fonts.bold, fontSize: 11 },
 
-  sheetHeader: {
-    paddingHorizontal: 16, paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  sheetTitle: { fontFamily: fonts.extraBold, fontSize: 17 },
-  sheetSub: { fontFamily: fonts.regular, fontSize: 12, marginTop: 3 },
-
-  sheetStats: { flexDirection: 'row', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  sheetStats: { flexDirection: 'row', paddingVertical: 12, paddingHorizontal: SHEET_PADDING, borderBottomWidth: StyleSheet.hairlineWidth },
   sheetStatItem: { flex: 1, alignItems: 'center' },
   sheetStatVal: { fontFamily: fonts.extraBold, fontSize: 18 },
   sheetStatLbl: { fontFamily: fonts.medium, fontSize: 10, marginTop: 2 },
@@ -324,14 +311,14 @@ const makeStyles = (c: any) => StyleSheet.create({
 
   colHeader: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 14, paddingVertical: 8,
+    paddingHorizontal: SHEET_PADDING, paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   colLbl: { fontFamily: fonts.extraBold, fontSize: 10, letterSpacing: 0.6 },
 
   itemRow: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 14, paddingVertical: 10,
+    paddingHorizontal: SHEET_PADDING, paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth, gap: 4,
   },
   itemName: { fontFamily: fonts.bold, fontSize: 13 },

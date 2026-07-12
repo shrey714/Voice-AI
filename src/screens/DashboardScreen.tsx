@@ -101,6 +101,7 @@ import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
 import AnimatedNumber from '../components/common/AnimatedNumber';
 import PressableScale from '../components/common/PressableScale';
+import LiquidButton from '../components/common/LiquidButton';
 import { DashboardSkeleton } from '../components/common/Skeleton';
 import BusiestHours from '../components/common/BusiestHours';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -634,10 +635,14 @@ export default function DashboardScreen({ navigation }: any) {
             </View>
             <Text style={[s.emptyTitle, { color: colors.text }]}>{t('noSalesToday')}</Text>
             <Text style={[s.emptySub, { color: colors.textMuted }]}>{t('noSalesTodayDesc')}</Text>
-            <PressableScale style={[s.emptyBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('Billing')}>
-              <Ionicons name="add" size={18} color="#fff" />
-              <Text style={s.emptyBtnText}>{t('newBill')}</Text>
-            </PressableScale>
+            <LiquidButton
+              title={t('newBill')}
+              icon="plus"
+              onPress={() => navigation.navigate('Billing')}
+              variant="glassProminent"
+              fullWidth={false}
+              height={44}
+            />
           </MotiView>
         )}
 
@@ -755,8 +760,6 @@ const makeStyles = (c: any) => StyleSheet.create({
   emptyIcon: { width: 62, height: 62, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   emptyTitle: { fontFamily: fonts.extraBold, fontSize: 17 },
   emptySub: { fontFamily: fonts.medium, fontSize: 13, textAlign: 'center', lineHeight: 20, marginTop: 6, marginBottom: 18, paddingHorizontal: 8 },
-  emptyBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 22, paddingVertical: 12, borderRadius: 14 },
-  emptyBtnText: { color: '#fff', fontFamily: fonts.bold, fontSize: 14 },
 
   // Bill rows
   billRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, gap: 12 },

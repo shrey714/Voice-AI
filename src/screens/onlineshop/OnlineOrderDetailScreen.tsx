@@ -196,16 +196,16 @@ export default function OnlineOrderDetailScreen({ route, navigation }: any) {
         </View>
       ) : order.status === 'pending' ? (
         <View style={[s.actionBar, { borderTopColor: colors.border }]}>
-          <LiquidButton title="Reject" icon="xmark" onPress={() => handleAction('rejected')} variant="glass" tintColor={colors.danger} height={48} style={{ flex: 1 }} />
-          <LiquidButton title="Accept" icon="checkmark" onPress={() => handleAction('accepted')} variant="glassProminent" height={48} style={{ flex: 1 }} />
+          <LiquidButton title="Reject" icon="xmark" onPress={() => handleAction('rejected')} variant="glass" tintColor={colors.danger} style={{ flex: 1 }} />
+          <LiquidButton title="Accept" icon="checkmark" onPress={() => handleAction('accepted')} variant="glassProminent" style={{ flex: 1 }} />
         </View>
       ) : order.status === 'accepted' ? (
         <View style={[s.actionBar, { borderTopColor: colors.border }]}>
-          <LiquidButton title="Mark Ready" icon="bag.fill" onPress={() => handleAction('ready')} variant="glassProminent" height={48} />
+          <LiquidButton title="Mark Ready" icon="bag.fill" onPress={() => handleAction('ready')} variant="glassProminent" />
         </View>
       ) : order.status === 'ready' ? (
         <View style={[s.actionBar, { borderTopColor: colors.border }]}>
-          <LiquidButton title="Mark Completed" icon="checkmark.circle.fill" onPress={() => handleAction('completed')} tintColor={colors.success} height={48} />
+          <LiquidButton title="Mark Completed" icon="checkmark.circle.fill" onPress={() => handleAction('completed')} tintColor={colors.success} />
         </View>
       ) : null}
     </View>

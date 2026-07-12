@@ -6,13 +6,14 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
-import { Ionicons } from '@expo/vector-icons';
 import { Calendar, CalendarProps } from 'react-native-calendars';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
 import LiquidBottomSheet, { LiquidBottomSheetRef } from './LiquidBottomSheet';
+import LiquidButton from './LiquidButton';
+import SheetHeader, { SHEET_PADDING } from './SheetHeader';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -195,16 +196,7 @@ const DatePickerSheet = forwardRef<DatePickerSheetRef, Props>(
     return (
       <LiquidBottomSheet ref={sheetRef} onDismiss={onDismiss}>
         <View>
-          {/* Header */}
-          <View style={[styles.header, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.title, { color: colors.text }]}>{sheetTitle}</Text>
-            <TouchableOpacity
-              onPress={() => sheetRef.current?.dismiss()}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            >
-              <Ionicons name="close" size={22} color={colors.textSub} />
-            </TouchableOpacity>
-          </View>
+          <SheetHeader title={sheetTitle} onClose={() => sheetRef.current?.dismiss()} />
 
           {/* Calendar */}
           <Calendar
@@ -223,18 +215,14 @@ const DatePickerSheet = forwardRef<DatePickerSheetRef, Props>(
             ) : (
               <View style={{ flex: 1 }} />
             )}
-            <TouchableOpacity
-              style={[
-                styles.confirmBtn,
-                { backgroundColor: canConfirm ? colors.primary : colors.border },
-              ]}
+            <LiquidButton
+              title="Confirm"
               onPress={handleConfirm}
               disabled={!canConfirm}
-            >
-              <Text style={[styles.confirmText, { color: canConfirm ? '#fff' : colors.textMuted }]}>
-                Confirm
-              </Text>
-            </TouchableOpacity>
+              variant="glassProminent"
+              fullWidth={false}
+              height={44}
+            />
           </View>
         </View>
       </LiquidBottomSheet>
@@ -245,29 +233,14 @@ const DatePickerSheet = forwardRef<DatePickerSheetRef, Props>(
 export default DatePickerSheet;
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  title: { fontFamily: fonts.extraBold, fontSize: 17 },
   calendar: { paddingBottom: 4 },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: SHEET_PADDING,
     paddingTop: 10,
     paddingBottom: 24,
     gap: 12,
   },
   hint: { flex: 1, fontFamily: fonts.regular, fontSize: 13 },
-  confirmBtn: {
-    paddingHorizontal: 28,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  confirmText: { fontFamily: fonts.bold, fontSize: 15 },
 });

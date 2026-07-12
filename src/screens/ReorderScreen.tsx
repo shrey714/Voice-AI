@@ -125,8 +125,8 @@ export default function ReorderScreen({ navigation }: any) {
               <View style={s.actions}>
                 {/* No standard SF Symbol for the WhatsApp logo — text-only
                     (WhatsApp-green tint) on iOS rather than a mismatched icon. */}
-                <LiquidButton title={t('whatsappReorder')} onPress={() => whatsappReorder(key, items)} tintColor="#25D366" height={44} style={{ flex: 1 }} />
-                <LiquidButton title={t('draftPurchase')} icon="doc.text" onPress={() => draftPurchase(key, items)} variant="glassProminent" height={44} style={{ flex: 1 }} />
+                <LiquidButton title={t('whatsappReorder')} onPress={() => whatsappReorder(key, items)} tintColor="#25D366" style={{ flex: 1 }} />
+                <LiquidButton title={t('draftPurchase')} icon="doc.text" onPress={() => draftPurchase(key, items)} variant="glassProminent" style={{ flex: 1 }} />
               </View>
             </MotiView>
           );

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
-  View, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, Alert,
+  View, ScrollView, StyleSheet, TouchableOpacity, Alert,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +11,7 @@ import { useAppStore } from '../stores/useAppStore';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
 import { useTranslation } from '../hooks/useTranslation';
+import LiquidButton from '../components/common/LiquidButton';
 import { formatCurrency, formatDate, startOfDay, endOfDay, startOfWeek, startOfMonth } from '../utils/helpers';
 import { Bill, Expense, Product } from '../types';
 
@@ -355,22 +356,22 @@ export default function ExportsScreen() {
 
       {/* Export buttons */}
       <View style={s.exportRow}>
-        <TouchableOpacity
-          style={[s.exportBtn, { backgroundColor: colors.danger, opacity: exporting ? 0.6 : 1 }]}
+        <LiquidButton
+          title={t('exportPdf')}
+          icon="doc.text"
           onPress={exportPDF}
-          disabled={exporting}
-        >
-          {exporting ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="document-text-outline" size={18} color="#fff" />}
-          <Text style={s.exportBtnText}>{t('exportPdf')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[s.exportBtn, { backgroundColor: colors.success, opacity: exporting ? 0.6 : 1 }]}
+          loading={exporting}
+          variant="destructive"
+          style={{ flex: 1 }}
+        />
+        <LiquidButton
+          title={t('exportCsv')}
+          icon="square.grid.2x2"
           onPress={exportCSV}
-          disabled={exporting}
-        >
-          {exporting ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="grid-outline" size={18} color="#fff" />}
-          <Text style={s.exportBtnText}>{t('exportCsv')}</Text>
-        </TouchableOpacity>
+          loading={exporting}
+          tintColor={colors.success}
+          style={{ flex: 1 }}
+        />
       </View>
     </ScrollView>
     </View>
@@ -491,6 +492,4 @@ const makeStyles = (c: any) => StyleSheet.create({
   tabBtn: { flex: 1, padding: 8, borderRadius: 6, alignItems: 'center', flexDirection: 'row', justifyContent:'center', gap: 10 },
   tabBtnText: { fontFamily: fonts.bold, fontSize: 13 },
   exportRow: { flexDirection: 'row', gap: 12 },
-  exportBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 15, borderRadius: 10 },
-  exportBtnText: { fontFamily: fonts.extraBold, fontSize: 15, color: '#fff' },
 });

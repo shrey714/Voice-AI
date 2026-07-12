@@ -311,7 +311,7 @@ export default function QuickEditScreen({ navigation }: any) {
           <Ionicons name="play-skip-forward" size={20} color={colors.textMuted} />
           <Text style={[s.actionLabel, { color: colors.textMuted }]}>{t('skip')}</Text>
         </TouchableOpacity>
-        <LiquidButton title={t('saveAndNext')} icon="checkmark" onPress={() => commit('save')} variant="glassProminent" height={46} style={{ flex: 1 }} />
+        <LiquidButton title={t('saveAndNext')} icon="checkmark" onPress={() => commit('save')} variant="glassProminent" style={{ flex: 1 }} />
       </View>
     </KeyboardAvoidingView>
   );

@@ -6,6 +6,7 @@ import { MotiView } from 'moti';
 import LiquidBottomSheet, { LiquidBottomSheetRef } from '../components/common/LiquidBottomSheet';
 import LiquidTextField from '../components/common/LiquidTextField';
 import LiquidButton from '../components/common/LiquidButton';
+import SheetHeader from '../components/common/SheetHeader';
 import { useNavigation } from '@react-navigation/native';
 import { useAppStore } from '../stores/useAppStore';
 import { useTranslation } from '../hooks/useTranslation';
@@ -260,8 +261,8 @@ export default function SupplierScreen() {
 
       {/* Add/Edit Supplier Form Sheet */}
       <LiquidBottomSheet ref={formSheetRef}>
+        <SheetHeader title={editing ? t('editSupplier') : t('addSupplier')} onClose={closeFormSheet} />
         <ScrollView contentContainerStyle={s.sheetContent}>
-          <Text style={[s.modalTitle, { color: c.text }]}>{editing ? t('editSupplier') : t('addSupplier')}</Text>
           {([
             { key: 'name', label: `${t('businessName')} *`, placeholder: 'e.g. Sharma Traders', keyboard: 'default' },
             { key: 'phone', label: t('phone'), placeholder: '+91 XXXXX XXXXX', keyboard: 'phone-pad' },
@@ -281,10 +282,8 @@ export default function SupplierScreen() {
             </View>
           ))}
           <View style={s.btnRow}>
-            <TouchableOpacity style={[s.cancelBtn, { borderColor: c.border }]} onPress={closeFormSheet}>
-              <Text style={{ color: c.textSub, fontFamily: fonts.semiBold }}>{t('cancel')}</Text>
-            </TouchableOpacity>
-            <LiquidButton title={t('save')} onPress={save} variant="glassProminent" height={48} style={{ flex: 1 }} />
+            <LiquidButton title={t('cancel')} onPress={closeFormSheet} variant="glass" style={{ flex: 1 }} />
+            <LiquidButton title={t('save')} onPress={save} variant="glassProminent" style={{ flex: 1 }} />
           </View>
         </ScrollView>
       </LiquidBottomSheet>
@@ -294,10 +293,10 @@ export default function SupplierScreen() {
         ref={paymentSheetRef}
         onDismiss={() => { setPaymentSupplier(null); setPaymentAmount(''); setPaymentNote(''); }}
       >
+        <SheetHeader title={t('recordPayment')} onClose={() => paymentSheetRef.current?.close()} />
         <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}>
-          <Text style={[s.modalTitle, { color: c.text }]}>{t('recordPayment')}</Text>
           {paymentSupplier && (
-            <Text style={{ fontFamily: fonts.medium, fontSize: 14, color: c.textSub, marginBottom: 14, marginTop: -10 }}>
+            <Text style={{ fontFamily: fonts.medium, fontSize: 14, color: c.textSub, marginBottom: 14 }}>
               {t('toWord')} {paymentSupplier.name}
             </Text>
           )}
@@ -333,15 +332,12 @@ export default function SupplierScreen() {
             style={{ marginBottom: 16 }}
           />
           <View style={s.btnRow}>
-            <TouchableOpacity style={[s.cancelBtn, { borderColor: c.border }]} onPress={() => paymentSheetRef.current?.close()}>
-              <Text style={{ color: c.textSub, fontFamily: fonts.semiBold }}>{t('cancel')}</Text>
-            </TouchableOpacity>
+            <LiquidButton title={t('cancel')} onPress={() => paymentSheetRef.current?.close()} variant="glass" style={{ flex: 1 }} />
             <LiquidButton
               title={savingPayment ? t('savingDots') : t('savePayment')}
               onPress={savePayment}
               loading={savingPayment}
               tintColor={c.success}
-              height={48}
               style={{ flex: 1 }}
             />
           </View>
@@ -639,8 +635,6 @@ const makeStyles = (c: any) => StyleSheet.create({
   fieldLabel: { fontFamily: fonts.bold, fontSize: 12, marginBottom: 6, paddingLeft: 4 },
   input: { borderRadius: 10, padding: 12, fontSize: 15, borderWidth: 1, fontFamily: fonts.regular },
   btnRow: { flexDirection: 'row', gap: 8, marginTop: 10, paddingHorizontal: 8 },
-  cancelBtn: { flex: 1, padding: 14, borderRadius: 10, borderWidth: 1, alignItems: 'center' },
-  primaryBtn: { flex: 1, padding: 14, borderRadius: 10, alignItems: 'center' },
   detailHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth, paddingLeft: 8, paddingRight: 14 },
   statsRow: { flexDirection: 'row', borderBottomWidth: StyleSheet.hairlineWidth, padding: 12, marginBottom: 8 },
   statItem: { flex: 1, alignItems: 'center' },

@@ -9,6 +9,7 @@ import * as Haptics from 'expo-haptics';
 import { useAppStore } from '../stores/useAppStore';
 import { fonts } from '../theme/typography';
 import { useTranslation } from '../hooks/useTranslation';
+import LiquidButton from '../components/common/LiquidButton';
 
 const SAGE = '#5B7567';
 const SAGE_DARK = '#3E4F44';
@@ -87,6 +88,7 @@ export default function OnboardingScreen() {
   const isLast = step === ORDER.length - 1;
   const primaryLabel = step === 0 ? t('getStarted') : isLast ? t('finishSetup') : t('continueBtn');
   const primaryIcon = isLast ? 'checkmark' : 'arrow-forward';
+  const primarySfIcon = isLast ? 'checkmark' : 'arrow.forward';
   const primaryDisabled = key === 'shop' && !shopName.trim();
   const showSkip = step < ORDER.length - 1;
   const skipLabel = step === 0 ? t('skipForNow') : t('skipThisStep');
@@ -219,17 +221,15 @@ export default function OnboardingScreen() {
             </MotiView>
 
             {/* Primary button — flex:1, reflows narrower as the back button appears */}
-            <TouchableOpacity
-              style={[s.primaryBtn, { flex: 1, marginTop: 0, opacity: primaryDisabled ? 0.5 : 1 }]}
-              disabled={primaryDisabled}
+            <LiquidButton
+              title={primaryLabel}
+              icon={primarySfIcon as any}
               onPress={next}
-              activeOpacity={0.85}
-            >
-              <MotiView key={primaryLabel} from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ type: 'timing', duration: 240 }} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={s.primaryBtnText}>{primaryLabel}</Text>
-                <Ionicons name={primaryIcon} size={18} color={SAGE_DARK} />
-              </MotiView>
-            </TouchableOpacity>
+              disabled={primaryDisabled}
+              tintColor={CREAM}
+              height={52}
+              style={{ flex: 1 }}
+            />
           </View>
 
           {/* Skip link */}

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { View, StyleSheet, TextInput, TouchableOpacity, Alert, ActivityIndicator, Platform, KeyboardAvoidingView, ScrollView } from 'react-native';
+import { View, StyleSheet, TextInput, TouchableOpacity, Alert, Platform, KeyboardAvoidingView, ScrollView } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
 import { fonts } from '../theme/typography';
 import { BRAND, BrandDecorations, BrandBadge } from '../components/common/brandKit';
+import LiquidButton from '../components/common/LiquidButton';
 
 /** Formats a raw 10-digit number into the +91 E.164 shape Supabase expects. */
 function formatPhone(raw: string): string {
@@ -99,14 +100,14 @@ export default function PhoneAuthScreen() {
                     autoFocus
                   />
                 </View>
-                <TouchableOpacity
-                  style={[s.btn, { opacity: loading || phone.length < 10 ? 0.6 : 1 }]}
+                <LiquidButton
+                  title="Send OTP"
                   onPress={sendOtp}
-                  disabled={loading || phone.length < 10}
-                  activeOpacity={0.85}
-                >
-                  {loading ? <ActivityIndicator color={BRAND.sageDark} /> : <Text style={s.btnText}>Send OTP</Text>}
-                </TouchableOpacity>
+                  disabled={phone.length < 10}
+                  loading={loading}
+                  tintColor={BRAND.cream}
+                  height={52}
+                />
               </>
             ) : (
               <>
@@ -121,14 +122,14 @@ export default function PhoneAuthScreen() {
                   keyboardType="number-pad"
                   maxLength={6}
                 />
-                <TouchableOpacity
-                  style={[s.btn, { opacity: loading || otp.length !== 6 ? 0.6 : 1 }]}
+                <LiquidButton
+                  title="Verify & Continue"
                   onPress={verifyOtp}
-                  disabled={loading || otp.length !== 6}
-                  activeOpacity={0.85}
-                >
-                  {loading ? <ActivityIndicator color={BRAND.sageDark} /> : <Text style={s.btnText}>Verify & Continue</Text>}
-                </TouchableOpacity>
+                  disabled={otp.length !== 6}
+                  loading={loading}
+                  tintColor={BRAND.cream}
+                  height={52}
+                />
                 <TouchableOpacity style={{ marginTop: 14, alignItems: 'center' }} onPress={() => { setStep('phone'); setOtp(''); }}>
                   <Text style={s.link}>Change number</Text>
                 </TouchableOpacity>
@@ -158,8 +159,6 @@ const s = StyleSheet.create({
 
   otpInput: { borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', backgroundColor: 'rgba(255,255,255,0.14)', padding: 15, fontSize: 22, fontFamily: fonts.extraBold, color: '#fff', textAlign: 'center', letterSpacing: 8, marginBottom: 16 },
 
-  btn: { backgroundColor: BRAND.cream, borderRadius: 16, padding: 16, alignItems: 'center' },
-  btnText: { fontFamily: fonts.extraBold, fontSize: 15, color: BRAND.sageDark },
   link: { fontFamily: fonts.bold, fontSize: 13, color: BRAND.cream },
 
   footnote: { fontFamily: fonts.regular, fontSize: 12, color: 'rgba(255,255,255,0.75)', textAlign: 'center', marginTop: 22, lineHeight: 18, paddingHorizontal: 12 },

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Platform, TextInput, StyleSheet } from 'react-native';
 import { Host, TextField as SwiftUITextField, type TextFieldRef } from '@expo/ui/swift-ui';
-import { glassEffect, textFieldStyle, padding, keyboardType as keyboardTypeMod, frame, lineLimit } from '@expo/ui/swift-ui/modifiers';
+import { glassEffect, textFieldStyle, padding, keyboardType as keyboardTypeMod, frame, lineLimit, background, shapes } from '@expo/ui/swift-ui/modifiers';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
 
@@ -66,6 +66,15 @@ export default function LiquidTextField({
           axis={multiline ? 'vertical' : 'horizontal'}
           onValueChange={(v) => { lastEmitted.current = v; onChangeText(v); }}
           modifiers={[
+            // A pure `glassEffect` here reads as nearly invisible against an
+            // already-transparent `LiquidBottomSheet` — there's no longer a
+            // solid surface behind it to contrast against, so the field's
+            // edges (and placeholder/typed text) become hard to make out.
+            // Backing it with the app's own `surfaceHigh` tone first (dimmed
+            // slightly via alpha rather than fully opaque) keeps the field
+            // legible while the glass modifier on top still gives it a real
+            // native material/highlight, instead of looking like flat paint.
+            background(colors.surfaceHigh + 'CC', shapes.roundedRectangle({ cornerRadius: 12 })),
             glassEffect({ glass: { variant: 'regular' }, shape: 'roundedRectangle', cornerRadius: 12 }),
             textFieldStyle('plain'),
             padding({ horizontal: 14, vertical: multiline ? 10 : 0 }),

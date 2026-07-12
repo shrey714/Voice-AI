@@ -7,6 +7,7 @@ import { useAppStore } from '../stores/useAppStore';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
 import { useTranslation } from '../hooks/useTranslation';
+import LiquidButton from '../components/common/LiquidButton';
 
 function formatDate(ts: number) {
   return new Date(ts).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -93,19 +94,19 @@ export default function StockTakeScreen({ navigation }: any) {
             </Text>
 
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
-              <TouchableOpacity
-                style={[s.btn, { backgroundColor: colors.primary, flex: 2 }]}
+              <LiquidButton
+                title={t('resumeCounting')}
+                icon="play.fill"
                 onPress={() => navigation.navigate('StockTakeCount')}
-              >
-                <Ionicons name="play" size={16} color="#fff" />
-                <Text style={[s.btnText, { color: '#fff' }]}>{t('resumeCounting')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[s.btn, { backgroundColor: colors.danger + '15', borderWidth: 1, borderColor: colors.danger + '40', flex: 1 }]}
+                variant="glassProminent"
+                style={{ flex: 2 }}
+              />
+              <LiquidButton
+                title={t('discard')}
                 onPress={handleDiscard}
-              >
-                <Text style={[s.btnText, { color: colors.danger }]}>{t('discard')}</Text>
-              </TouchableOpacity>
+                variant="destructive"
+                style={{ flex: 1 }}
+              />
             </View>
           </View>
         </MotiView>
@@ -153,16 +154,14 @@ export default function StockTakeScreen({ navigation }: any) {
             })}
           </View>
 
-          <TouchableOpacity
-            style={[s.btn, s.startBtn, { backgroundColor: colors.primary }]}
+          <LiquidButton
+            title={starting ? t('starting') : t('startStockTake')}
+            icon="checkmark.circle"
             onPress={handleStart}
-            disabled={starting}
-          >
-            <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
-            <Text style={[s.btnText, { color: '#fff', fontSize: 16 }]}>
-              {starting ? t('starting') : t('startStockTake')}
-            </Text>
-          </TouchableOpacity>
+            loading={starting}
+            variant="glassProminent"
+            style={s.startBtn}
+          />
         </MotiView>
       )}
 
@@ -210,9 +209,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   },
   historyBtnText: { fontFamily: fonts.semiBold, fontSize: 13 },
 
-  btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 13, paddingHorizontal: 16, borderRadius: 12 },
   startBtn: { marginBottom: 20 },
-  btnText: { fontFamily: fonts.bold, fontSize: 14 },
 
   tipsCard: { borderRadius: 14, borderWidth: 1, padding: 16 },
   tipsTitle: { fontFamily: fonts.extraBold, fontSize: 11, letterSpacing: 0.7 },

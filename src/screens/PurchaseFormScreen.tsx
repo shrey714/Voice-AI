@@ -7,6 +7,7 @@ import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import LiquidBottomSheet, { LiquidBottomSheetRef } from '../components/common/LiquidBottomSheet';
 import LiquidButton from '../components/common/LiquidButton';
+import SheetHeader, { SHEET_PADDING } from '../components/common/SheetHeader';
 import { useAppStore } from '../stores/useAppStore';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
@@ -437,9 +438,9 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
 
       {/* Product picker sheet */}
       <LiquidBottomSheet ref={pickerSheetRef} heightFraction={0.8}>
-        <View style={{ flex: 1, paddingHorizontal: 16 }}>
-          <Text style={[s.sheetTitle, { color: colors.text }]}>{t('selectProduct')}</Text>
-          <View style={[s.searchBox, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
+        <View style={{ flex: 1 }}>
+          <SheetHeader title={t('selectProduct')} onClose={() => pickerSheetRef.current?.close()} />
+          <View style={[s.searchBox, { backgroundColor: colors.surfaceHigh, borderColor: colors.border, marginHorizontal: SHEET_PADDING }]}>
             <Ionicons name="search-outline" size={16} color={colors.textMuted} style={{ marginRight: 6 }} />
             <TextInput
               style={[s.searchInput, { color: colors.text }]}
@@ -453,7 +454,7 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
           <FlatList
             data={filteredProducts}
             keyExtractor={p => p.id}
-            contentContainerStyle={{ paddingBottom: 24 }}
+            contentContainerStyle={{ paddingBottom: 24, paddingHorizontal: SHEET_PADDING }}
             keyboardShouldPersistTaps="handled"
             renderItem={({ item: p }) => (
               <TouchableOpacity
@@ -475,9 +476,9 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
 
       {/* Supplier picker sheet */}
       <LiquidBottomSheet ref={supplierSheetRef} heightFraction={0.6}>
-        <View style={{ flex: 1, paddingHorizontal: 16 }}>
-          <Text style={[s.sheetTitle, { color: colors.text }]}>{t('selectSupplierLabel')}</Text>
-          <View style={[s.searchBox, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
+        <View style={{ flex: 1 }}>
+          <SheetHeader title={t('selectSupplierLabel')} onClose={() => supplierSheetRef.current?.close()} />
+          <View style={[s.searchBox, { backgroundColor: colors.surfaceHigh, borderColor: colors.border, marginHorizontal: SHEET_PADDING }]}>
             <Ionicons name="search-outline" size={16} color={colors.textMuted} style={{ marginRight: 6 }} />
             <TextInput
               style={[s.searchInput, { color: colors.text }]}
@@ -491,7 +492,7 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
           <FlatList
             data={filteredSuppliers}
             keyExtractor={s => s.id}
-            contentContainerStyle={{ paddingBottom: 24 }}
+            contentContainerStyle={{ paddingBottom: 24, paddingHorizontal: SHEET_PADDING }}
             keyboardShouldPersistTaps="handled"
             renderItem={({ item: sup }) => (
               <TouchableOpacity
@@ -554,7 +555,6 @@ const makeStyles = (c: any) => StyleSheet.create({
   payModeBtnText: { fontFamily: fonts.bold, fontSize: 13 },
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, borderRadius: 14 },
   saveBtnText: { fontFamily: fonts.extraBold, fontSize: 16 },
-  sheetTitle: { fontFamily: fonts.extraBold, fontSize: 17, marginBottom: 12 },
   searchBox: { flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, borderWidth: 1, marginBottom: 10 },
   searchInput: { flex: 1, fontSize: 14, padding: 0, fontFamily: fonts.regular },
   productRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },

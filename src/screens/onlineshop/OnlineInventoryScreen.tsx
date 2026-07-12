@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 import LiquidBottomSheet, { LiquidBottomSheetRef } from '../../components/common/LiquidBottomSheet';
 import LiquidTextField from '../../components/common/LiquidTextField';
+import SheetHeader, { SHEET_PADDING } from '../../components/common/SheetHeader';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
 import { useAppStore } from '../../stores/useAppStore';
@@ -232,13 +233,13 @@ function ImportPickerSheet({ sheetRef, onPick }: {
 
   return (
     <LiquidBottomSheet ref={sheetRef}>
-      {/* Single ScrollView holding everything — title, search input, and
-          rows all mapped inline (not virtualized) — the local product list
-          here is small enough that this is fine, and avoids any risk of a
-          separate FlatList fighting the search input for keyboard focus. */}
+      <SheetHeader title="Import from local shop" onClose={() => sheetRef.current?.close()} />
+      {/* Single ScrollView holding everything — search input and rows all
+          mapped inline (not virtualized) — the local product list here is
+          small enough that this is fine, and avoids any risk of a separate
+          FlatList fighting the search input for keyboard focus. */}
       <ScrollView contentContainerStyle={s.pickerHeader} keyboardShouldPersistTaps="handled">
-        <Text style={[s.pickerTitle, { color: colors.text }]}>Import from local shop</Text>
-        <View style={{ marginTop: 12, marginBottom: 8 }}>
+        <View style={{ marginBottom: 8 }}>
           <LiquidTextField
             value={query}
             onChangeText={setQuery}
@@ -294,7 +295,6 @@ const makeStyles = (c: any) =>
     actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     actionText: { fontFamily: fonts.bold, fontSize: 13 },
 
-    pickerHeader: { paddingHorizontal: 16, paddingBottom: 24 },
-    pickerTitle: { fontFamily: fonts.extraBold, fontSize: 17 },
+    pickerHeader: { paddingHorizontal: SHEET_PADDING, paddingBottom: 24 },
     pickerRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   });

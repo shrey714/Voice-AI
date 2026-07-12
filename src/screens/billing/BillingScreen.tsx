@@ -22,6 +22,7 @@ import BtStatusIcon from '../../components/billing/BtStatusIcon';
 import EmptyState from '../../components/common/EmptyState';
 import AppModal from '../../components/common/AppModal';
 import LiquidButton from '../../components/common/LiquidButton';
+import SheetHeader from '../../components/common/SheetHeader';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
 
@@ -490,25 +491,23 @@ export default function BillingScreen({ navigation }: any) {
             <Text style={[s.successSheetSub, { color: colors.textMuted }]}>
               Total {formatCurrency(lastBill.total, settings.currency)}{'  ·  '}Profit {formatCurrency(lastBill.profit, settings.currency)}
             </Text>
-            <TouchableOpacity style={s.waBtn} onPress={() => shareOnWhatsApp(lastBill)} activeOpacity={0.85}>
-              <Ionicons name="logo-whatsapp" size={22} color="#fff" />
-              <Text style={s.waBtnText}>
-                {lastBill.customerName
-                   ? t('sendTo').replace('{name}', lastBill.customerName)
-                   : lastBill.customerPhone
-                   ? t('sendToPhone').replace('{phone}', lastBill.customerPhone)
-                   : t('shareViaWhatsapp')}
-              </Text>
-            </TouchableOpacity>
+            <LiquidButton
+              title={lastBill.customerName
+                ? t('sendTo').replace('{name}', lastBill.customerName)
+                : lastBill.customerPhone
+                ? t('sendToPhone').replace('{phone}', lastBill.customerPhone)
+                : t('shareViaWhatsapp')}
+              onPress={() => shareOnWhatsApp(lastBill)}
+              tintColor="#25D366"
+              style={{ marginBottom: 10 }}
+            />
             {!!settings.upiId && (
-              <TouchableOpacity
-                style={[s.upiBtn, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}
+              <LiquidButton
+                title={t('showUpiQr')}
+                icon="qrcode"
                 onPress={() => setShowUpiQr(true)}
-                activeOpacity={0.85}
-              >
-                <Ionicons name="qr-code-outline" size={20} color={colors.primary} />
-                 <Text style={[s.upiBtnText, { color: colors.primary }]}>{t('showUpiQr')}</Text>
-              </TouchableOpacity>
+                variant="glass"
+              />
             )}
             <TouchableOpacity style={s.doneBtn} onPress={closeCheckout}>
               <Text style={[s.doneLink, { color: colors.textMuted }]}>{t('done')}</Text>
@@ -516,9 +515,9 @@ export default function BillingScreen({ navigation }: any) {
           </MotiView>
         ) : null}
         {checkoutStep === 'form' && (
+        <>
+        <SheetHeader title={t('generateBill')} onClose={closeCheckout} />
         <ScrollView contentContainerStyle={s.sheetContent}>
-          <Text style={[s.modalTitle, { color: colors.text }]}>{t('generateBill')}</Text>
-
           <Text style={[s.modalLabel, { color: colors.textSub }]}>{t('customerName')}</Text>
           <LiquidTextField
             placeholder={t('optional')} value={customerName} onChangeText={setCustomerName}
@@ -614,19 +613,17 @@ export default function BillingScreen({ navigation }: any) {
           })()}
 
           <View style={s.modalBtns}>
-            <TouchableOpacity style={[s.cancelBtn, { borderColor: colors.border }]} onPress={closeCheckout}>
-              <Text style={{ color: colors.textSub, fontFamily: fonts.semiBold }}>{t('cancel')}</Text>
-            </TouchableOpacity>
+            <LiquidButton title={t('cancel')} onPress={closeCheckout} variant="glass" style={{ flex: 1 }} />
             <LiquidButton
               title={t('generateBill')}
               onPress={handleCheckout}
               loading={processing}
               variant="glassProminent"
-              height={52}
               style={{ flex: 2 }}
             />
           </View>
         </ScrollView>
+        </>
         )}
       </LiquidBottomSheet>
 
@@ -674,20 +671,12 @@ export default function BillingScreen({ navigation }: any) {
         ref={templatesSheetRef}
         heightFraction={0.85}
       >
+        <SheetHeader
+          title={t('templates')}
+          subtitle={templates.length === 0 ? t('noTemplatesYet') : templates.length === 1 ? t('savedTemplate').replace('{count}', String(templates.length)) : t('savedTemplatePlural').replace('{count}', String(templates.length))}
+          onClose={closeTemplatesSheet}
+        />
         <ScrollView contentContainerStyle={s.sheetContent}>
-          {/* Header */}
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-            <View>
-               <Text style={[s.modalTitle, { color: colors.text }]}>{t('templates')}</Text>
-               <Text style={{ fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted, marginTop: 3 }}>
-                 {templates.length === 0 ? t('noTemplatesYet') : templates.length === 1 ? t('savedTemplate').replace('{count}', String(templates.length)) : t('savedTemplatePlural').replace('{count}', String(templates.length))}
-               </Text>
-            </View>
-            <TouchableOpacity onPress={closeTemplatesSheet} style={{ padding: 4 }} accessibilityLabel="Close" accessibilityRole="button">
-              <Ionicons name="close" size={22} color={colors.textSub} />
-            </TouchableOpacity>
-          </View>
-
           {templates.length === 0 ? (
             <View style={{ alignItems: 'center', paddingVertical: 40, gap: 12 }}>
               <View style={[s.emptyIconBox, { backgroundColor: colors.primaryLight }]}>
@@ -791,27 +780,20 @@ export default function BillingScreen({ navigation }: any) {
         ref={renameSheetRef}
         onDismiss={() => setRenameTarget(null)}
       >
+        <SheetHeader title={t('renameTemplate')} onClose={closeRenameSheet} />
         <ScrollView contentContainerStyle={s.sheetContent}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-            <Text style={[s.modalTitle, { color: colors.text }]}>{t('renameTemplate')}</Text>
-            <TouchableOpacity onPress={closeRenameSheet} accessibilityLabel="Close" accessibilityRole="button">
-              <Ionicons name="close" size={22} color={colors.textSub} />
-            </TouchableOpacity>
-          </View>
           <Text style={[s.modalLabel, { color: colors.textSub }]}>{t('newName')}</Text>
           <LiquidTextField
             value={renameName}
             onChangeText={setRenameName}
+            style={{ marginBottom: 14 }}
           />
-          <TouchableOpacity
-            style={[s.confirmBtn, { backgroundColor: renameName.trim() ? colors.primary : colors.border, marginTop: 6 }]}
+          <LiquidButton
+            title={renameSaving ? t('saving') : t('saveName')}
             onPress={handleRename}
             disabled={!renameName.trim() || renameSaving}
-          >
-             <Text style={{ color: '#fff', fontFamily: fonts.extraBold, fontSize: 15 }}>
-               {renameSaving ? t('saving') : t('saveName')}
-            </Text>
-          </TouchableOpacity>
+            variant="glassProminent"
+          />
         </ScrollView>
       </LiquidBottomSheet>
 
@@ -819,31 +801,24 @@ export default function BillingScreen({ navigation }: any) {
       <LiquidBottomSheet
         ref={saveTemplateSheetRef}
       >
+        <SheetHeader title={t('saveAsTemplate')} onClose={closeSaveSheet} />
         <ScrollView contentContainerStyle={s.sheetContent}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-             <Text style={[s.modalTitle, { color: colors.text }]}>{t('saveAsTemplate')}</Text>
-            <TouchableOpacity onPress={closeSaveSheet} accessibilityLabel="Close" accessibilityRole="button">
-              <Ionicons name="close" size={22} color={colors.textSub} />
-            </TouchableOpacity>
-          </View>
            <Text style={[s.modalLabel, { color: colors.textSub }]}>{t('templateName')}</Text>
            <LiquidTextField
              placeholder={t('templatePlaceholder')}
              value={templateName}
              onChangeText={setTemplateName}
+             style={{ marginBottom: 8 }}
            />
           <Text style={[{ color: colors.textMuted, fontFamily: fonts.regular, fontSize: 12, marginBottom: 16 }]}>
             {cart.length === 1 ? t('itemWillBeSaved').replace('{count}', String(cart.length)) : t('itemsWillBeSaved').replace('{count}', String(cart.length))}
           </Text>
-          <TouchableOpacity
-            style={[s.confirmBtn, { backgroundColor: templateName.trim() ? colors.primary : colors.border }]}
+          <LiquidButton
+            title={savingTemplate ? t('saving') : t('saveTemplate')}
             onPress={handleSaveTemplate}
             disabled={!templateName.trim() || savingTemplate}
-          >
-            <Text style={{ color: '#fff', fontFamily: fonts.extraBold, fontSize: 15 }}>
-              {savingTemplate ? t('saving') : t('saveTemplate')}
-            </Text>
-          </TouchableOpacity>
+            variant="glassProminent"
+          />
         </ScrollView>
       </LiquidBottomSheet>
 
@@ -949,7 +924,6 @@ const makeStyles = (c: any) => StyleSheet.create({
   checkoutTotal: { color: '#fff', fontFamily: fonts.display, fontSize: 18 },
   checkoutLabel: { color: '#fff', fontFamily: fonts.bold, fontSize: 15 },
   sheetContent: { paddingHorizontal: 20, paddingBottom: 24 },
-  modalTitle: { fontFamily: fonts.extraBold, fontSize: 18, marginBottom: 8 },
   modalLabel: { fontFamily: fonts.bold, fontSize: 13, marginBottom: 8, marginTop: 14 },
   modalInput: { borderRadius: 14, padding: 14, fontSize: 15, borderWidth: 1, fontFamily: fonts.regular, color: 'black' },
   paymentRow: { flexDirection: 'row', gap: 10, marginTop: 6 },
@@ -957,16 +931,10 @@ const makeStyles = (c: any) => StyleSheet.create({
   summaryBox: { borderRadius: 14, padding: 16, marginTop: 16 },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
   modalBtns: { flexDirection: 'row', gap: 12, marginTop: 18 },
-  cancelBtn: { flex: 1, padding: 16, borderRadius: 14, borderWidth: 1, alignItems: 'center' },
-  confirmBtn: { flex: 2, padding: 16, borderRadius: 14, alignItems: 'center' },
   successSheetContent: { alignItems: 'center', paddingHorizontal: 24, paddingTop: 12, paddingBottom: 24 },
   successSheetIcon: { width: 76, height: 76, borderRadius: 38, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
   successSheetTitle: { fontFamily: fonts.display, fontSize: 20, marginBottom: 4 },
   successSheetSub: { fontFamily: fonts.regular, fontSize: 14, marginBottom: 24 },
-  waBtn: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#25D366', paddingVertical: 14, borderRadius: 10, marginBottom: 8 },
-  waBtnText: { color: '#fff', fontFamily: fonts.bold, fontSize: 16 },
-  upiBtn: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 14, borderRadius: 10, marginBottom: 4, borderWidth: 1.5 },
-  upiBtnText: { fontFamily: fonts.bold, fontSize: 15 },
   doneBtn: { paddingVertical: 14, paddingHorizontal: 24 },
   doneLink: { fontFamily: fonts.medium, fontSize: 15 },
   // UPI QR modal

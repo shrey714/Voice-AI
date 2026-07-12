@@ -9,6 +9,7 @@ import { MotiView } from 'moti';
 import LiquidBottomSheet, { LiquidBottomSheetRef } from '../../components/common/LiquidBottomSheet';
 import LiquidTextField from '../../components/common/LiquidTextField';
 import LiquidButton from '../../components/common/LiquidButton';
+import SheetHeader from '../../components/common/SheetHeader';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useAppStore } from '../../stores/useAppStore';
@@ -585,19 +586,13 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
         ref={detailSheetRef}
         onDismiss={() => setSelectedBill(null)}
       >
+        <SheetHeader title={t('billDetail')} onClose={closeDetail} />
         <ScrollView contentContainerStyle={s.sheetContent}>
           {selectedBill && (() => {
             const hasReturn = billHasReturn(selectedBill.id);
             const refunded = billTotalRefunded(selectedBill.id);
             return (
               <>
-                <View style={[s.modalHeader, { borderBottomColor: colors.border }]}>
-                  <Text style={[s.modalTitle, { color: colors.text }]}>{t('billDetail')}</Text>
-                  <TouchableOpacity onPress={closeDetail} accessibilityLabel="Close" accessibilityRole="button">
-                    <Ionicons name="close" size={22} color={colors.textSub} />
-                  </TouchableOpacity>
-                </View>
-
                 <View style={[s.billHeader, { borderBottomColor: colors.border }]}>
                   <Text style={[s.billShopName, { color: colors.text }]}>{settings.shopName}</Text>
                   <Text style={[s.billDateTime, { color: colors.textMuted }]}>{formatDate(selectedBill.createdAt)} · {formatTime(selectedBill.createdAt)}</Text>
@@ -681,18 +676,8 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
 
                 {/* Action buttons */}
                 <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
-                  <TouchableOpacity style={[s.shareBtn, { backgroundColor: '#25D366' }]} onPress={() => shareOnWhatsApp(selectedBill)}>
-                    <Ionicons name="logo-whatsapp" size={18} color="#fff" />
-                    <Text style={s.shareBtnText}>WhatsApp</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[s.shareBtn, { backgroundColor: '#FF5722' }]} onPress={() => printBill(selectedBill)} disabled={printing}>
-                    {printing ? <ActivityIndicator color="#fff" size="small" /> : (
-                      <>
-                        <Ionicons name="document-outline" size={18} color="#fff" />
-                        <Text style={s.shareBtnText}>PDF</Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
+                  <LiquidButton title="WhatsApp" onPress={() => shareOnWhatsApp(selectedBill)} tintColor="#25D366" style={{ flex: 1 }} />
+                  <LiquidButton title="PDF" icon="doc.text" onPress={() => printBill(selectedBill)} loading={printing} tintColor="#FF5722" style={{ flex: 1 }} />
                 </View>
 
                 {/* Return button */}
@@ -702,15 +687,12 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
                     <Text style={[s.returnedBannerText, { color: colors.warning }]}>{t('allItemsReturned')}</Text>
                   </View>
                 ) : (
-                  <TouchableOpacity
-                    style={[s.returnBtn, { backgroundColor: colors.warning + '18', borderColor: colors.warning + '40' }]}
+                  <LiquidButton
+                    title={hasReturn ? t('returnMoreItems') : t('returnItems')}
+                    icon="arrow.uturn.backward"
                     onPress={() => openReturnSheet(selectedBill)}
-                  >
-                    <Ionicons name="arrow-undo-outline" size={18} color={colors.warning} />
-                    <Text style={[s.returnBtnText, { color: colors.warning }]}>
-                      {hasReturn ? t('returnMoreItems') : t('returnItems')}
-                    </Text>
-                  </TouchableOpacity>
+                    tintColor={colors.warning}
+                  />
                 )}
               </>
             );
@@ -723,19 +705,16 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
         ref={returnSheetRef}
         onDismiss={() => { setReturnQtys({}); setReturnReason(''); setReturnBill(null); }}
       >
+        {returnBill && (
+          <SheetHeader
+            title={t('returnItems')}
+            subtitle={returnBill.items.map(i => i.productName).join(', ')}
+            onClose={closeReturnSheet}
+          />
+        )}
         <ScrollView contentContainerStyle={s.sheetContent} keyboardShouldPersistTaps="handled">
           {returnBill && (
             <>
-              <View style={[s.modalHeader, { borderBottomColor: colors.border }]}>
-                <View>
-                  <Text style={[s.modalTitle, { color: colors.text }]}>{t('returnItems')}</Text>
-                  <Text style={[s.returnSheetSub, { color: colors.textMuted }]}>{returnBill.items.map(i => i.productName).join(', ')}</Text>
-                </View>
-                <TouchableOpacity onPress={closeReturnSheet} accessibilityLabel="Close" accessibilityRole="button">
-                  <Ionicons name="close" size={22} color={colors.textSub} />
-                </TouchableOpacity>
-              </View>
-
               {/* Item rows */}
               {returnBill.items.map((item, i) => {
                 const alreadyRet = getAlreadyReturned(returnBill.id, item.productId);
@@ -881,8 +860,6 @@ const makeStyles = (c: any) => StyleSheet.create({
   payPillText: { fontFamily: fonts.extraBold, fontSize: 11, letterSpacing: 0.3 },
 
   sheetContent: { paddingHorizontal: 20, paddingBottom: 24 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18, paddingBottom: 14, borderBottomWidth: 0.5 },
-  modalTitle: { fontFamily: fonts.extraBold, fontSize: 18 },
   billHeader: { alignItems: 'center', paddingBottom: 16, borderBottomWidth: 1, marginBottom: 14 },
   billShopName: { fontFamily: fonts.extraBold, fontSize: 18 },
   billDateTime: { fontFamily: fonts.medium, fontSize: 13, marginTop: 6 },
@@ -893,15 +870,10 @@ const makeStyles = (c: any) => StyleSheet.create({
   tableCell: { fontFamily: fonts.medium, fontSize: 13 },
   totalsBox: { borderRadius: 14, padding: 16, marginBottom: 18 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7 },
-  shareBtn: { flex: 1, flexDirection: 'row', borderRadius: 14, padding: 16, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  shareBtnText: { color: '#fff', fontFamily: fonts.bold, fontSize: 14 },
-  returnBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, borderRadius: 14, borderWidth: 1 },
-  returnBtnText: { fontFamily: fonts.bold, fontSize: 15 },
   returnedBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 14, borderRadius: 14, borderWidth: 1 },
   returnedBannerText: { fontFamily: fonts.bold, fontSize: 14 },
 
   // Return sheet
-  returnSheetSub: { fontFamily: fonts.regular, fontSize: 12, marginTop: 2, maxWidth: 240 },
   returnItemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, gap: 12 },
   returnItemName: { fontFamily: fonts.semiBold, fontSize: 14 },
   returnItemSub: { fontFamily: fonts.regular, fontSize: 12, marginTop: 2 },

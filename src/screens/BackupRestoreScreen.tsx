@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, ScrollView, StyleSheet, Alert } from 'react-native';
 import { Text } from 'react-native-paper';
-import { Ionicons } from '@expo/vector-icons';
+import LiquidButton from '../components/common/LiquidButton';
 import { exportBackup, importBackup } from '../services/backup';
 import BackupSection from '../components/settings/BackupSection';
 import { useAppTheme } from '../theme';
@@ -28,19 +28,22 @@ export default function BackupRestoreScreen() {
         <View style={[s.section, { backgroundColor: colors.surface }]}>
           <Text style={[s.title, { color: colors.text }]}>{t('fileBackup')}</Text>
           <Text style={[s.hint, { color: colors.textMuted }]}>{t('fileBackupDesc')}</Text>
-          <TouchableOpacity style={[s.btn, { backgroundColor: colors.primary, opacity: backupWorking ? 0.6 : 1 }]}
-            disabled={backupWorking}
+          <LiquidButton
+            title={t('exportToFile')}
+            icon="square.and.arrow.down"
             onPress={async () => {
               setBackupWorking(true);
               try { await exportBackup(); }
               catch { Alert.alert(t('error'), t('exportFailed')); }
               finally { setBackupWorking(false); }
-            }}>
-            <Ionicons name="download-outline" size={18} color="#fff" />
-            <Text style={s.btnText}>{t('exportToFile')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[s.btn, { backgroundColor: colors.warning, opacity: backupWorking ? 0.6 : 1 }]}
+            }}
             disabled={backupWorking}
+            variant="glassProminent"
+            style={{ marginTop: 12 }}
+          />
+          <LiquidButton
+            title={t('importFromFile')}
+            icon="square.and.arrow.up"
             onPress={async () => {
               Alert.alert(t('importBackup'), t('importBackupConfirm'), [
                 { text: t('cancel'), style: 'cancel' },
@@ -53,10 +56,12 @@ export default function BackupRestoreScreen() {
                   finally { setBackupWorking(false); }
                 }},
               ]);
-            }}>
-            <Ionicons name="cloud-upload-outline" size={18} color="#fff" />
-            <Text style={s.btnText}>{t('importFromFile')}</Text>
-          </TouchableOpacity>
+            }}
+            disabled={backupWorking}
+            variant="glass"
+            tintColor={colors.warning}
+            style={{ marginTop: 12 }}
+          />
         </View>
       </ScrollView>
     </View>
@@ -68,6 +73,4 @@ const makeStyles = (c: any) => StyleSheet.create({
   section: { marginHorizontal: 8, marginTop: 8, borderRadius: 14, padding: 18, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border },
   title: { fontFamily: fonts.extraBold, fontSize: 15, marginBottom: 6 },
   hint: { fontFamily: fonts.medium, fontSize: 12, marginBottom: 12, lineHeight: 18 },
-  btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 15, borderRadius: 14, marginTop: 12, gap: 8 },
-  btnText: { color: '#fff', fontFamily: fonts.bold, fontSize: 14 },
 });

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Platform, ActivityIndicator, StyleSheet, View, LayoutChangeEvent } from 'react-native';
 import { Text } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { type SFSymbol } from 'sf-symbols-typescript';
 import { Host, Button as SwiftUIButton } from '@expo/ui/swift-ui';
 import { buttonStyle, tint, disabled as disabledMod, frame, cornerRadius } from '@expo/ui/swift-ui/modifiers';
@@ -9,6 +10,34 @@ import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
 
 export type LiquidButtonVariant = 'glass' | 'glassProminent' | 'destructive';
+
+// The `icon` prop is an SF Symbol name (iOS-only concept) — Android has no
+// equivalent, so every LiquidButton call site that passes `icon` silently
+// rendered text-only on Android. Mapping the SF Symbols actually used across
+// the app to their closest Ionicons equivalent means Android buttons get an
+// icon too instead of just being a strictly worse rendering of the same
+// button. Unmapped/future symbols fall back to text-only (safer than
+// guessing a mismatched icon).
+const SF_TO_IONICON: Partial<Record<SFSymbol, React.ComponentProps<typeof Ionicons>['name']>> = {
+  'arrow.right': 'arrow-forward',
+  'arrow.uturn.backward': 'arrow-undo-outline',
+  'bag.fill': 'bag',
+  'checkmark': 'checkmark',
+  'checkmark.circle': 'checkmark-circle-outline',
+  'checkmark.circle.fill': 'checkmark-circle',
+  'doc.text': 'document-text-outline',
+  'eye': 'eye-outline',
+  'icloud.and.arrow.down': 'cloud-download-outline',
+  'icloud.and.arrow.up': 'cloud-upload-outline',
+  'lock.fill': 'lock-closed',
+  'play.fill': 'play',
+  'plus': 'add',
+  'qrcode': 'qr-code-outline',
+  'square.and.arrow.down': 'download-outline',
+  'square.and.arrow.up': 'share-outline',
+  'square.grid.2x2': 'grid-outline',
+  'xmark': 'close',
+};
 
 /**
  * A button that renders as real native iOS 26 Liquid Glass on iOS (via
@@ -107,7 +136,10 @@ export default function LiquidButton({
       {loading ? (
         <ActivityIndicator size="small" color={fg} />
       ) : (
-        <Text style={{ color: fg, fontFamily: fonts.bold, fontSize: 15 }}>{title}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {icon && SF_TO_IONICON[icon] && <Ionicons name={SF_TO_IONICON[icon]!} size={18} color={fg} />}
+          <Text style={{ color: fg, fontFamily: fonts.bold, fontSize: 15 }}>{title}</Text>
+        </View>
       )}
     </PressableScale>
   );

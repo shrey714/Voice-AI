@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import LiquidButton from '../common/LiquidButton';
 import { fonts } from '../../theme/typography';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -99,15 +100,24 @@ export default function BackupSection({ colors }: { colors: any }) {
             </View>
           </View>
 
-          <TouchableOpacity style={[s.btn, { backgroundColor: colors.primary, opacity: busy ? 0.6 : 1 }]} disabled={busy} onPress={handleBackup}>
-            <Ionicons name="cloud-upload-outline" size={18} color="#fff" />
-            <Text style={s.btnText}>{busy ? 'Working…' : 'Back up now'}</Text>
-          </TouchableOpacity>
+          <LiquidButton
+            title={busy ? 'Working…' : 'Back up now'}
+            icon="icloud.and.arrow.up"
+            onPress={handleBackup}
+            disabled={busy}
+            variant="glassProminent"
+            style={{ marginTop: 4, marginBottom: 8 }}
+          />
 
-          <TouchableOpacity style={[s.btn, { backgroundColor: colors.warning, opacity: busy ? 0.6 : 1 }]} disabled={busy} onPress={handleRestore}>
-            <Ionicons name="cloud-download-outline" size={18} color="#fff" />
-            <Text style={s.btnText}>Restore from cloud</Text>
-          </TouchableOpacity>
+          <LiquidButton
+            title="Restore from cloud"
+            icon="icloud.and.arrow.down"
+            onPress={handleRestore}
+            disabled={busy}
+            variant="glass"
+            tintColor={colors.warning}
+            style={{ marginBottom: 8 }}
+          />
 
           {busy && status ? (
             <Text style={[s.hint, { color: colors.primary, textAlign: 'center', marginBottom: 8 }]}>{status}</Text>
@@ -122,8 +132,6 @@ const makeStyles = (c: any) => StyleSheet.create({
   section: { marginHorizontal: 8, marginTop: 8, borderRadius: 10, padding: 18, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border },
   title: { fontFamily: fonts.extraBold, fontSize: 15, marginBottom: 14 },
   hint: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 18 },
-  btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 15, borderRadius: 14, marginTop: 4, marginBottom: 8, gap: 8 },
-  btnText: { color: '#fff', fontFamily: fonts.bold, fontSize: 14 },
   accountRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12, borderWidth: 1, marginBottom: 14 },
   accountPhone: { fontFamily: fonts.bold, fontSize: 15 },
 });
