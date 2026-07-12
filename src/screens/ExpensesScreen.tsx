@@ -5,8 +5,8 @@ import ScrollHideBar from '../components/common/ScrollHideBar';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
-import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
-import AppBottomSheet, { AppBottomSheetRef } from '../components/common/AppBottomSheet';
+import LiquidBottomSheet, { LiquidBottomSheetRef } from '../components/common/LiquidBottomSheet';
+import LiquidTextField from '../components/common/LiquidTextField';
 import { useAppStore } from '../stores/useAppStore';
 import { useTranslation } from '../hooks/useTranslation';
 import { formatCurrency, formatDate, startOfDay, endOfDay, sanitizeDecimal } from '../utils/helpers';
@@ -37,7 +37,7 @@ export default function ExpensesScreen() {
   const { extended, onScroll } = useFabScroll();
   const { translateY: catTranslate, onListScroll, onBarLayout, listPaddingTop } = useScrollHideBar({ onScroll });
 
-  const formSheetRef = useRef<AppBottomSheetRef>(null);
+  const formSheetRef = useRef<LiquidBottomSheetRef>(null);
   const openForm = useCallback(() => formSheetRef.current?.expand(), []);
   const closeForm = useCallback(() => formSheetRef.current?.close(), []);
 
@@ -163,17 +163,17 @@ export default function ExpensesScreen() {
 
       <CollapsibleFab bottom={90} icon="add" label={t('saveExpense')} extended={extended} onPress={openForm} />
 
-      <AppBottomSheet ref={formSheetRef}>
-         <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
+      <LiquidBottomSheet ref={formSheetRef}>
+         <ScrollView contentContainerStyle={s.sheetContent}>
           <Text style={[s.modalTitle, { color: colors.text }]}>{t('addExpense')}</Text>
 
-          <BottomSheetTextInput style={[s.input, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
-            placeholder={t('titlePlaceholder')} placeholderTextColor={colors.textMuted}
-            value={title} onChangeText={setTitle} />
+          <LiquidTextField
+            placeholder={t('titlePlaceholder')}
+            value={title} onChangeText={setTitle} style={{ marginBottom: 14 }} />
 
-          <BottomSheetTextInput style={[s.input, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
-            placeholder={t('amountPlaceholder').replace('{currency}', settings.currency)} placeholderTextColor={colors.textMuted}
-            value={amount} onChangeText={v => setAmount(sanitizeDecimal(v))} keyboardType="numeric" />
+          <LiquidTextField
+            placeholder={t('amountPlaceholder').replace('{currency}', settings.currency)}
+            value={amount} onChangeText={v => setAmount(sanitizeDecimal(v))} keyboardType="numeric" style={{ marginBottom: 14 }} />
 
           <Text style={[s.fieldLabel, { color: colors.textSub }]}>{t('category')}</Text>
           <View style={s.chipWrap}>
@@ -209,9 +209,9 @@ export default function ExpensesScreen() {
             </>
           )}
 
-          <BottomSheetTextInput style={[s.input, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
-            placeholder={t('noteOptional')} placeholderTextColor={colors.textMuted}
-            value={note} onChangeText={setNote} />
+          <LiquidTextField
+            placeholder={t('noteOptional')}
+            value={note} onChangeText={setNote} style={{ marginBottom: 14 }} />
 
           <View style={s.btnRow}>
             <TouchableOpacity style={[s.cancelBtn, { borderColor: colors.border }]} onPress={closeForm}>
@@ -221,8 +221,8 @@ export default function ExpensesScreen() {
               <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{t('save')}</Text>
             </TouchableOpacity>
           </View>
-        </BottomSheetScrollView>
-      </AppBottomSheet>
+        </ScrollView>
+      </LiquidBottomSheet>
     </View>
   );
 }

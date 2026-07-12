@@ -8,11 +8,8 @@ import {
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
-import {
-  BottomSheetScrollView,
-  BottomSheetTextInput,
-} from '@gorhom/bottom-sheet';
-import AppBottomSheet, { AppBottomSheetRef } from '../../components/common/AppBottomSheet';
+import LiquidBottomSheet, { LiquidBottomSheetRef } from '../../components/common/LiquidBottomSheet';
+import LiquidTextField from '../../components/common/LiquidTextField';
 import QRCode from 'react-native-qrcode-svg';
 import { useAppStore } from '../../stores/useAppStore';
 import { useTranslation } from '../../hooks/useTranslation';
@@ -53,10 +50,10 @@ export default function BillingScreen({ navigation }: any) {
   const [renameName, setRenameName] = useState('');
   const [renameSaving, setRenameSaving] = useState(false);
 
-  const checkoutSheetRef = useRef<AppBottomSheetRef>(null);
-  const saveTemplateSheetRef = useRef<AppBottomSheetRef>(null);
-  const templatesSheetRef = useRef<AppBottomSheetRef>(null);
-  const renameSheetRef = useRef<AppBottomSheetRef>(null);
+  const checkoutSheetRef = useRef<LiquidBottomSheetRef>(null);
+  const saveTemplateSheetRef = useRef<LiquidBottomSheetRef>(null);
+  const templatesSheetRef = useRef<LiquidBottomSheetRef>(null);
+  const renameSheetRef = useRef<LiquidBottomSheetRef>(null);
   const btInputRef = useRef<TextInput>(null);
   const btBufferRef = useRef('');
   const scanTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -64,7 +61,6 @@ export default function BillingScreen({ navigation }: any) {
 
   const [btBuffer, setBtBuffer] = useState('');
   const [btActive, setBtActive] = useState(false);
-  const templatesSheetSnap = useMemo(() => ['85%'], []);
 
   const openCheckout = useCallback(() => checkoutSheetRef.current?.expand(), []);
   const closeCheckout = useCallback(() => checkoutSheetRef.current?.close(), []);
@@ -277,7 +273,6 @@ export default function BillingScreen({ navigation }: any) {
       setCustomerGstin('');
       setLastBill(bill);
       setCheckoutStep('success');
-      checkoutSheetRef.current?.snapToIndex(0);
     } finally {
       setProcessing(false);
     }
@@ -477,7 +472,7 @@ export default function BillingScreen({ navigation }: any) {
       <View style={[s.emptyContainer]}></View>
 
       {/* Checkout Bottom Sheet */}
-      <AppBottomSheet
+      <LiquidBottomSheet
         ref={checkoutSheetRef}
         onDismiss={() => { setCheckoutStep('form'); setLastBill(null); setShowUpiQr(false); refocusBtInput(); }}
       >
@@ -521,21 +516,19 @@ export default function BillingScreen({ navigation }: any) {
           </MotiView>
         ) : null}
         {checkoutStep === 'form' && (
-        <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
+        <ScrollView contentContainerStyle={s.sheetContent}>
           <Text style={[s.modalTitle, { color: colors.text }]}>{t('generateBill')}</Text>
 
           <Text style={[s.modalLabel, { color: colors.textSub }]}>{t('customerName')}</Text>
-          <BottomSheetTextInput
-            style={[s.modalInput, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
+          <LiquidTextField
             placeholder={t('optional')} value={customerName} onChangeText={setCustomerName}
-            placeholderTextColor={colors.textMuted}
+            style={{ marginBottom: 12 }}
           />
 
           <Text style={[s.modalLabel, { color: colors.textSub }]}>{t('phoneNumber')}</Text>
-          <BottomSheetTextInput
-            style={[s.modalInput, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
+          <LiquidTextField
             placeholder={t('optional')} value={customerPhone} onChangeText={setCustomerPhone}
-            keyboardType="phone-pad" placeholderTextColor={colors.textMuted}
+            keyboardType="phone-pad" style={{ marginBottom: 12 }}
           />
           {paymentMode === 'credit' && (
             <Text style={{ color: colors.textMuted, fontFamily: fonts.regular, fontSize: 12, marginTop: 4 }}>
@@ -546,18 +539,17 @@ export default function BillingScreen({ navigation }: any) {
           {settings.gstRegistered && (
              <>
                <Text style={[s.modalLabel, { color: colors.textSub }]}>{t('customerGstin')}</Text>
-              <BottomSheetTextInput
-                style={[s.modalInput, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
+              <LiquidTextField
                 placeholder="22AAAAA0000A1Z5" value={customerGstin} onChangeText={setCustomerGstin}
-                autoCapitalize="characters" placeholderTextColor={colors.textMuted}
+                style={{ marginBottom: 12 }}
               />
             </>
           )}
 
           <Text style={[s.modalLabel, { color: colors.textSub }]}>{t('discount')} ({settings.currency})</Text>
-          <BottomSheetTextInput
-            style={[s.modalInput, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
-            value={discount} onChangeText={v => setDiscount(sanitizeDecimal(v))} keyboardType="numeric" placeholderTextColor={colors.textMuted}
+          <LiquidTextField
+            value={discount} onChangeText={v => setDiscount(sanitizeDecimal(v))} keyboardType="numeric"
+            style={{ marginBottom: 12 }}
           />
 
           <Text style={[s.modalLabel, { color: colors.textSub }]}>{t('paymentMode')}</Text>
@@ -634,9 +626,9 @@ export default function BillingScreen({ navigation }: any) {
               style={{ flex: 2 }}
             />
           </View>
-        </BottomSheetScrollView>
+        </ScrollView>
         )}
-      </AppBottomSheet>
+      </LiquidBottomSheet>
 
       {/* UPI QR Modal */}
       <AppModal visible={showUpiQr} onRequestClose={() => setShowUpiQr(false)}>
@@ -678,11 +670,11 @@ export default function BillingScreen({ navigation }: any) {
       </AppModal>
 
       {/* Templates List Sheet */}
-      <AppBottomSheet
+      <LiquidBottomSheet
         ref={templatesSheetRef}
-        snapPoints={templatesSheetSnap}
+        heightFraction={0.85}
       >
-        <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
+        <ScrollView contentContainerStyle={s.sheetContent}>
           {/* Header */}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
             <View>
@@ -791,16 +783,15 @@ export default function BillingScreen({ navigation }: any) {
               );
             })
           )}
-        </BottomSheetScrollView>
-      </AppBottomSheet>
+        </ScrollView>
+      </LiquidBottomSheet>
 
       {/* Rename Template Sheet */}
-      <AppBottomSheet
+      <LiquidBottomSheet
         ref={renameSheetRef}
-        detached
         onDismiss={() => setRenameTarget(null)}
       >
-        <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
+        <ScrollView contentContainerStyle={s.sheetContent}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
             <Text style={[s.modalTitle, { color: colors.text }]}>{t('renameTemplate')}</Text>
             <TouchableOpacity onPress={closeRenameSheet} accessibilityLabel="Close" accessibilityRole="button">
@@ -808,13 +799,9 @@ export default function BillingScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
           <Text style={[s.modalLabel, { color: colors.textSub }]}>{t('newName')}</Text>
-          <BottomSheetTextInput
-            style={[s.modalInput, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
+          <LiquidTextField
             value={renameName}
             onChangeText={setRenameName}
-            returnKeyType="done"
-            onSubmitEditing={handleRename}
-            placeholderTextColor={colors.textMuted}
           />
           <TouchableOpacity
             style={[s.confirmBtn, { backgroundColor: renameName.trim() ? colors.primary : colors.border, marginTop: 6 }]}
@@ -825,15 +812,14 @@ export default function BillingScreen({ navigation }: any) {
                {renameSaving ? t('saving') : t('saveName')}
             </Text>
           </TouchableOpacity>
-        </BottomSheetScrollView>
-      </AppBottomSheet>
+        </ScrollView>
+      </LiquidBottomSheet>
 
       {/* Save Template Sheet */}
-      <AppBottomSheet
+      <LiquidBottomSheet
         ref={saveTemplateSheetRef}
-        detached
       >
-        <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
+        <ScrollView contentContainerStyle={s.sheetContent}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
              <Text style={[s.modalTitle, { color: colors.text }]}>{t('saveAsTemplate')}</Text>
             <TouchableOpacity onPress={closeSaveSheet} accessibilityLabel="Close" accessibilityRole="button">
@@ -841,14 +827,10 @@ export default function BillingScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
            <Text style={[s.modalLabel, { color: colors.textSub }]}>{t('templateName')}</Text>
-           <BottomSheetTextInput
-             style={[s.modalInput, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
+           <LiquidTextField
              placeholder={t('templatePlaceholder')}
-             placeholderTextColor={colors.textMuted}
              value={templateName}
              onChangeText={setTemplateName}
-             returnKeyType="done"
-             onSubmitEditing={handleSaveTemplate}
            />
           <Text style={[{ color: colors.textMuted, fontFamily: fonts.regular, fontSize: 12, marginBottom: 16 }]}>
             {cart.length === 1 ? t('itemWillBeSaved').replace('{count}', String(cart.length)) : t('itemsWillBeSaved').replace('{count}', String(cart.length))}
@@ -862,8 +844,8 @@ export default function BillingScreen({ navigation }: any) {
               {savingTemplate ? t('saving') : t('saveTemplate')}
             </Text>
           </TouchableOpacity>
-        </BottomSheetScrollView>
-      </AppBottomSheet>
+        </ScrollView>
+      </LiquidBottomSheet>
 
       {/* Hidden input — always focused, captures BT HID scanner keystrokes silently.
           Must be 1×1 (not 0×0) so Android's IMF routes keyboard events to it.

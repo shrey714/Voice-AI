@@ -49,7 +49,6 @@ const RootStack = createNativeStackNavigator();
 const HomeStack = createNativeStackNavigator();
 const BillingStack = createNativeStackNavigator();
 const InventoryStack = createNativeStackNavigator();
-const RecordsStack = createNativeStackNavigator();
 const MenuStack = createNativeStackNavigator();
 const OnlineDashboardStack = createNativeStackNavigator();
 const OnlineOrdersStack = createNativeStackNavigator();
@@ -131,20 +130,12 @@ function InventoryStackNav() {
   );
 }
 
-function RecordsStackNav() {
-  const headerOpts = useHeaderOpts();
-  return (
-    <RecordsStack.Navigator screenOptions={headerOpts}>
-      <RecordsStack.Screen name="RecordsMain" component={BillHistoryScreen} options={{ title: 'Bill History' }} />
-    </RecordsStack.Navigator>
-  );
-}
-
 function MenuStackNav() {
   const headerOpts = useHeaderOpts();
   return (
     <MenuStack.Navigator screenOptions={headerOpts}>
       <MenuStack.Screen name="MenuMain" component={MenuScreen} options={{ title: 'More' }} />
+      <MenuStack.Screen name="RecordsMain" component={BillHistoryScreen} options={{ title: 'Bill History' }} />
       <MenuStack.Screen name="Analytics" component={AnalyticsScreen} options={{ title: 'Analytics' }} />
       <MenuStack.Screen name="Exports" component={ExportsScreen} options={{ title: 'Export Reports' }} />
       <MenuStack.Screen name="Expenses" component={ExpensesScreen} options={{ title: 'Expenses' }} />
@@ -222,7 +213,20 @@ function tabIcon(ionicon: { off: any; on: any }, sf: { off: string; on: string }
 
 // Never actually navigated to — see the "SwitchToOnline"/"SwitchToLocal"
 // Screens below, which intercept tabPress and never let selection through.
-function NoopScreen() {
+// These tabs are momentarily "selected" by React Navigation like any other
+// tab, but their whole point is to fire switchAppMode() the instant they
+// mount and never actually show anything — the RootStack swap to the other
+// portion happens right away, unmounting this before it'd ever be seen.
+// Deliberately NOT using `tabBarSelectionEnabled: false` + a `tabPress`
+// listener calling `preventDefault()` (tried first) — that combination
+// threw at runtime when tapped. A plain real tab selection + mount effect
+// sidesteps fighting the native selection model entirely.
+function SwitchToOnlineScreen() {
+  useEffect(() => { switchAppMode('online'); }, []);
+  return null;
+}
+function SwitchToLocalScreen() {
+  useEffect(() => { switchAppMode('local'); }, []);
   return null;
 }
 
@@ -257,11 +261,14 @@ function LocalTabs() {
         component={BillingStackNav}
         options={{ title: 'Billing', tabBarIcon: tabIcon({ off: 'cart-outline', on: 'cart' }, { off: 'cart', on: 'cart.fill' }) } as any}
       />
-      <LocalTab.Screen
-        name="Records"
-        component={RecordsStackNav}
-        options={{ title: 'Records', tabBarIcon: tabIcon({ off: 'stats-chart-outline', on: 'stats-chart' }, { off: 'chart.bar', on: 'chart.bar.fill' }) } as any}
-      />
+      {/* Bill History lives inside More now (MenuStackNav's "RecordsMain")
+          instead of its own top-level tab — iOS's UITabBarController
+          auto-collapses tabs into a system "More" overflow list once there
+          are more than 5 (see RNSTabBarController.mm's extensive
+          moreNavigationController handling), and Local already needed 5
+          real tabs + 1 for the Online switch below. Folding this one in
+          keeps the total at 5 so the switch tab reliably shows on the bar
+          instead of getting buried in that overflow. */}
       <LocalTab.Screen
         name="More"
         component={MenuStackNav}
@@ -274,30 +281,19 @@ function LocalTabs() {
       {onlineShopEnabled && (
         <LocalTab.Screen
           name="SwitchToOnline"
-          component={NoopScreen}
+          component={SwitchToOnlineScreen}
           options={{
             title: 'Online',
             tabBarIcon: tabIcon({ off: 'storefront-outline', on: 'storefront-outline' }, { off: 'storefront', on: 'storefront' }),
             // iOS 26+: `systemItem: 'search'` is what makes the native tab
             // bar render this as a separate button beside the main pill
             // (real UITabBarController/HIG behavior, not a library
-            // invention) — tabBarIcon/tabBarLabel below override its
+            // invention) — tabBarIcon/tabBarLabel above override its
             // default search glyph/label while keeping that placement.
-            // tabBarSelectionEnabled: false + the tabPress listener below
-            // means it's never actually "selected" as a tab; it only fires
-            // the mode switch. Both are iOS-only options — Android's
-            // classic bottom-tabs navigator ignores them and this just
-            // renders as a normal (non-separated) 6th tab item, which
-            // still works via the same tabPress interception.
+            // Android's classic bottom-tabs navigator ignores this option
+            // and just renders it as a normal (non-separated) 5th tab.
             tabBarSystemItem: 'search',
-            tabBarSelectionEnabled: false,
           } as any}
-          listeners={{
-            tabPress: (e: any) => {
-              e.preventDefault();
-              switchAppMode('online');
-            },
-          }}
         />
       )}
     </LocalTab.Navigator>
@@ -332,19 +328,12 @@ function OnlineTabs() {
       />
       <OnlineTab.Screen
         name="SwitchToLocal"
-        component={NoopScreen}
+        component={SwitchToLocalScreen}
         options={{
           title: 'In-Store',
           tabBarIcon: tabIcon({ off: 'home-outline', on: 'home-outline' }, { off: 'house', on: 'house' }),
           tabBarSystemItem: 'search',
-          tabBarSelectionEnabled: false,
         } as any}
-        listeners={{
-          tabPress: (e: any) => {
-            e.preventDefault();
-            switchAppMode('local');
-          },
-        }}
       />
     </OnlineTab.Navigator>
   );

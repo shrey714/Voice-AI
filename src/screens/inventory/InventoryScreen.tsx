@@ -4,8 +4,8 @@ import { useScrollHideBar } from '../../hooks/useScrollHideBar';
 import ScrollHideBar from '../../components/common/ScrollHideBar';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
-import { BottomSheetView, BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
-import AppBottomSheet, { AppBottomSheetRef } from '../../components/common/AppBottomSheet';
+import LiquidBottomSheet, { LiquidBottomSheetRef } from '../../components/common/LiquidBottomSheet';
+import LiquidTextField from '../../components/common/LiquidTextField';
 import { useAppStore } from '../../stores/useAppStore';
 import { formatCurrency, fuzzyMatch } from '../../utils/helpers';
 import { Product } from '../../types';
@@ -38,8 +38,8 @@ export default function InventoryScreen({ route, navigation }: any) {
   const { extended, onScroll } = useFabScroll();
   const { translateY: catTranslate, onListScroll, onBarLayout, listPaddingTop } = useScrollHideBar({ onScroll });
 
-  const stockSheetRef = useRef<AppBottomSheetRef>(null);
-  const menuSheetRef = useRef<AppBottomSheetRef>(null);
+  const stockSheetRef = useRef<LiquidBottomSheetRef>(null);
+  const menuSheetRef = useRef<LiquidBottomSheetRef>(null);
 
   const openStockSheet = useCallback((item: Product) => {
     setStockProduct(item);
@@ -197,8 +197,8 @@ export default function InventoryScreen({ route, navigation }: any) {
       }} />
 
       {/* Stock Adjust Sheet */}
-      <AppBottomSheet ref={stockSheetRef} detached>
-        <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
+      <LiquidBottomSheet ref={stockSheetRef}>
+        <ScrollView contentContainerStyle={s.sheetContent}>
           <Text style={[s.stockTitle, { color: colors.text }]}>{t('updateStockLabel')}</Text>
           <Text style={[s.stockProductName, { color: colors.primary }]}>{stockProduct?.name}</Text>
           <Text style={[s.stockCurrent, { color: colors.textMuted }]}>Current: {stockProduct?.quantity} {stockProduct?.unit}</Text>
@@ -211,15 +211,13 @@ export default function InventoryScreen({ route, navigation }: any) {
               </TouchableOpacity>
             ))}
           </View>
-          <BottomSheetTextInput
-            style={[s.stockInput, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
+          <LiquidTextField
             value={stockQty}
             onChangeText={setStockQty}
             placeholder={t('enterQtyToAdd')}
-            placeholderTextColor={colors.textMuted}
             keyboardType="numeric"
           />
-          <View style={{ flexDirection: 'row', gap: 10 }}>
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
             <TouchableOpacity style={[s.stockBtn, { backgroundColor: colors.surfaceHigh }]} onPress={closeStockSheet}>
               <Text style={{ color: colors.textSub, fontFamily: fonts.semiBold }}>{t('cancel')}</Text>
             </TouchableOpacity>
@@ -234,12 +232,12 @@ export default function InventoryScreen({ route, navigation }: any) {
               <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{t('addStock')}</Text>
             </TouchableOpacity>
           </View>
-        </BottomSheetScrollView>
-      </AppBottomSheet>
+        </ScrollView>
+      </LiquidBottomSheet>
 
       {/* Product Action Sheet (⋯ menu) */}
-      <AppBottomSheet ref={menuSheetRef} detached>
-        <BottomSheetView style={s.sheetContent}>
+      <LiquidBottomSheet ref={menuSheetRef}>
+        <View style={s.sheetContent}>
           <Text style={[s.sheetTitle, { color: colors.text }]} numberOfLines={1}>{menuProduct?.name}</Text>
           <TouchableOpacity style={s.sheetRow} onPress={() => { const p = menuProduct; closeMenuSheet(); navigation.navigate('ProductForm', { product: p }); }}>
             <View style={[s.sheetIcon, { backgroundColor: colors.primaryLight }]}>
@@ -258,8 +256,8 @@ export default function InventoryScreen({ route, navigation }: any) {
           <TouchableOpacity style={[s.sheetCancel, { backgroundColor: colors.surfaceHigh }]} onPress={closeMenuSheet}>
             <Text style={{ color: colors.textSub, fontFamily: fonts.bold, fontSize: 15 }}>Cancel</Text>
           </TouchableOpacity>
-        </BottomSheetView>
-      </AppBottomSheet>
+        </View>
+      </LiquidBottomSheet>
     </View>
   );
 }

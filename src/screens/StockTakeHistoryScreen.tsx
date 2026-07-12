@@ -1,12 +1,11 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useCallback } from 'react';
 import {
-  View, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Alert,
+  View, FlatList, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, Alert,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
-import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import AppBottomSheet, { AppBottomSheetRef } from '../components/common/AppBottomSheet';
+import LiquidBottomSheet, { LiquidBottomSheetRef } from '../components/common/LiquidBottomSheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
@@ -38,7 +37,7 @@ export default function StockTakeHistoryScreen({ navigation }: any) {
   const [sessionItems, setSessionItems] = useState<StockTakeItem[]>([]);
   const [itemsLoading, setItemsLoading] = useState(false);
 
-  const sheetRef = useRef<AppBottomSheetRef>(null);
+  const sheetRef = useRef<LiquidBottomSheetRef>(null);
 
   const handleDeleteAll = useCallback(() => {
     Alert.alert(
@@ -175,8 +174,8 @@ export default function StockTakeHistoryScreen({ navigation }: any) {
       )}
 
       {/* Session detail bottom sheet */}
-      <AppBottomSheet ref={sheetRef} onDismiss={handleSheetClose}>
-        <BottomSheetScrollView
+      <LiquidBottomSheet ref={sheetRef} onDismiss={handleSheetClose}>
+        <ScrollView
           contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 24) }}
         >
           {/* Header */}
@@ -280,8 +279,8 @@ export default function StockTakeHistoryScreen({ navigation }: any) {
               )}
             </>
           )}
-        </BottomSheetScrollView>
-      </AppBottomSheet>
+        </ScrollView>
+      </LiquidBottomSheet>
     </View>
   );
 }

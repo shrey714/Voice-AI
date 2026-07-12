@@ -23,6 +23,7 @@ export default function MenuScreen({ navigation }: any) {
     {
       title: t('business').toUpperCase(),
       items: [
+        { label: 'Bill History', sub: 'Past sales and returns', icon: "receipt-outline", screen: "RecordsMain" },
         { label: t('analytics'), sub: t('revenueAndProfitCharts'), icon: "bar-chart-outline", screen: "Analytics" },
         { label: t('expenses'), sub: t('trackShopCosts'), icon: "wallet-outline", screen: "Expenses" },
         { label: t('dayClose'), sub: t('countCashReconcile'), icon: "lock-closed-outline", screen: "DayClose" },

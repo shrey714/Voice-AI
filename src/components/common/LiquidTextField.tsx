@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Platform, TextInput, StyleSheet } from 'react-native';
 import { Host, TextField as SwiftUITextField, type TextFieldRef } from '@expo/ui/swift-ui';
-import { glassEffect, textFieldStyle, padding, keyboardType as keyboardTypeMod, frame } from '@expo/ui/swift-ui/modifiers';
+import { glassEffect, textFieldStyle, padding, keyboardType as keyboardTypeMod, frame, lineLimit } from '@expo/ui/swift-ui/modifiers';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
 
@@ -29,6 +29,7 @@ export default function LiquidTextField({
   keyboardType = 'default',
   autoFocus = false,
   height = 48,
+  multiline = false,
   style,
 }: {
   value: string;
@@ -36,7 +37,10 @@ export default function LiquidTextField({
   placeholder?: string;
   keyboardType?: LiquidTextFieldKeyboard;
   autoFocus?: boolean;
+  /** Fixed height for a single-line field; ignored (min height only) when `multiline`. */
   height?: number;
+  /** Grows vertically instead of scrolling horizontally — same intent as RN TextInput's `multiline`. */
+  multiline?: boolean;
   style?: any;
 }) {
   const { colors } = useAppTheme();
@@ -51,18 +55,19 @@ export default function LiquidTextField({
 
   if (Platform.OS === 'ios') {
     return (
-      <Host style={[{ height, width: '100%' }, style]}>
+      <Host style={[{ height: multiline ? Math.max(height, 80) : height, width: '100%' }, style]}>
         <SwiftUITextField
           ref={ref}
           defaultValue={value}
           placeholder={placeholder}
           autoFocus={autoFocus}
+          axis={multiline ? 'vertical' : 'horizontal'}
           onValueChange={(v) => { lastEmitted.current = v; onChangeText(v); }}
           modifiers={[
             glassEffect({ glass: { variant: 'regular' }, shape: 'roundedRectangle', cornerRadius: 12 }),
             textFieldStyle('plain'),
-            padding({ horizontal: 14, vertical: 0 }),
-            frame({ height }),
+            padding({ horizontal: 14, vertical: multiline ? 10 : 0 }),
+            ...(multiline ? [lineLimit({ min: 3, max: 8 })] : [frame({ height })]),
             keyboardTypeMod(keyboardType),
           ]}
         />
@@ -78,6 +83,8 @@ export default function LiquidTextField({
       placeholder={placeholder}
       placeholderTextColor={colors.textMuted}
       autoFocus={autoFocus}
+      multiline={multiline}
+      textAlignVertical={multiline ? 'top' : 'center'}
       keyboardType={
         keyboardType === 'numeric' ? 'numeric'
           : keyboardType === 'decimal-pad' ? 'decimal-pad'
@@ -87,7 +94,7 @@ export default function LiquidTextField({
       }
       style={[
         styles.androidInput,
-        { height, color: colors.text, backgroundColor: colors.surfaceHigh, borderColor: colors.border },
+        { height: multiline ? Math.max(height, 80) : height, color: colors.text, backgroundColor: colors.surfaceHigh, borderColor: colors.border },
         style,
       ]}
     />

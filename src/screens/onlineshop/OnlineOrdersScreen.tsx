@@ -4,8 +4,7 @@ import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { useIsFocused } from '@react-navigation/native';
-import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import AppBottomSheet, { AppBottomSheetRef } from '../../components/common/AppBottomSheet';
+import LiquidBottomSheet, { LiquidBottomSheetRef } from '../../components/common/LiquidBottomSheet';
 import { useScrollHideBar } from '../../hooks/useScrollHideBar';
 import ScrollHideBar from '../../components/common/ScrollHideBar';
 import { useAppTheme } from '../../theme';
@@ -69,7 +68,7 @@ export default function OnlineOrdersScreen({ navigation, route }: any) {
   const [searchOpen, setSearchOpen] = useState(false);
   const { translateY: stripTranslate, onListScroll, onBarLayout, listPaddingTop } = useScrollHideBar();
 
-  const filterSheetRef = useRef<AppBottomSheetRef>(null);
+  const filterSheetRef = useRef<LiquidBottomSheetRef>(null);
   const rangePickerRef = useRef<DatePickerSheetRef>(null);
   const openFilterSheet = useCallback(() => filterSheetRef.current?.expand(), []);
 
@@ -272,8 +271,8 @@ export default function OnlineOrdersScreen({ navigation, route }: any) {
       </View>
 
       {/* Filter Sheet */}
-      <AppBottomSheet ref={filterSheetRef}>
-        <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+      <LiquidBottomSheet ref={filterSheetRef}>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}>
           <View style={[s.fsHeader, { borderBottomColor: colors.border }]}>
             <Text style={[s.fsTitle, { color: colors.text }]}>Filters</Text>
             <TouchableOpacity onPress={() => { setActiveTab('all'); setPeriodFilter('today'); setCustomFrom(null); setCustomTo(null); }}>
@@ -338,8 +337,8 @@ export default function OnlineOrdersScreen({ navigation, route }: any) {
               );
             })}
           </View>
-        </BottomSheetScrollView>
-      </AppBottomSheet>
+        </ScrollView>
+      </LiquidBottomSheet>
 
       {/* Custom date range picker */}
       <DatePickerSheet

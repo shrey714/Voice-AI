@@ -1,12 +1,11 @@
 import React, { useState, useRef, useMemo } from 'react';
 import {
-  View, ScrollView, StyleSheet, TouchableOpacity, Alert,
+  View, ScrollView, FlatList, StyleSheet, TouchableOpacity, Alert,
   TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
-import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
-import AppBottomSheet, { AppBottomSheetRef } from '../components/common/AppBottomSheet';
+import LiquidBottomSheet, { LiquidBottomSheetRef } from '../components/common/LiquidBottomSheet';
 import { useAppStore } from '../stores/useAppStore';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
@@ -53,13 +52,11 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
 
   // Product picker sheet state
   const [productSearch, setProductSearch] = useState('');
-  const pickerSheetRef = useRef<AppBottomSheetRef>(null);
-  const pickerSnapPoints = useMemo(() => ['80%'], []);
+  const pickerSheetRef = useRef<LiquidBottomSheetRef>(null);
 
   // Supplier picker sheet state
   const [supplierSearch, setSupplierSearch] = useState('');
-  const supplierSheetRef = useRef<AppBottomSheetRef>(null);
-  const supplierSnapPoints = useMemo(() => ['60%'], []);
+  const supplierSheetRef = useRef<LiquidBottomSheetRef>(null);
 
   const selectedSupplier = suppliers.find(s => s.id === supplierId);
 
@@ -439,7 +436,7 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
       </ScrollView>
 
       {/* Product picker sheet */}
-      <AppBottomSheet ref={pickerSheetRef} snapPoints={pickerSnapPoints}>
+      <LiquidBottomSheet ref={pickerSheetRef} heightFraction={0.8}>
         <View style={{ flex: 1, paddingHorizontal: 16 }}>
           <Text style={[s.sheetTitle, { color: colors.text }]}>{t('selectProduct')}</Text>
           <View style={[s.searchBox, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
@@ -453,7 +450,7 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
               autoFocus
             />
           </View>
-          <BottomSheetFlatList
+          <FlatList
             data={filteredProducts}
             keyExtractor={p => p.id}
             contentContainerStyle={{ paddingBottom: 24 }}
@@ -474,10 +471,10 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
             )}
           />
         </View>
-      </AppBottomSheet>
+      </LiquidBottomSheet>
 
       {/* Supplier picker sheet */}
-      <AppBottomSheet ref={supplierSheetRef} snapPoints={supplierSnapPoints}>
+      <LiquidBottomSheet ref={supplierSheetRef} heightFraction={0.6}>
         <View style={{ flex: 1, paddingHorizontal: 16 }}>
           <Text style={[s.sheetTitle, { color: colors.text }]}>{t('selectSupplierLabel')}</Text>
           <View style={[s.searchBox, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
@@ -491,7 +488,7 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
               autoFocus
             />
           </View>
-          <BottomSheetFlatList
+          <FlatList
             data={filteredSuppliers}
             keyExtractor={s => s.id}
             contentContainerStyle={{ paddingBottom: 24 }}
@@ -513,7 +510,7 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
             )}
           />
         </View>
-      </AppBottomSheet>
+      </LiquidBottomSheet>
     </KeyboardAvoidingView>
   );
 }

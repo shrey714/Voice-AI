@@ -599,7 +599,7 @@ export default function DashboardScreen({ navigation }: any) {
           <View style={[s.section, { backgroundColor: colors.surface }]}>
             <View style={s.sectionRow}>
               <Text style={[s.sectionInTitle, { color: colors.text, marginBottom: 0 }]}>{t('recentBills')}</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Records')} style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+              <TouchableOpacity onPress={() => navigation.navigate('More', { screen: 'RecordsMain' })} style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
                 <Text style={[s.seeAll, { color: colors.primary }]}>{t('seeAll')}</Text>
                 <Ionicons name="chevron-forward" size={14} color={colors.primary} />
               </TouchableOpacity>

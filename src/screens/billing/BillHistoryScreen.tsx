@@ -6,8 +6,8 @@ import ScrollHideBar from '../../components/common/ScrollHideBar';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
-import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
-import AppBottomSheet, { AppBottomSheetRef } from '../../components/common/AppBottomSheet';
+import LiquidBottomSheet, { LiquidBottomSheetRef } from '../../components/common/LiquidBottomSheet';
+import LiquidTextField from '../../components/common/LiquidTextField';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useAppStore } from '../../stores/useAppStore';
@@ -73,9 +73,9 @@ export default function BillHistoryScreen() {
   const [returnRefundAmt, setReturnRefundAmt] = useState('');
   const [processingReturn, setProcessingReturn] = useState(false);
 
-  const detailSheetRef = useRef<AppBottomSheetRef>(null);
-  const returnSheetRef = useRef<AppBottomSheetRef>(null);
-  const filterSheetRef = useRef<AppBottomSheetRef>(null);
+  const detailSheetRef = useRef<LiquidBottomSheetRef>(null);
+  const returnSheetRef = useRef<LiquidBottomSheetRef>(null);
+  const filterSheetRef = useRef<LiquidBottomSheetRef>(null);
 
   const openFilterSheet = useCallback(() => filterSheetRef.current?.expand(), []);
 
@@ -483,8 +483,8 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
       </View>
 
       {/* ── Filter Sheet ── */}
-      <AppBottomSheet ref={filterSheetRef}>
-        <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+      <LiquidBottomSheet ref={filterSheetRef}>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}>
           {/* Header */}
           <View style={[s.fsHeader, { borderBottomColor: colors.border }]}>
             <Text style={[s.fsTitle, { color: colors.text }]}>{t('filters')}</Text>
@@ -576,15 +576,15 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
               <Text style={[s.fsChipText, { color: returnedOnly ? '#fff' : colors.textSub }]}>{t('returnedBillsOnly')}</Text>
             </TouchableOpacity>
           </View>
-        </BottomSheetScrollView>
-      </AppBottomSheet>
+        </ScrollView>
+      </LiquidBottomSheet>
 
       {/* ── Bill Detail Sheet ── */}
-      <AppBottomSheet
+      <LiquidBottomSheet
         ref={detailSheetRef}
         onDismiss={() => setSelectedBill(null)}
       >
-        <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
+        <ScrollView contentContainerStyle={s.sheetContent}>
           {selectedBill && (() => {
             const hasReturn = billHasReturn(selectedBill.id);
             const refunded = billTotalRefunded(selectedBill.id);
@@ -714,16 +714,15 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
               </>
             );
           })()}
-        </BottomSheetScrollView>
-      </AppBottomSheet>
+        </ScrollView>
+      </LiquidBottomSheet>
 
       {/* ── Return Items Sheet ── */}
-      <AppBottomSheet
+      <LiquidBottomSheet
         ref={returnSheetRef}
-        handleIndicatorStyle={{ backgroundColor: colors.warning, width: 40 }}
         onDismiss={() => { setReturnQtys({}); setReturnReason(''); setReturnBill(null); }}
       >
-        <BottomSheetScrollView contentContainerStyle={s.sheetContent} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={s.sheetContent} keyboardShouldPersistTaps="handled">
           {returnBill && (
             <>
               <View style={[s.modalHeader, { borderBottomColor: colors.border }]}>
@@ -792,24 +791,20 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
               {/* Refund amount */}
               <View style={{ marginTop: 18 }}>
                 <Text style={[s.fieldLabel, { color: colors.textSub }]}>{t('refundAmount')} ({settings.currency})</Text>
-                <BottomSheetTextInput
-                  style={[s.input, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
+                <LiquidTextField
                   value={returnRefundAmt}
                   onChangeText={setReturnRefundAmt}
                   keyboardType="numeric"
-                  selectTextOnFocus
                 />
               </View>
 
               {/* Reason */}
               <View style={{ marginBottom: 20 }}>
                 <Text style={[s.fieldLabel, { color: colors.textSub }]}>{t('reasonOptional')}</Text>
-                <BottomSheetTextInput
-                  style={[s.input, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
+                <LiquidTextField
                   value={returnReason}
                   onChangeText={setReturnReason}
                   placeholder={t('damagedWrongItem')}
-                  placeholderTextColor={colors.textMuted}
                 />
               </View>
 
@@ -828,8 +823,8 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
               </TouchableOpacity>
             </>
           )}
-        </BottomSheetScrollView>
-      </AppBottomSheet>
+        </ScrollView>
+      </LiquidBottomSheet>
 
       {/* Date range picker for custom filter */}
       <DatePickerSheet

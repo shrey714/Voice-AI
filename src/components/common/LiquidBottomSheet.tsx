@@ -46,14 +46,14 @@ export interface LiquidBottomSheetProps {
  * unchanged via `RNHostView` — the reverse of `Host`, it mounts a regular RN
  * view tree inside the native SwiftUI/Compose hierarchy.
  *
- * NOT a drop-in replacement for every `AppBottomSheet` usage yet: gorhom's
- * `BottomSheetTextInput`/`BottomSheetScrollView` only work inside gorhom's
- * own sheet context and must be swapped for plain equivalents (e.g.
- * `LiquidTextField`) before converting a screen that uses them — this is
- * intentionally being proven on simple, no-text-input sheets first (see
- * DatePickerSheet) before touching anything with keyboard interaction.
- * There's also no native equivalent for `AppBottomSheet`'s `detached`
- * (floating rounded-card) variant — native sheets are always edge-to-edge.
+ * Every sheet in the app now uses this (the old gorhom-based `AppBottomSheet`
+ * is no longer used anywhere — kept in the codebase only in case a future
+ * screen needs its `detached`/`snapPoints`/dynamic-sizing-ratio features,
+ * which have no direct equivalent here: native sheets are always
+ * edge-to-edge, and only support a single `heightFraction`, not multiple
+ * snap points). Gorhom's `BottomSheetTextInput`/`BottomSheetScrollView` only
+ * work inside gorhom's own sheet context — every former usage was swapped
+ * for `LiquidTextField`/plain `ScrollView` here.
  */
 const LiquidBottomSheet = forwardRef<LiquidBottomSheetRef, LiquidBottomSheetProps>(
   ({ children, onDismiss, heightFraction }, ref) => {

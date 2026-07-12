@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, Alert, Linking } from 'react-native';
+import { View, FlatList, ScrollView, StyleSheet, TouchableOpacity, Alert, Linking } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
-import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
-import AppBottomSheet, { AppBottomSheetRef } from '../components/common/AppBottomSheet';
+import LiquidBottomSheet, { LiquidBottomSheetRef } from '../components/common/LiquidBottomSheet';
+import LiquidTextField from '../components/common/LiquidTextField';
 import { useNavigation } from '@react-navigation/native';
 import { useAppStore } from '../stores/useAppStore';
 import { useTranslation } from '../hooks/useTranslation';
@@ -48,7 +48,7 @@ export default function SupplierScreen() {
   const [paymentMode, setPaymentMode] = useState<'cash' | 'upi' | 'bank'>('cash');
   const [paymentNote, setPaymentNote] = useState('');
   const [savingPayment, setSavingPayment] = useState(false);
-  const paymentSheetRef = useRef<AppBottomSheetRef>(null);
+  const paymentSheetRef = useRef<LiquidBottomSheetRef>(null);
 
   const getOutstanding = (supplierId: string) =>
     purchases
@@ -71,8 +71,8 @@ export default function SupplierScreen() {
     });
   }, [navigation]);
 
-  const formSheetRef = useRef<AppBottomSheetRef>(null);
-  const detailSheetRef = useRef<AppBottomSheetRef>(null);
+  const formSheetRef = useRef<LiquidBottomSheetRef>(null);
+  const detailSheetRef = useRef<LiquidBottomSheetRef>(null);
 
   const openFormSheet = useCallback(() => formSheetRef.current?.expand(), []);
   const closeFormSheet = useCallback(() => formSheetRef.current?.close(), []);
@@ -258,8 +258,8 @@ export default function SupplierScreen() {
       <CollapsibleFab bottom={90} icon="add" label={t('addSupplier')} extended={extended} onPress={openAdd} />
 
       {/* Add/Edit Supplier Form Sheet */}
-      <AppBottomSheet ref={formSheetRef}>
-        <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
+      <LiquidBottomSheet ref={formSheetRef}>
+        <ScrollView contentContainerStyle={s.sheetContent}>
           <Text style={[s.modalTitle, { color: c.text }]}>{editing ? t('editSupplier') : t('addSupplier')}</Text>
           {([
             { key: 'name', label: `${t('businessName')} *`, placeholder: 'e.g. Sharma Traders', keyboard: 'default' },
@@ -270,16 +270,10 @@ export default function SupplierScreen() {
           ] as const).map(field => (
             <View key={field.key} style={{ marginBottom: 8, paddingHorizontal: 8 }}>
               <Text style={[s.fieldLabel, { color: c.textSub }]}>{field.label}</Text>
-              <BottomSheetTextInput
-                style={[s.input, {
-                  backgroundColor: c.surfaceHigh, color: c.text, borderColor: c.border,
-                  height: field.key === 'notes' ? 80 : undefined,
-                  textAlignVertical: field.key === 'notes' ? 'top' : undefined,
-                }]}
+              <LiquidTextField
                 value={(form as any)[field.key]}
                 onChangeText={v => setForm(f => ({ ...f, [field.key]: v }))}
                 placeholder={field.placeholder}
-                placeholderTextColor={c.textMuted}
                 keyboardType={field.keyboard as any}
                 multiline={field.key === 'notes'}
               />
@@ -293,16 +287,15 @@ export default function SupplierScreen() {
               <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{t('save')}</Text>
             </TouchableOpacity>
           </View>
-        </BottomSheetScrollView>
-      </AppBottomSheet>
+        </ScrollView>
+      </LiquidBottomSheet>
 
       {/* Record Payment Sheet */}
-      <AppBottomSheet
+      <LiquidBottomSheet
         ref={paymentSheetRef}
-        detached
         onDismiss={() => { setPaymentSupplier(null); setPaymentAmount(''); setPaymentNote(''); }}
       >
-        <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}>
           <Text style={[s.modalTitle, { color: c.text }]}>{t('recordPayment')}</Text>
           {paymentSupplier && (
             <Text style={{ fontFamily: fonts.medium, fontSize: 14, color: c.textSub, marginBottom: 14, marginTop: -10 }}>
@@ -310,14 +303,12 @@ export default function SupplierScreen() {
             </Text>
           )}
           <Text style={[s.fieldLabel, { color: c.textSub, paddingLeft: 0 }]}>{t('amount')}</Text>
-          <BottomSheetTextInput
-            style={[s.input, { backgroundColor: c.surfaceHigh, color: c.text, borderColor: c.border, marginBottom: 12 }]}
+          <LiquidTextField
             value={paymentAmount}
             onChangeText={v => setPaymentAmount(sanitizeDecimal(v))}
             placeholder={t('enterAmount')}
-            placeholderTextColor={c.textMuted}
             keyboardType="decimal-pad"
-            selectTextOnFocus
+            style={{ marginBottom: 12 }}
           />
           <Text style={[s.fieldLabel, { color: c.textSub, paddingLeft: 0, marginBottom: 8 }]}>{t('paymentMode')}</Text>
           <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
@@ -336,12 +327,11 @@ export default function SupplierScreen() {
             })}
           </View>
           <Text style={[s.fieldLabel, { color: c.textSub, paddingLeft: 0 }]}>{t('noteOptional')}</Text>
-          <BottomSheetTextInput
-            style={[s.input, { backgroundColor: c.surfaceHigh, color: c.text, borderColor: c.border, marginBottom: 16 }]}
+          <LiquidTextField
             value={paymentNote}
             onChangeText={setPaymentNote}
             placeholder="e.g. partial payment"
-            placeholderTextColor={c.textMuted}
+            style={{ marginBottom: 16 }}
           />
           <View style={s.btnRow}>
             <TouchableOpacity style={[s.cancelBtn, { borderColor: c.border }]} onPress={() => paymentSheetRef.current?.close()}>
@@ -351,15 +341,15 @@ export default function SupplierScreen() {
               <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{savingPayment ? t('savingDots') : t('savePayment')}</Text>
             </TouchableOpacity>
           </View>
-        </BottomSheetScrollView>
-      </AppBottomSheet>
+        </ScrollView>
+      </LiquidBottomSheet>
 
       {/* Supplier Detail Sheet */}
-      <AppBottomSheet
+      <LiquidBottomSheet
         ref={detailSheetRef}
         onDismiss={() => { setSelectedSupplier(null); setEditingStockId(null); }}
       >
-        <BottomSheetScrollView contentContainerStyle={s.sheetContent} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={s.sheetContent} keyboardShouldPersistTaps="handled">
           {selectedSupplier && (() => {
             const linkedProducts = products.filter(p => p.supplierId === selectedSupplier.id);
             const linkedExpenses = expenses.filter(e => e.supplierId === selectedSupplier.id);
@@ -600,14 +590,12 @@ export default function SupplierScreen() {
                               ))}
                             </View>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 }}>
-                              <BottomSheetTextInput
-                                style={[s.stockInput, { flex: 1, backgroundColor: c.surface, color: c.text, borderColor: c.border }]}
+                              <LiquidTextField
+                                style={{ flex: 1 }}
                                 value={stockInput}
                                 onChangeText={setStockInput}
                                 keyboardType="numeric"
                                 placeholder={t('qtyToAdd')}
-                                placeholderTextColor={c.textMuted}
-                                selectTextOnFocus
                               />
                               <TouchableOpacity
                                 style={[s.stockSaveBtn, { backgroundColor: c.primary }]}
@@ -628,8 +616,8 @@ export default function SupplierScreen() {
               </>
             );
           })()}
-        </BottomSheetScrollView>
-      </AppBottomSheet>
+        </ScrollView>
+      </LiquidBottomSheet>
     </View>
   );
 }

@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, Image, Alert } from 'react-native';
+import { View, FlatList, ScrollView, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, Image, Alert } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
-import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
-import AppBottomSheet, { AppBottomSheetRef } from '../../components/common/AppBottomSheet';
+import LiquidBottomSheet, { LiquidBottomSheetRef } from '../../components/common/LiquidBottomSheet';
+import LiquidTextField from '../../components/common/LiquidTextField';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
 import { useAppStore } from '../../stores/useAppStore';
@@ -34,7 +34,7 @@ export default function OnlineInventoryScreen({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const { extended, onScroll } = useFabScroll();
-  const importSheetRef = useRef<AppBottomSheetRef>(null);
+  const importSheetRef = useRef<LiquidBottomSheetRef>(null);
   const s = makeStyles(colors);
 
   useEffect(() => {
@@ -217,7 +217,7 @@ export default function OnlineInventoryScreen({ navigation }: any) {
 // BottomSheet convention as InventoryScreen's stock/menu sheets, instead of
 // a full-screen modal.
 function ImportPickerSheet({ sheetRef, onPick }: {
-  sheetRef: React.RefObject<AppBottomSheetRef | null>; onPick: (p: Product) => void;
+  sheetRef: React.RefObject<LiquidBottomSheetRef | null>; onPick: (p: Product) => void;
 }) {
   const { colors } = useAppTheme();
   const { products } = useAppStore();
@@ -231,24 +231,18 @@ function ImportPickerSheet({ sheetRef, onPick }: {
   }, [products, query]);
 
   return (
-    <AppBottomSheet ref={sheetRef}>
-      {/* Single BottomSheetScrollView holding everything — title, search
-          input, and rows all mapped inline. This is the one pattern already
-          proven to work in this app (InventoryScreen's stock-adjust sheet
-          mixes text + a TextInput the same way). BottomSheetFlatList as a
-          sibling or via ListHeaderComponent both left the input unfocusable,
-          so this picker avoids virtualization entirely — the local product
-          list here is small enough that a plain mapped ScrollView is fine. */}
-      <BottomSheetScrollView contentContainerStyle={s.pickerHeader} keyboardShouldPersistTaps="handled">
+    <LiquidBottomSheet ref={sheetRef}>
+      {/* Single ScrollView holding everything — title, search input, and
+          rows all mapped inline (not virtualized) — the local product list
+          here is small enough that this is fine, and avoids any risk of a
+          separate FlatList fighting the search input for keyboard focus. */}
+      <ScrollView contentContainerStyle={s.pickerHeader} keyboardShouldPersistTaps="handled">
         <Text style={[s.pickerTitle, { color: colors.text }]}>Import from local shop</Text>
-        <View style={[s.searchBox, { backgroundColor: colors.surfaceHigh, borderColor: colors.border, marginTop: 12, marginBottom: 8 }]}>
-          <Ionicons name="search-outline" size={16} color={colors.textMuted} style={{ marginRight: 6 }} />
-          <BottomSheetTextInput
-            style={[s.searchInput, { color: colors.text }]}
-            placeholder="Search your products…"
-            placeholderTextColor={colors.textMuted}
+        <View style={{ marginTop: 12, marginBottom: 8 }}>
+          <LiquidTextField
             value={query}
             onChangeText={setQuery}
+            placeholder="Search your products…"
           />
         </View>
 
@@ -269,8 +263,8 @@ function ImportPickerSheet({ sheetRef, onPick }: {
             </TouchableOpacity>
           ))
         )}
-      </BottomSheetScrollView>
-    </AppBottomSheet>
+      </ScrollView>
+    </LiquidBottomSheet>
   );
 }
 

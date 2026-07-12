@@ -3,8 +3,8 @@ import { View, FlatList, StyleSheet, TouchableOpacity, Alert, ScrollView, Linkin
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
-import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
-import AppBottomSheet, { AppBottomSheetRef } from '../components/common/AppBottomSheet';
+import LiquidBottomSheet, { LiquidBottomSheetRef } from '../components/common/LiquidBottomSheet';
+import LiquidTextField from '../components/common/LiquidTextField';
 import { useAppStore } from '../stores/useAppStore';
 import { useTranslation } from '../hooks/useTranslation';
 import { formatCurrency, formatDate, formatTime, generateId, sanitizeDecimal } from '../utils/helpers';
@@ -53,9 +53,9 @@ export default function UdhaarScreen() {
       .sort((a, b) => b.createdAt - a.createdAt);
   }, [bills, selectedCustomer]);
 
-  const addCustomerSheetRef = useRef<AppBottomSheetRef>(null);
-  const customerDetailSheetRef = useRef<AppBottomSheetRef>(null);
-  const addTxSheetRef = useRef<AppBottomSheetRef>(null);
+  const addCustomerSheetRef = useRef<LiquidBottomSheetRef>(null);
+  const customerDetailSheetRef = useRef<LiquidBottomSheetRef>(null);
+  const addTxSheetRef = useRef<LiquidBottomSheetRef>(null);
 
   const openAddCustomer = useCallback(() => addCustomerSheetRef.current?.expand(), []);
   const closeAddCustomer = useCallback(() => addCustomerSheetRef.current?.close(), []);
@@ -141,7 +141,7 @@ export default function UdhaarScreen() {
   // through debtors one at a time (open → you tap send → next).
   const debtors = useMemo(() => sortedDebtors(customers, balances), [customers, balances]);
   const [queueIndex, setQueueIndex] = useState<number | null>(null);
-  const queueSheetRef = useRef<AppBottomSheetRef>(null);
+  const queueSheetRef = useRef<LiquidBottomSheetRef>(null);
 
   const startRemindAll = useCallback(() => {
     if (debtors.length === 0) { Alert.alert(t('allClear'), t('allClearMsg')); return; }
@@ -251,13 +251,13 @@ export default function UdhaarScreen() {
       <CollapsibleFab bottom={90} icon="add" label={t('addCustomer')} extended={extended} onPress={() => { setEditingCustomer(null); setNewName(''); setNewPhone(''); openAddCustomer(); }} />
 
       {/* Add/Edit Customer Sheet */}
-      <AppBottomSheet ref={addCustomerSheetRef} detached>
-        <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
+      <LiquidBottomSheet ref={addCustomerSheetRef}>
+        <ScrollView contentContainerStyle={s.sheetContent}>
           <Text style={[s.modalTitle, { color: colors.text }]}>{editingCustomer ? t('editCustomer') : t('addCustomer')}</Text>
-          <BottomSheetTextInput style={[s.input, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
-            value={newName} onChangeText={setNewName} placeholder={t('customerName') + ' *'} placeholderTextColor={colors.textMuted} />
-          <BottomSheetTextInput style={[s.input, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
-            value={newPhone} onChangeText={setNewPhone} placeholder={t('phoneForWhatsapp')} placeholderTextColor={colors.textMuted} keyboardType="phone-pad" />
+          <LiquidTextField
+            value={newName} onChangeText={setNewName} placeholder={t('customerName') + ' *'} style={{ marginBottom: 14 }} />
+          <LiquidTextField
+            value={newPhone} onChangeText={setNewPhone} placeholder={t('phoneForWhatsapp')} keyboardType="phone-pad" style={{ marginBottom: 14 }} />
           <View style={s.btnRow}>
             <TouchableOpacity style={[s.cancelBtn, { borderColor: colors.border }]} onPress={closeAddCustomer}>
               <Text style={{ color: colors.textSub, fontFamily: fonts.semiBold }}>{t('cancel')}</Text>
@@ -266,15 +266,15 @@ export default function UdhaarScreen() {
               <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{t('save')}</Text>
             </TouchableOpacity>
           </View>
-        </BottomSheetScrollView>
-      </AppBottomSheet>
+        </ScrollView>
+      </LiquidBottomSheet>
 
       {/* Customer Detail Sheet */}
-      <AppBottomSheet
+      <LiquidBottomSheet
         ref={customerDetailSheetRef}
         onDismiss={() => setSelectedCustomer(null)}
       >
-        <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
+        <ScrollView contentContainerStyle={s.sheetContent}>
           {selectedCustomer && (
             <>
               <View style={s.detailHeader}>
@@ -386,17 +386,17 @@ export default function UdhaarScreen() {
               </View>
             </>
           )}
-        </BottomSheetScrollView>
-      </AppBottomSheet>
+        </ScrollView>
+      </LiquidBottomSheet>
 
       {/* Add Transaction Sheet */}
-      <AppBottomSheet ref={addTxSheetRef} detached>
-        <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
+      <LiquidBottomSheet ref={addTxSheetRef}>
+        <ScrollView contentContainerStyle={s.sheetContent}>
           <Text style={[s.modalTitle, { color: colors.text }]}>{txType === 'debit' ? t('giveCredit') : t('paymentReceived')}</Text>
-          <BottomSheetTextInput style={[s.input, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
-            value={txAmount} onChangeText={v => setTxAmount(sanitizeDecimal(v))} placeholder={`${t('amount')} (${settings.currency})`} placeholderTextColor={colors.textMuted} keyboardType="numeric" />
-          <BottomSheetTextInput style={[s.input, { backgroundColor: colors.surfaceHigh, color: colors.text, borderColor: colors.border }]}
-            value={txNote} onChangeText={setTxNote} placeholder={t('noteOptional')} placeholderTextColor={colors.textMuted} />
+          <LiquidTextField
+            value={txAmount} onChangeText={v => setTxAmount(sanitizeDecimal(v))} placeholder={`${t('amount')} (${settings.currency})`} keyboardType="numeric" style={{ marginBottom: 14 }} />
+          <LiquidTextField
+            value={txNote} onChangeText={setTxNote} placeholder={t('noteOptional')} style={{ marginBottom: 14 }} />
           <View style={s.btnRow}>
             <TouchableOpacity style={[s.cancelBtn, { borderColor: colors.border }]} onPress={closeAddTx}>
               <Text style={{ color: colors.textSub, fontFamily: fonts.semiBold }}>{t('cancel')}</Text>
@@ -405,15 +405,15 @@ export default function UdhaarScreen() {
               <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{t('save')}</Text>
             </TouchableOpacity>
           </View>
-        </BottomSheetScrollView>
-      </AppBottomSheet>
+        </ScrollView>
+      </LiquidBottomSheet>
 
       {/* Remind-All queue Sheet — step through every debtor */}
-      <AppBottomSheet
+      <LiquidBottomSheet
         ref={queueSheetRef}
         onDismiss={() => setQueueIndex(null)}
       >
-        <BottomSheetScrollView contentContainerStyle={s.sheetContent}>
+        <ScrollView contentContainerStyle={s.sheetContent}>
           {queueIndex !== null && (
             queueIndex >= debtors.length ? (
               <View style={{ alignItems: 'center', paddingVertical: 20 }}>
@@ -476,8 +476,8 @@ export default function UdhaarScreen() {
               );
             })()
           )}
-        </BottomSheetScrollView>
-      </AppBottomSheet>
+        </ScrollView>
+      </LiquidBottomSheet>
     </View>
   );
 }
