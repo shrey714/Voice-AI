@@ -4,7 +4,7 @@ import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { type SFSymbol } from 'sf-symbols-typescript';
 import { Host, Button as SwiftUIButton } from '@expo/ui/swift-ui';
-import { buttonStyle, tint, disabled as disabledMod, frame, cornerRadius, background, shapes } from '@expo/ui/swift-ui/modifiers';
+import { buttonStyle, tint, opacity, frame, cornerRadius } from '@expo/ui/swift-ui/modifiers';
 import PressableScale from './PressableScale';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
@@ -41,9 +41,10 @@ const SF_TO_IONICON: Partial<Record<SFSymbol, React.ComponentProps<typeof Ionico
 
 /**
  * A button that renders as real native iOS 26 Liquid Glass on iOS (via
- * @expo/ui's SwiftUI Button + `buttonStyle('glass'|'glassProminent')`) and
- * the app's existing themed pill button on Android — same drop-in pattern
- * as the native bottom tabs / native headers split elsewhere in this app.
+ * @expo/ui's SwiftUI Button + `buttonStyle('glassProminent')` — always this
+ * one style, see the `variant` handling below for why) and the app's
+ * existing themed pill button on Android — same drop-in pattern as the
+ * native bottom tabs / native headers split elsewhere in this app.
  *
  * iOS only supports a text `label` + optional SF Symbol icon for the native
  * button (no arbitrary children) — keep usage to title/icon buttons, not
@@ -87,8 +88,21 @@ export default function LiquidButton({
   const [measuredWidth, setMeasuredWidth] = useState(0);
 
   if (Platform.OS === 'ios') {
-    const swiftUIStyle = variant === 'destructive' ? 'glassProminent' : variant;
-    const tintColor = tintColorOverride ?? (variant === 'destructive' ? colors.danger : variant === 'glassProminent' ? colors.primary : undefined);
+    // Every variant uses the SAME native `buttonStyle('glassProminent')` —
+    // only the tint color differs. `glass` (unfilled/outline) and
+    // `glassProminent` (filled) are genuinely two different native styles
+    // with their own internal sizing/chrome, and no amount of manually
+    // layering a background/frame onto `glass` ever made it render at the
+    // same size as `glassProminent` — they're just not the same shape under
+    // the hood. Forcing every variant through the identical style, and only
+    // varying the tint (a muted `surfaceHigh` grey for `glass`/secondary
+    // actions), is what actually guarantees Cancel/Save-style button pairs
+    // come out pixel-identical in size.
+    const tintColor = tintColorOverride ?? (
+      variant === 'destructive' ? colors.danger
+      : variant === 'glass' ? colors.surfaceHigh
+      : colors.primary
+    );
     const onLayout = (e: LayoutChangeEvent) => {
       const w = e.nativeEvent.layout.width;
       if (fullWidth && w > 0 && w !== measuredWidth) setMeasuredWidth(w);
@@ -100,32 +114,44 @@ export default function LiquidButton({
     }
     return (
       <View style={[fullWidth && { width: '100%' }, { height }, style]} onLayout={fullWidth ? onLayout : undefined}>
-        {/* colorScheme: this app's dark mode is its own setting, independent
+        {/* `key={measuredWidth}` forces a fresh `Host` mount whenever the
+            measured width changes, instead of updating an already-mounted
+            one's `style.width` prop. `Host` is a custom Fabric-hosted view
+            (bridges to a UIHostingController) — like its other documented
+            quirks elsewhere in this codebase (pointerEvents not behaving
+            like a plain View's), its SwiftUI content doesn't reliably
+            re-layout just because a size prop changed post-mount. If the
+            very first layout pass ever reports a transient/too-small width
+            (plausible while a bottom sheet's content is still settling),
+            the button was getting stuck rendering small forever — a
+            correctly-sized wrapping View around a Host that never actually
+            grew, which is exactly the "small pill floating in a big empty
+            box" look. Remounting on every width change guarantees it's
+            always built fresh with the final correct size.
+            colorScheme: this app's dark mode is its own setting, independent
             of the OS's — Host defaults to following the system otherwise. */}
-        <Host colorScheme={isDark ? 'dark' : 'light'} style={{ width: fullWidth ? measuredWidth : undefined, height }} matchContents={!fullWidth ? { horizontal: true, vertical: true } : undefined}>
+        <Host key={measuredWidth} colorScheme={isDark ? 'dark' : 'light'} style={{ width: fullWidth ? measuredWidth : undefined, height }} matchContents={!fullWidth ? { horizontal: true, vertical: true } : undefined}>
           <SwiftUIButton
             label={loading ? 'Loading…' : title}
             systemImage={loading ? undefined : icon}
-            onPress={onPress}
+            // Disabling via the SwiftUI `disabled` modifier (see below) lets
+            // the system override the tint with a flat neutral grey for
+            // "legibility" — which on an already-transparent glass sheet
+            // made disabled buttons nearly invisible instead of just dim.
+            // Blocking the press here in JS and dimming via plain `opacity`
+            // instead keeps our own tint color visible, just faded — same
+            // treatment Android already gets via `opacity: isDisabled ? 0.5 : 1`.
+            onPress={isDisabled ? () => {} : onPress}
             modifiers={[
               // `frame` first, same reasoning as LiquidTextField: modifiers
               // apply to the view's size at that point, so anything sizing
               // or painting the box needs the concrete pixel size locked in
               // before it, not after.
               ...(fullWidth ? [frame({ width: measuredWidth, height })] : [frame({ height })]),
-              // `glass` (unfilled/secondary) buttons render as a hairline
-              // outline with no real fill — next to invisible stacked on an
-              // already-transparent `LiquidBottomSheet`, which is why
-              // secondary actions (Cancel, etc.) were showing up as bare
-              // text with no visible button bounds at all. Backing them
-              // with the same dimmed `surfaceHigh` tone used for text
-              // fields gives them a real, visible boundary without looking
-              // like a solid opaque button (that's still `glassProminent`).
-              ...(variant === 'glass' ? [background(colors.surfaceHigh + 'CC', shapes.roundedRectangle({ cornerRadius: height / 2 }))] : []),
-              buttonStyle(swiftUIStyle),
-              ...(tintColor ? [tint(tintColor)] : []),
+              buttonStyle('glassProminent'),
+              tint(tintColor),
               cornerRadius(height / 2),
-              disabledMod(isDisabled),
+              opacity(isDisabled ? 0.4 : 1),
             ]}
           />
         </Host>

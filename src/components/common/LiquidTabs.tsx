@@ -45,10 +45,13 @@ export default function LiquidTabs({
     return (
       <View style={{ height: 36, width: '100%' }} onLayout={onLayout}>
         {measuredWidth > 0 && (
-          // colorScheme: this app's dark mode is its own setting,
-          // independent of the OS's — Host defaults to following the
-          // system otherwise.
-          <Host colorScheme={isDark ? 'dark' : 'light'} style={{ width: measuredWidth, height: 36 }}>
+          // `key={measuredWidth}`: same reasoning as LiquidButton/
+          // LiquidTextField — remount fresh whenever the real measured
+          // width lands rather than risk Host getting stuck at an early,
+          // too-small size. colorScheme: this app's dark mode is its own
+          // setting, independent of the OS's — Host defaults to following
+          // the system otherwise.
+          <Host key={measuredWidth} colorScheme={isDark ? 'dark' : 'light'} style={{ width: measuredWidth, height: 36 }}>
             <Picker
               selection={selected}
               onSelectionChange={onSelect}

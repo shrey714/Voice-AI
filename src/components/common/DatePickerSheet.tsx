@@ -175,8 +175,13 @@ const DatePickerSheet = forwardRef<DatePickerSheetRef, Props>(
 
     // ── Calendar theme ────────────────────────────────────────────────────
     const calendarTheme: CalendarProps['theme'] = {
-      backgroundColor: colors.surface,
-      calendarBackground: colors.surface,
+      // `transparent`, not `colors.surface` — the sheet itself is real
+      // glass now (see LiquidBottomSheet), and this library paints its own
+      // opaque background underneath the calendar grid regardless of
+      // anything the sheet does, which showed up as a solid mismatched
+      // rectangle sitting on top of the glass instead of blending into it.
+      backgroundColor: 'transparent',
+      calendarBackground: 'transparent',
       textSectionTitleColor: colors.textMuted,
       selectedDayBackgroundColor: colors.primary,
       selectedDayTextColor: '#fff',

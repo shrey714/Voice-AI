@@ -362,7 +362,7 @@ const makeStyles = (c: any) =>
     activeChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1 },
     activeChipText: { fontFamily: fonts.semiBold, fontSize: 12 },
 
-    fsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16, borderBottomWidth: StyleSheet.hairlineWidth, marginBottom: 20 },
+    fsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 20, paddingBottom: 16, borderBottomWidth: StyleSheet.hairlineWidth, marginBottom: 20 },
     fsTitle: { fontFamily: fonts.extraBold, fontSize: 18 },
     fsReset: { fontFamily: fonts.semiBold, fontSize: 14 },
     fsSectionLabel: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 0.8, marginBottom: 10, marginTop: 4 },

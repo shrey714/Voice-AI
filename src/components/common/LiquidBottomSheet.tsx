@@ -75,8 +75,27 @@ const LiquidBottomSheet = forwardRef<LiquidBottomSheetRef, LiquidBottomSheetProp
     const [mounted, setMounted] = useState(false);
     const [presented, setPresented] = useState(false);
     const androidRef = useRef<ModalBottomSheetRef>(null);
+    // Guards against unmounting/calling onDismiss twice when both the real
+    // animation-complete callback AND the fallback timeout below end up
+    // firing for the same close.
+    const closedRef = useRef(false);
+    // Tracks the fallback timeout below so a rapid close-then-reopen can
+    // cancel a still-pending one — otherwise a stale timeout from the
+    // PREVIOUS close could fire ~400ms after the sheet was freshly reopened
+    // and force it shut again.
+    const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const finishClose = useCallback(() => {
+      if (closedRef.current) return;
+      closedRef.current = true;
+      setPresented(false);
+      setMounted(false);
+      onDismiss?.();
+    }, [onDismiss]);
 
     const open = useCallback(() => {
+      if (closeTimeoutRef.current) { clearTimeout(closeTimeoutRef.current); closeTimeoutRef.current = null; }
+      closedRef.current = false;
       setMounted(true);
       setPresented(true);
     }, []);
@@ -84,7 +103,23 @@ const LiquidBottomSheet = forwardRef<LiquidBottomSheetRef, LiquidBottomSheetProp
     const requestClose = useCallback(() => {
       if (Platform.OS === 'android') androidRef.current?.hide();
       setPresented(false);
-    }, []);
+      // `onIsPresentedChange`/`onDismissRequest` are designed around the
+      // user dragging the sheet down or tapping outside it — that's a
+      // native-gesture-initiated dismissal, and reliably calls back into
+      // JS. Closing via a button INSIDE the sheet (Cancel/X/Confirm) instead
+      // drives the dismissal by flipping this `presented` prop from JS,
+      // and that callback does NOT reliably fire back for a JS-originated
+      // change — which meant `mounted` silently got stuck at `true` forever
+      // after every button-driven close. Since `mounted` gates the
+      // always-invisible full-screen overlay's `pointerEvents: 'box-none'`
+      // Host (see the comment on `mounted` above), getting stuck mounted
+      // silently broke scrolling/taps on the ENTIRE screen underneath —
+      // exactly what was reported as "screen becomes unresponsive" after
+      // closing via a button. This timeout is a fallback net: if the real
+      // callback hasn't fired within roughly the native dismiss animation's
+      // duration, force the unmount anyway so it can never get stuck.
+      closeTimeoutRef.current = setTimeout(finishClose, 400);
+    }, [finishClose]);
 
     useImperativeHandle(ref, () => ({
       expand: open,
@@ -95,17 +130,12 @@ const LiquidBottomSheet = forwardRef<LiquidBottomSheetRef, LiquidBottomSheetProp
 
     const handleIOSPresentedChange = useCallback((isPresented: boolean) => {
       setPresented(isPresented);
-      if (!isPresented) {
-        setMounted(false);
-        onDismiss?.();
-      }
-    }, [onDismiss]);
+      if (!isPresented) finishClose();
+    }, [finishClose]);
 
     const handleAndroidDismissRequest = useCallback(() => {
-      setPresented(false);
-      setMounted(false);
-      onDismiss?.();
-    }, [onDismiss]);
+      finishClose();
+    }, [finishClose]);
 
     // `Host` defaults to following the OS's system appearance if
     // `colorScheme` isn't set — but this app's dark mode is its own setting

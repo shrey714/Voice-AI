@@ -87,9 +87,14 @@ export default function LiquidTextField({
       // the same established gotcha) and its RN prop passthrough doesn't
       // reliably behave like a plain View's.
       <View style={[{ height: fieldHeight, width: '100%' }, style]} onLayout={onLayout}>
-      {/* colorScheme: this app's dark mode is its own setting, independent
+      {/* `key={measuredWidth}`: same reasoning as LiquidButton — Host's
+          SwiftUI content doesn't reliably re-layout from a post-mount
+          style.width change, so remount fresh whenever the real measured
+          width lands instead of risking it getting stuck at an early,
+          too-small size.
+          colorScheme: this app's dark mode is its own setting, independent
           of the OS's — Host defaults to following the system otherwise. */}
-      <Host colorScheme={isDark ? 'dark' : 'light'} style={{ height: fieldHeight, width: measuredWidth }}>
+      <Host key={measuredWidth} colorScheme={isDark ? 'dark' : 'light'} style={{ height: fieldHeight, width: measuredWidth }}>
         <SwiftUITextField
           ref={ref}
           defaultValue={value}
@@ -98,16 +103,22 @@ export default function LiquidTextField({
           axis={multiline ? 'vertical' : 'horizontal'}
           onValueChange={(v) => { lastEmitted.current = v; onChangeText(v); }}
           modifiers={[
-            // `frame` MUST come before `background`/`glassEffect` — SwiftUI
-            // modifiers apply to the view's current size at the point
-            // they're applied, so a `background` before `frame` only paints
-            // the field's unconstrained intrinsic (text-hugging) size, not
-            // the full box — which is exactly why fields were rendering as
-            // a barely-visible thin line instead of a proper input box.
-            // Giving it a concrete measured `width` (not `maxWidth`, see
-            // above) plus `height` first means everything layered after
-            // actually fills the real box.
-            frame({ width: measuredWidth, height: fieldHeight }),
+            // Order matters a lot here, and it's subtle: `padding` insets
+            // whatever it's applied to at that point in the chain, and
+            // `frame` locks in a size from that point onward — so `padding`
+            // has to come BEFORE `frame`, or the padding ends up wrapping
+            // *outside* the already-fixed-size box instead of inset *within*
+            // it, which is exactly why text was starting flush against the
+            // left edge with zero visible margin.
+            padding({ horizontal: 14, vertical: multiline ? 10 : 0 }),
+            // `minWidth` (not a fixed `width`) + `alignment: 'leading'`: the
+            // padded text field's own natural size is just "text + padding",
+            // much narrower than the box. `minWidth` stretches it out to
+            // fill the full measured width regardless, while `leading`
+            // keeps the (already-padded) text pinned to the left instead of
+            // SwiftUI's default centering it as a small pill in the middle
+            // of all that extra space.
+            frame({ minWidth: measuredWidth, height: fieldHeight, alignment: 'leading' }),
             // A pure `glassEffect` here reads as nearly invisible against an
             // already-transparent `LiquidBottomSheet` — there's no longer a
             // solid surface behind it to contrast against, so the field's
@@ -119,7 +130,6 @@ export default function LiquidTextField({
             background(colors.surfaceHigh + 'CC', shapes.roundedRectangle({ cornerRadius: 12 })),
             glassEffect({ glass: { variant: 'regular' }, shape: 'roundedRectangle', cornerRadius: 12 }),
             textFieldStyle('plain'),
-            padding({ horizontal: 14, vertical: multiline ? 10 : 0 }),
             ...(multiline ? [lineLimit({ min: 3, max: 8 })] : []),
             keyboardTypeMod(keyboardType),
           ]}

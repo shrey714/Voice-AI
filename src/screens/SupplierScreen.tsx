@@ -390,8 +390,14 @@ export default function SupplierScreen() {
                         ) : null}
                     </View>
                   </View>
-                  <TouchableOpacity onPress={closeDetailSheet} accessibilityLabel="Close" accessibilityRole="button">
-                    <Ionicons name="close" size={24} color={c.textSub} />
+                  <TouchableOpacity
+                    onPress={closeDetailSheet}
+                    accessibilityLabel="Close"
+                    accessibilityRole="button"
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    style={[s.closeBtn, { backgroundColor: c.surfaceHigh }]}
+                  >
+                    <Ionicons name="close" size={18} color={c.textSub} />
                   </TouchableOpacity>
                 </View>
 
@@ -631,11 +637,16 @@ const makeStyles = (c: any) => StyleSheet.create({
   lowBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   lowBadgeText: { fontFamily: fonts.bold, fontSize: 11 },
   sheetContent: { paddingHorizontal: 0, paddingBottom: 24 },
-  modalTitle: { fontFamily: fonts.extraBold, fontSize: 18, marginBottom: 16, paddingLeft: 8, paddingRight: 14 },
+  modalTitle: { fontFamily: fonts.extraBold, fontSize: 19, marginBottom: 16, paddingLeft: 8, paddingRight: 14 },
   fieldLabel: { fontFamily: fonts.bold, fontSize: 12, marginBottom: 6, paddingLeft: 4 },
   input: { borderRadius: 10, padding: 12, fontSize: 15, borderWidth: 1, fontFamily: fonts.regular },
   btnRow: { flexDirection: 'row', gap: 8, marginTop: 10, paddingHorizontal: 8 },
-  detailHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth, paddingLeft: 8, paddingRight: 14 },
+  // `paddingTop` (not just `paddingBottom`) + a taller bottom gap before the
+  // border — this sheet has its own bespoke avatar-header layout instead of
+  // the shared `SheetHeader`, which was the one place that top spacing was
+  // missing entirely: content started flush under the sheet's drag handle.
+  detailHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 20, paddingBottom: 16, borderBottomWidth: StyleSheet.hairlineWidth, paddingLeft: 8, paddingRight: 14, marginBottom: 4 },
+  closeBtn: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   statsRow: { flexDirection: 'row', borderBottomWidth: StyleSheet.hairlineWidth, padding: 12, marginBottom: 8 },
   statItem: { flex: 1, alignItems: 'center' },
   statValue: { fontFamily: fonts.extraBold, fontSize: 16 },

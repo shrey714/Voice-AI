@@ -273,24 +273,12 @@ export default function UdhaarScreen() {
         ref={customerDetailSheetRef}
         onDismiss={() => setSelectedCustomer(null)}
       >
+        {selectedCustomer && (
+          <SheetHeader title={selectedCustomer.name} subtitle={selectedCustomer.phone} onClose={closeCustomerDetail} />
+        )}
         <ScrollView contentContainerStyle={s.sheetContent}>
           {selectedCustomer && (
             <>
-              <View style={s.detailHeader}>
-                <View>
-                  <Text style={[s.modalTitle, { color: colors.text, marginBottom: 4 }]}>{selectedCustomer.name}</Text>
-                  {selectedCustomer.phone ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                      <Ionicons name="call-outline" size={12} color={colors.textMuted} />
-                      <Text style={[s.customerPhone, { color: colors.textMuted }]}>{selectedCustomer.phone}</Text>
-                    </View>
-                  ) : null}
-                </View>
-                <TouchableOpacity onPress={closeCustomerDetail} accessibilityLabel="Close" accessibilityRole="button">
-                  <Ionicons name="close" size={24} color={colors.textSub} />
-                </TouchableOpacity>
-              </View>
-
               <View style={[s.balanceBanner, { backgroundColor: (balances[selectedCustomer.id] || 0) > 0 ? colors.danger + '10' : colors.success + '10' }]}>
                 <Text style={[s.balanceBannerLabel, { color: colors.textSub }]}>{t('outstandingAmount')}</Text>
                 <Text style={[s.balanceBannerAmt, { color: (balances[selectedCustomer.id] || 0) > 0 ? colors.danger : colors.success }]}>
@@ -494,7 +482,6 @@ const makeStyles = (c: any) => StyleSheet.create({
   modalTitle: { fontFamily: fonts.extraBold, fontSize: 18, marginBottom: 16 },
   input: { borderRadius: 14, padding: 16, fontSize: 15, borderWidth: 1, marginBottom: 14, fontFamily: fonts.regular },
   btnRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
-  detailHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
   balanceBanner: { borderRadius: 16, padding: 16, alignItems: 'center', marginBottom: 16 },
   balanceBannerLabel: { fontFamily: fonts.medium, fontSize: 12 },
   balanceBannerAmt: { fontFamily: fonts.display, fontSize: 28, marginTop: 6 },
