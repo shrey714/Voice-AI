@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import LiquidBottomSheet, { LiquidBottomSheetRef } from '../components/common/LiquidBottomSheet';
 import LiquidTextField from '../components/common/LiquidTextField';
+import LiquidButton from '../components/common/LiquidButton';
 import { useAppStore } from '../stores/useAppStore';
 import { useTranslation } from '../hooks/useTranslation';
 import { formatCurrency, formatDate, formatTime, generateId, sanitizeDecimal } from '../utils/helpers';
@@ -262,9 +263,7 @@ export default function UdhaarScreen() {
             <TouchableOpacity style={[s.cancelBtn, { borderColor: colors.border }]} onPress={closeAddCustomer}>
               <Text style={{ color: colors.textSub, fontFamily: fonts.semiBold }}>{t('cancel')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[s.primaryBtn, { backgroundColor: colors.primary }]} onPress={saveCustomer}>
-              <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{t('save')}</Text>
-            </TouchableOpacity>
+            <LiquidButton title={t('save')} onPress={saveCustomer} variant="glassProminent" height={48} style={{ flex: 1 }} />
           </View>
         </ScrollView>
       </LiquidBottomSheet>
@@ -401,9 +400,13 @@ export default function UdhaarScreen() {
             <TouchableOpacity style={[s.cancelBtn, { borderColor: colors.border }]} onPress={closeAddTx}>
               <Text style={{ color: colors.textSub, fontFamily: fonts.semiBold }}>{t('cancel')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[s.primaryBtn, { backgroundColor: txType === 'debit' ? colors.danger : colors.success }]} onPress={addTransaction}>
-              <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{t('save')}</Text>
-            </TouchableOpacity>
+            <LiquidButton
+              title={t('save')}
+              onPress={addTransaction}
+              tintColor={txType === 'debit' ? colors.danger : colors.success}
+              height={48}
+              style={{ flex: 1 }}
+            />
           </View>
         </ScrollView>
       </LiquidBottomSheet>
@@ -422,9 +425,7 @@ export default function UdhaarScreen() {
                 <Text style={{ fontFamily: fonts.regular, color: colors.textMuted, textAlign: 'center' }}>
                   {t('wentThroughAll').replace('{count}', String(debtors.length))}
                 </Text>
-                <TouchableOpacity style={[s.primaryBtn, { backgroundColor: colors.primary, marginTop: 22, alignSelf: 'stretch' }]} onPress={closeQueue}>
-                  <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{t('close')}</Text>
-                </TouchableOpacity>
+                <LiquidButton title={t('close')} onPress={closeQueue} variant="glassProminent" height={48} style={{ marginTop: 22 }} />
               </View>
             ) : (() => {
               const cust = debtors[queueIndex];
@@ -464,10 +465,11 @@ export default function UdhaarScreen() {
                     <TouchableOpacity style={[s.cancelBtn, { borderColor: colors.border }]} onPress={queueAdvance}>
                       <Text style={{ color: colors.textSub, fontFamily: fonts.semiBold }}>{t('skip')}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[s.primaryBtn, { backgroundColor: '#25D366', flexDirection: 'row', gap: 8 }]} onPress={queueSendCurrent}>
-                      <Ionicons name="logo-whatsapp" size={16} color="#fff" />
-                      <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{t('sendAndNext')}</Text>
-                    </TouchableOpacity>
+                    {/* No standard SF Symbol for the WhatsApp logo, and
+                        LiquidButton doesn't support arbitrary icon images —
+                        text-only (WhatsApp-green tint) rather than forcing a
+                        mismatched icon or a custom-layout button. */}
+                    <LiquidButton title={t('sendAndNext')} onPress={queueSendCurrent} tintColor="#25D366" height={48} style={{ flex: 1 }} />
                   </View>
                   <TouchableOpacity onPress={closeQueue} style={{ alignSelf: 'center', marginTop: 14 }}>
                     <Text style={{ fontFamily: fonts.semiBold, color: colors.textMuted }}>{t('stop')}</Text>

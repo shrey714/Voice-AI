@@ -8,6 +8,7 @@ import { useOnlineShopStore } from '../../stores/useOnlineShopStore';
 import { OnlineOrderDetailSkeleton } from '../../components/common/Skeleton';
 import { formatCurrency } from '../../utils/helpers';
 import { useAppStore } from '../../stores/useAppStore';
+import LiquidButton from '../../components/common/LiquidButton';
 import { OrderStatus } from '../../types/online';
 import { toast } from '../../utils/toast';
 
@@ -195,40 +196,16 @@ export default function OnlineOrderDetailScreen({ route, navigation }: any) {
         </View>
       ) : order.status === 'pending' ? (
         <View style={[s.actionBar, { borderTopColor: colors.border }]}>
-          <TouchableOpacity
-            style={[s.actionBtn, { borderColor: colors.danger, borderWidth: 1.5 }]}
-            onPress={() => handleAction('rejected')}
-          >
-            <Ionicons name="close-outline" size={20} color={colors.danger} />
-            <Text style={[s.actionBtnText, { color: colors.danger }]}>Reject</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[s.actionBtn, { backgroundColor: colors.primary }]}
-            onPress={() => handleAction('accepted')}
-          >
-            <Ionicons name="checkmark-outline" size={20} color="#fff" />
-            <Text style={[s.actionBtnText, { color: '#fff' }]}>Accept</Text>
-          </TouchableOpacity>
+          <LiquidButton title="Reject" icon="xmark" onPress={() => handleAction('rejected')} variant="glass" tintColor={colors.danger} height={48} style={{ flex: 1 }} />
+          <LiquidButton title="Accept" icon="checkmark" onPress={() => handleAction('accepted')} variant="glassProminent" height={48} style={{ flex: 1 }} />
         </View>
       ) : order.status === 'accepted' ? (
         <View style={[s.actionBar, { borderTopColor: colors.border }]}>
-          <TouchableOpacity
-            style={[s.actionBtn, { backgroundColor: colors.primary, flex: 1 }]}
-            onPress={() => handleAction('ready')}
-          >
-            <Ionicons name="bag-check-outline" size={20} color="#fff" />
-            <Text style={[s.actionBtnText, { color: '#fff' }]}>Mark Ready</Text>
-          </TouchableOpacity>
+          <LiquidButton title="Mark Ready" icon="bag.fill" onPress={() => handleAction('ready')} variant="glassProminent" height={48} />
         </View>
       ) : order.status === 'ready' ? (
         <View style={[s.actionBar, { borderTopColor: colors.border }]}>
-          <TouchableOpacity
-            style={[s.actionBtn, { backgroundColor: colors.success, flex: 1 }]}
-            onPress={() => handleAction('completed')}
-          >
-            <Ionicons name="checkmark-done-outline" size={20} color="#fff" />
-            <Text style={[s.actionBtnText, { color: '#fff' }]}>Mark Completed</Text>
-          </TouchableOpacity>
+          <LiquidButton title="Mark Completed" icon="checkmark.circle.fill" onPress={() => handleAction('completed')} tintColor={colors.success} height={48} />
         </View>
       ) : null}
     </View>

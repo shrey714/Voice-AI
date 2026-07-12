@@ -8,6 +8,7 @@ import { Product } from '../types';
 import { buildReorderMessage, whatsappUrl } from '../utils/reminder';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
+import LiquidButton from '../components/common/LiquidButton';
 import EmptyState from '../components/common/EmptyState';
 import { useTranslation } from '../hooks/useTranslation';
 
@@ -122,14 +123,10 @@ export default function ReorderScreen({ navigation }: any) {
 
               {/* Actions */}
               <View style={s.actions}>
-                <TouchableOpacity style={[s.actionBtn, { backgroundColor: '#25D366' }]} onPress={() => whatsappReorder(key, items)} activeOpacity={0.85}>
-                  <Ionicons name="logo-whatsapp" size={16} color="#fff" />
-                  <Text style={s.actionText}>{t('whatsappReorder')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[s.actionBtn, { backgroundColor: colors.primary }]} onPress={() => draftPurchase(key, items)} activeOpacity={0.85}>
-                  <Ionicons name="document-text-outline" size={16} color="#fff" />
-                  <Text style={s.actionText}>{t('draftPurchase')}</Text>
-                </TouchableOpacity>
+                {/* No standard SF Symbol for the WhatsApp logo — text-only
+                    (WhatsApp-green tint) on iOS rather than a mismatched icon. */}
+                <LiquidButton title={t('whatsappReorder')} onPress={() => whatsappReorder(key, items)} tintColor="#25D366" height={44} style={{ flex: 1 }} />
+                <LiquidButton title={t('draftPurchase')} icon="doc.text" onPress={() => draftPurchase(key, items)} variant="glassProminent" height={44} style={{ flex: 1 }} />
               </View>
             </MotiView>
           );

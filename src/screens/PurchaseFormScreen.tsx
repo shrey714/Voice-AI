@@ -6,6 +6,7 @@ import {
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import LiquidBottomSheet, { LiquidBottomSheetRef } from '../components/common/LiquidBottomSheet';
+import LiquidButton from '../components/common/LiquidButton';
 import { useAppStore } from '../stores/useAppStore';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
@@ -422,16 +423,15 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
 
         {/* Save button */}
         <View style={s.section}>
-          <TouchableOpacity
-            style={[s.saveBtn, { backgroundColor: items.length > 0 ? colors.primary : colors.surfaceHigh }]}
+          <LiquidButton
+            title={saving ? t('savingDots') : `${t('savePurchase')} · ${formatCurrency(totalAmount, settings.currency)}`}
+            icon="checkmark.circle.fill"
             onPress={handleSave}
-            disabled={saving || items.length === 0}
-          >
-            <Ionicons name="checkmark-circle" size={20} color={items.length > 0 ? '#fff' : colors.textMuted} />
-            <Text style={[s.saveBtnText, { color: items.length > 0 ? '#fff' : colors.textMuted }]}>
-              {saving ? t('savingDots') : `${t('savePurchase')} · ${formatCurrency(totalAmount, settings.currency)}`}
-            </Text>
-          </TouchableOpacity>
+            loading={saving}
+            disabled={items.length === 0}
+            variant={items.length > 0 ? 'glassProminent' : 'glass'}
+            height={52}
+          />
         </View>
       </ScrollView>
 

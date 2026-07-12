@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import LiquidBottomSheet, { LiquidBottomSheetRef } from '../../components/common/LiquidBottomSheet';
 import LiquidTextField from '../../components/common/LiquidTextField';
+import LiquidButton from '../../components/common/LiquidButton';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useAppStore } from '../../stores/useAppStore';
@@ -809,18 +810,14 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
               </View>
 
               {/* Process button */}
-              <TouchableOpacity
-                style={[s.processBtn, { backgroundColor: colors.warning, opacity: processingReturn ? 0.7 : 1 }]}
+              <LiquidButton
+                title={processingReturn ? t('processing') : t('processReturn')}
+                icon="arrow.uturn.backward"
                 onPress={() => handleProcessReturn(returnBill)}
-                disabled={processingReturn}
-              >
-                {processingReturn
-                  ? <ActivityIndicator color="#fff" size="small" />
-                  : <Ionicons name="arrow-undo" size={18} color="#fff" />}
-                <Text style={s.processBtnText}>
-                  {processingReturn ? t('processing') : t('processReturn')}
-                </Text>
-              </TouchableOpacity>
+                loading={processingReturn}
+                tintColor={colors.warning}
+                height={50}
+              />
             </>
           )}
         </ScrollView>

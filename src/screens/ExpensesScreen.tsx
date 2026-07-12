@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import LiquidBottomSheet, { LiquidBottomSheetRef } from '../components/common/LiquidBottomSheet';
 import LiquidTextField from '../components/common/LiquidTextField';
+import LiquidButton from '../components/common/LiquidButton';
 import { useAppStore } from '../stores/useAppStore';
 import { useTranslation } from '../hooks/useTranslation';
 import { formatCurrency, formatDate, startOfDay, endOfDay, sanitizeDecimal } from '../utils/helpers';
@@ -217,9 +218,7 @@ export default function ExpensesScreen() {
             <TouchableOpacity style={[s.cancelBtn, { borderColor: colors.border }]} onPress={closeForm}>
               <Text style={{ color: colors.textSub, fontFamily: fonts.semiBold }}>{t('cancel')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[s.saveBtn, { backgroundColor: colors.primary }]} onPress={handleSave}>
-              <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{t('save')}</Text>
-            </TouchableOpacity>
+            <LiquidButton title={t('save')} onPress={handleSave} variant="glassProminent" height={48} style={{ flex: 1 }} />
           </View>
         </ScrollView>
       </LiquidBottomSheet>

@@ -8,6 +8,7 @@ import { useAppStore } from '../../stores/useAppStore';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
 import { Product } from '../../types';
+import LiquidButton from '../../components/common/LiquidButton';
 import { useTranslation } from '../../hooks/useTranslation';
 
 interface ParsedRow {
@@ -158,15 +159,15 @@ export default function CsvImportScreen({ navigation }: any) {
           ))}
           {rows.length > 20 && <Text style={[s.moreRows, { color: colors.textMuted }]}>{t('andMore').replace('{count}', String(rows.length - 20))}</Text>}
 
-          <TouchableOpacity style={[s.importBtn, { backgroundColor: colors.primary, opacity: (importing || validRows.length === 0) ? 0.7 : 1 }]}
-            onPress={runImport} disabled={importing || validRows.length === 0}>
-            {importing ? <ActivityIndicator color="#fff" /> : (
-              <>
-                <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
-                <Text style={s.importBtnText}>{t('importNProducts').replace('{count}', String(validRows.length))}</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          <LiquidButton
+            title={t('importNProducts').replace('{count}', String(validRows.length))}
+            icon="icloud.and.arrow.up"
+            onPress={runImport}
+            loading={importing}
+            disabled={validRows.length === 0}
+            variant="glassProminent"
+            height={52}
+          />
         </>
       )}
 

@@ -13,6 +13,7 @@ import { sanitizeDecimal, sanitizeInteger } from '../utils/helpers';
 import { ShopSchedule, OnlineShopConfig } from '../types/online';
 import { reverseGeocode } from '../lib/geocode';
 import { OnlineShopSettingsSkeleton } from '../components/common/Skeleton';
+import LiquidButton from '../components/common/LiquidButton';
 import { toast } from '../utils/toast';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -582,17 +583,16 @@ function ShopInfoForm({ isOnline }: { isOnline: boolean }) {
         </>
       )}
 
-      <TouchableOpacity
-        style={[s.saveBtn, { backgroundColor: !isOnline ? colors.border : saved ? colors.success : isSavingConfig ? colors.border : colors.primary, flexDirection: 'row', gap: 8 }]}
+      <LiquidButton
+        title={!isOnline ? 'Offline — connect to save' : isSavingConfig ? 'Saving…' : saved ? t('savedExcl') : t('save')}
+        icon={!isOnline ? 'icloud.slash' : saved ? 'checkmark.circle.fill' : 'square.and.arrow.down'}
         onPress={handleSave}
-        disabled={!isOnline || isSavingConfig}
-      >
-        {isSavingConfig && <ActivityIndicator size="small" color={colors.textMuted} />}
-        {!isSavingConfig && <Ionicons name={!isOnline ? 'cloud-offline-outline' : saved ? 'checkmark-circle' : 'save-outline'} size={20} color={!isOnline ? colors.textMuted : '#fff'} />}
-        <Text style={[s.saveBtnText, { color: !isOnline ? colors.textMuted : isSavingConfig ? colors.textMuted : '#fff' }]}>
-          {!isOnline ? 'Offline — connect to save' : isSavingConfig ? 'Saving…' : saved ? t('savedExcl') : t('save')}
-        </Text>
-      </TouchableOpacity>
+        loading={isSavingConfig}
+        disabled={!isOnline}
+        tintColor={saved ? colors.success : undefined}
+        variant={!isOnline ? 'glass' : 'glassProminent'}
+        height={52}
+      />
     </ScrollView>
   );
 }

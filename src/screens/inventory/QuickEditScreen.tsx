@@ -10,6 +10,7 @@ import { formatCurrency } from '../../utils/helpers';
 import { toast } from '../../utils/toast';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
+import LiquidButton from '../../components/common/LiquidButton';
 import EmptyState from '../../components/common/EmptyState';
 import { useTranslation } from '../../hooks/useTranslation';
 
@@ -310,10 +311,7 @@ export default function QuickEditScreen({ navigation }: any) {
           <Ionicons name="play-skip-forward" size={20} color={colors.textMuted} />
           <Text style={[s.actionLabel, { color: colors.textMuted }]}>{t('skip')}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[s.actionBtn, s.saveBtn, { backgroundColor: colors.primary }]} onPress={() => commit('save')} activeOpacity={0.9}>
-          <Ionicons name="checkmark" size={20} color="#fff" />
-          <Text style={[s.actionLabel, { color: '#fff' }]}>{t('saveAndNext')}</Text>
-        </TouchableOpacity>
+        <LiquidButton title={t('saveAndNext')} icon="checkmark" onPress={() => commit('save')} variant="glassProminent" height={46} style={{ flex: 1 }} />
       </View>
     </KeyboardAvoidingView>
   );

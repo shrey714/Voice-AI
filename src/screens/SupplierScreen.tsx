@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import LiquidBottomSheet, { LiquidBottomSheetRef } from '../components/common/LiquidBottomSheet';
 import LiquidTextField from '../components/common/LiquidTextField';
+import LiquidButton from '../components/common/LiquidButton';
 import { useNavigation } from '@react-navigation/native';
 import { useAppStore } from '../stores/useAppStore';
 import { useTranslation } from '../hooks/useTranslation';
@@ -283,9 +284,7 @@ export default function SupplierScreen() {
             <TouchableOpacity style={[s.cancelBtn, { borderColor: c.border }]} onPress={closeFormSheet}>
               <Text style={{ color: c.textSub, fontFamily: fonts.semiBold }}>{t('cancel')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[s.primaryBtn, { backgroundColor: c.primary }]} onPress={save}>
-              <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{t('save')}</Text>
-            </TouchableOpacity>
+            <LiquidButton title={t('save')} onPress={save} variant="glassProminent" height={48} style={{ flex: 1 }} />
           </View>
         </ScrollView>
       </LiquidBottomSheet>
@@ -337,9 +336,14 @@ export default function SupplierScreen() {
             <TouchableOpacity style={[s.cancelBtn, { borderColor: c.border }]} onPress={() => paymentSheetRef.current?.close()}>
               <Text style={{ color: c.textSub, fontFamily: fonts.semiBold }}>{t('cancel')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[s.primaryBtn, { backgroundColor: c.success }]} onPress={savePayment} disabled={savingPayment}>
-              <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{savingPayment ? t('savingDots') : t('savePayment')}</Text>
-            </TouchableOpacity>
+            <LiquidButton
+              title={savingPayment ? t('savingDots') : t('savePayment')}
+              onPress={savePayment}
+              loading={savingPayment}
+              tintColor={c.success}
+              height={48}
+              style={{ flex: 1 }}
+            />
           </View>
         </ScrollView>
       </LiquidBottomSheet>

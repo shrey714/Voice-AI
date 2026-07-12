@@ -10,6 +10,7 @@ import * as db from '../db/database';
 import { DayClose } from '../types';
 import { useTranslation } from '../hooks/useTranslation';
 import { useAppTheme } from '../theme';
+import LiquidButton from '../components/common/LiquidButton';
 import { fonts } from '../theme/typography';
 
 const DENOMS = [500, 200, 100, 50, 20, 10, 5, 2, 1];
@@ -176,10 +177,13 @@ export default function DayCloseScreen() {
           <Row label={t('bills')} value={String(today.stats.billCount)} />
         </View>
 
-        <TouchableOpacity style={[s.saveBtn, { backgroundColor: colors.primary }]} onPress={onSave} activeOpacity={0.9}>
-          <Ionicons name="lock-closed-outline" size={18} color="#fff" />
-          <Text style={s.saveText}>{history.some(c => c.id === todayId) ? t('updateDayClose') : t('closeTheDay')}</Text>
-        </TouchableOpacity>
+        <LiquidButton
+          title={history.some(c => c.id === todayId) ? t('updateDayClose') : t('closeTheDay')}
+          icon="lock.fill"
+          onPress={onSave}
+          variant="glassProminent"
+          height={50}
+        />
 
         {/* History */}
         {history.length > 0 && (

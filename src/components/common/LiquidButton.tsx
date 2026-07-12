@@ -34,6 +34,7 @@ export default function LiquidButton({
   onPress,
   icon,
   variant = 'glassProminent',
+  tintColor: tintColorOverride,
   disabled = false,
   loading = false,
   height = 50,
@@ -44,6 +45,8 @@ export default function LiquidButton({
   onPress: () => void;
   icon?: SFSymbol;
   variant?: LiquidButtonVariant;
+  /** Overrides the variant's default tint (primary/danger) — e.g. a success green. */
+  tintColor?: string;
   disabled?: boolean;
   loading?: boolean;
   height?: number;
@@ -56,7 +59,7 @@ export default function LiquidButton({
 
   if (Platform.OS === 'ios') {
     const swiftUIStyle = variant === 'destructive' ? 'glassProminent' : variant;
-    const tintColor = variant === 'destructive' ? colors.danger : variant === 'glassProminent' ? colors.primary : undefined;
+    const tintColor = tintColorOverride ?? (variant === 'destructive' ? colors.danger : variant === 'glassProminent' ? colors.primary : undefined);
     const onLayout = (e: LayoutChangeEvent) => {
       const w = e.nativeEvent.layout.width;
       if (fullWidth && w > 0 && w !== measuredWidth) setMeasuredWidth(w);
@@ -87,7 +90,7 @@ export default function LiquidButton({
   }
 
   // Android / fallback — existing pill-button look, primary/danger fill.
-  const bg = variant === 'destructive' ? colors.danger : variant === 'glassProminent' ? colors.primary : colors.surfaceHigh;
+  const bg = tintColorOverride ?? (variant === 'destructive' ? colors.danger : variant === 'glassProminent' ? colors.primary : colors.surfaceHigh);
   const fg = variant === 'glass' ? colors.text : '#fff';
   return (
     <PressableScale
