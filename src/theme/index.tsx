@@ -7,6 +7,7 @@ import * as db from '../db/database';
 
 type ThemeMode = 'light' | 'dark' | 'system';
 
+
 interface ThemeContextType {
   colors: AppColors;
   isDark: boolean;
