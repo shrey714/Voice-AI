@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useColorScheme } from 'react-native';
+import { useColorScheme, Appearance } from 'react-native';
 import { MD3LightTheme, MD3DarkTheme, configureFonts } from 'react-native-paper';
 import { fonts } from './typography';
 import { LIGHT, DARK, AppColors } from './colors';
@@ -57,6 +57,26 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const isDark = themeMode === 'system' ? systemScheme === 'dark' : themeMode === 'dark';
   const colors = isDark ? DARK : LIGHT;
+
+  // This app's dark mode is its own setting, independent of the OS's — but
+  // native chrome we don't fully control (system sheet presentation
+  // backgrounds, alerts, etc. — anything @expo/ui's `Host`/SwiftUI
+  // environment-based colorScheme doesn't reach, confirmed by reading
+  // HostView.swift's ColorSchemeModifier: it only sets a SwiftUI
+  // `.environment(\.colorScheme, …)`, which content respects but system
+  // chrome derives its appearance from the real UIKit/window trait
+  // collection instead) only follows the ACTUAL OS appearance unless that
+  // trait collection itself is overridden. `Appearance.setColorScheme` is
+  // RN's own supported API for exactly this — it forces the real native
+  // trait collection app-wide, so anything native (including sheets)
+  // correctly follows our in-app choice instead of just the OS's. Pass
+  // 'unspecified' when following system so it stops overriding and reverts
+  // to actually tracking the OS, rather than getting stuck on a stale forced
+  // value (this RN version's `ColorSchemeName` type is 'light' | 'dark' |
+  // 'unspecified' — no `null` option, despite some older docs/examples).
+  useEffect(() => {
+    Appearance.setColorScheme(themeMode === 'system' ? 'unspecified' : (isDark ? 'dark' : 'light'));
+  }, [themeMode, isDark]);
 
   const paperTheme = isDark
     ? {

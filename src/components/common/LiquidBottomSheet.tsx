@@ -6,7 +6,7 @@ import {
   Group as IOSGroup,
   RNHostView as IOSRNHostView,
 } from '@expo/ui/swift-ui';
-import { presentationDetents, presentationDragIndicator, background, type PresentationDetent } from '@expo/ui/swift-ui/modifiers';
+import { presentationDetents, presentationDragIndicator, type PresentationDetent } from '@expo/ui/swift-ui/modifiers';
 import {
   Host as AndroidHost,
   ModalBottomSheet,
@@ -112,23 +112,24 @@ const LiquidBottomSheet = forwardRef<LiquidBottomSheetRef, LiquidBottomSheetProp
       return (
         <IOSHost colorScheme={colorScheme} style={[StyleSheet.absoluteFillObject, { pointerEvents: 'box-none' }]}>
           <IOSBottomSheet isPresented={isOpen} onIsPresentedChange={handleIOSPresentedChange} fitToContents={!heightFraction}>
-            {/* `Host`'s colorScheme prop only sets a SwiftUI
-                `.environment(\.colorScheme, …)` on its content (confirmed by
-                reading HostView.swift's ColorSchemeModifier) — it does NOT
-                reach the sheet's own system-drawn presentation chrome
-                (background material, grabber), which UIKit derives from the
-                presenting view controller's trait collection instead. That's
-                exactly why dark mode kept showing a light sheet background
-                despite the colorScheme prop being set correctly. Painting an
-                explicit `background()` here with the app's own
-                theme-tracked surface color sidesteps that gap entirely —
-                guaranteed correct because it's driven by our own `isDark`
-                state, not a native environment-propagation mechanism that
-                doesn't reliably reach system chrome. */}
+            {/* No explicit `background()` here on purpose. The earlier fix
+                painted a solid theme color over this group to work around
+                dark mode not reaching the sheet's system-drawn chrome — but
+                that chrome (background material, grabber) is drawn by UIKit
+                from the *real* window trait collection, not from anything
+                SwiftUI's `.environment(\.colorScheme, …)` (which is all
+                `Host`'s colorScheme prop sets — confirmed in HostView.swift)
+                can reach, and painting over it produced a flat color instead
+                of genuine glass, plus visibly broke on overscroll/rubber-band
+                (revealing the real system background at the edges). The
+                actual fix is in theme/index.tsx: `Appearance.setColorScheme()`
+                now forces the app's own dark-mode setting into the real
+                UIKit trait collection app-wide, so this sheet's native
+                material follows it correctly on its own — no paint-over
+                needed. */}
             <IOSGroup modifiers={[
               presentationDetents(detents),
               presentationDragIndicator('visible'),
-              background(colors.surface),
             ]}>
               <IOSRNHostView matchContents>
                 <View>{children}</View>
