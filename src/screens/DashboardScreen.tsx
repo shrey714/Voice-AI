@@ -642,6 +642,7 @@ export default function DashboardScreen({ navigation }: any) {
               variant="glassProminent"
               fullWidth={false}
               height={44}
+              style={{alignSelf: 'center'}}
             />
           </MotiView>
         )}

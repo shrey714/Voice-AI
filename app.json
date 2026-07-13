@@ -8,6 +8,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "bundleIdentifier": "com.shopkeeperai.app",
       "supportsTablet": false,
       "infoPlist": {
         "NSCameraUsageDescription": "Camera is used to scan barcodes of products",
