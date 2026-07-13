@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   View, FlatList, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, Alert,
 } from 'react-native';
@@ -28,6 +28,72 @@ function fmtDateShort(ts: number) {
     day: '2-digit', month: 'short', year: 'numeric',
   });
 }
+
+// Extracted + memoized — renders inside a `FlatList`; `onPress` is a stable
+// top-level callback (`handleSelect`, passed directly, not wrapped in a
+// fresh per-row closure) so `React.memo`'s shallow-equality check can
+// actually skip re-rendering unchanged rows.
+const SessionRow = React.memo(function SessionRow({
+  session, index, colors, s, onPress,
+}: {
+  session: StockTakeSession; index: number; colors: any; s: any; onPress: (session: StockTakeSession) => void;
+}) {
+  const sum = session.summary;
+  const net = sum?.netAdjustment ?? 0;
+  return (
+    <MotiView
+      from={{ opacity: 0, translateY: 8 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: 'timing', duration: 220, delay: Math.min(index * 40, 280) }}
+    >
+      <TouchableOpacity
+        style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        onPress={() => onPress(session)}
+        activeOpacity={0.75}
+      >
+        <View style={[s.cardIcon, { backgroundColor: colors.primaryLight }]}>
+          <Ionicons name="clipboard-outline" size={22} color={colors.primary} />
+        </View>
+        <View style={{ flex: 1, gap: 7 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <Text style={[s.cardDate, { color: colors.text }]} numberOfLines={1}>
+              {fmtDateTime(session.completedAt!)}
+            </Text>
+            <View style={[s.scopePill, { backgroundColor: colors.primaryLight }]}>
+              <Text style={[s.scopeText, { color: colors.primary }]}>
+                {session.scope === 'all' ? 'All' : session.scope}
+              </Text>
+            </View>
+          </View>
+          {sum && (
+            <View style={s.statsRow}>
+              <StatChip value={sum.counted} label="counted" color={colors.primary} />
+              <StatChip value={sum.short} label="short" color={sum.short > 0 ? colors.danger : colors.textMuted} />
+              <StatChip value={sum.over} label="over" color={sum.over > 0 ? colors.success : colors.textMuted} />
+              <View style={[s.netPill, {
+                backgroundColor: net === 0
+                  ? colors.border + '40'
+                  : net < 0 ? colors.danger + '15' : colors.success + '15',
+              }]}>
+                <Ionicons
+                  name={net === 0 ? 'remove' : net < 0 ? 'trending-down-outline' : 'trending-up-outline'}
+                  size={11}
+                  color={net === 0 ? colors.textMuted : net < 0 ? colors.danger : colors.success}
+                />
+                <Text style={[s.netText, {
+                  color: net === 0 ? colors.textMuted : net < 0 ? colors.danger : colors.success,
+                }]}>
+                  {net > 0 ? '+' : ''}{net} net
+                </Text>
+              </View>
+            </View>
+          )}
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+      </TouchableOpacity>
+    </MotiView>
+  );
+});
 
 export default function StockTakeHistoryScreen({ navigation }: any) {
   const { colors } = useAppTheme();
@@ -75,7 +141,7 @@ export default function StockTakeHistoryScreen({ navigation }: any) {
     });
   }, []);
 
-  const handleSelect = async (session: StockTakeSession) => {
+  const handleSelect = useCallback(async (session: StockTakeSession) => {
     setSelectedSession(session);
     setSessionItems([]);
     sheetRef.current?.expand();
@@ -83,72 +149,18 @@ export default function StockTakeHistoryScreen({ navigation }: any) {
     const items = await getStockTakeItems(session.id);
     setSessionItems(items.filter(i => i.countedQty !== null));
     setItemsLoading(false);
-  };
+  }, []);
 
   const handleSheetClose = useCallback(() => {
     setSelectedSession(null);
     setSessionItems([]);
   }, []);
 
-  const s = makeStyles(colors);
+  const s = useMemo(() => makeStyles(colors), [colors]);
 
-  const renderSession = ({ item, index }: { item: StockTakeSession; index: number }) => {
-    const sum = item.summary;
-    const net = sum?.netAdjustment ?? 0;
-    return (
-      <MotiView
-        from={{ opacity: 0, translateY: 8 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 220, delay: Math.min(index * 40, 280) }}
-      >
-        <TouchableOpacity
-          style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          onPress={() => handleSelect(item)}
-          activeOpacity={0.75}
-        >
-          <View style={[s.cardIcon, { backgroundColor: colors.primaryLight }]}>
-            <Ionicons name="clipboard-outline" size={22} color={colors.primary} />
-          </View>
-          <View style={{ flex: 1, gap: 7 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <Text style={[s.cardDate, { color: colors.text }]} numberOfLines={1}>
-                {fmtDateTime(item.completedAt!)}
-              </Text>
-              <View style={[s.scopePill, { backgroundColor: colors.primaryLight }]}>
-                <Text style={[s.scopeText, { color: colors.primary }]}>
-                  {item.scope === 'all' ? 'All' : item.scope}
-                </Text>
-              </View>
-            </View>
-            {sum && (
-              <View style={s.statsRow}>
-                <StatChip value={sum.counted} label="counted" color={colors.primary} />
-                <StatChip value={sum.short} label="short" color={sum.short > 0 ? colors.danger : colors.textMuted} />
-                <StatChip value={sum.over} label="over" color={sum.over > 0 ? colors.success : colors.textMuted} />
-                <View style={[s.netPill, {
-                  backgroundColor: net === 0
-                    ? colors.border + '40'
-                    : net < 0 ? colors.danger + '15' : colors.success + '15',
-                }]}>
-                  <Ionicons
-                    name={net === 0 ? 'remove' : net < 0 ? 'trending-down-outline' : 'trending-up-outline'}
-                    size={11}
-                    color={net === 0 ? colors.textMuted : net < 0 ? colors.danger : colors.success}
-                  />
-                  <Text style={[s.netText, {
-                    color: net === 0 ? colors.textMuted : net < 0 ? colors.danger : colors.success,
-                  }]}>
-                    {net > 0 ? '+' : ''}{net} net
-                  </Text>
-                </View>
-              </View>
-            )}
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-        </TouchableOpacity>
-      </MotiView>
-    );
-  };
+  const renderSession = useCallback(({ item, index }: { item: StockTakeSession; index: number }) => (
+    <SessionRow session={item} index={index} colors={colors} s={s} onPress={handleSelect} />
+  ), [colors, s, handleSelect]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -159,6 +171,10 @@ export default function StockTakeHistoryScreen({ navigation }: any) {
           data={sessions}
           keyExtractor={item => item.id}
           renderItem={renderSession}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews
           contentContainerStyle={{ padding: 14, paddingBottom: 40, flexGrow: 1 }}
           ListEmptyComponent={
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>

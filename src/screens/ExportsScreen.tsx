@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/useAppStore';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
@@ -234,7 +235,14 @@ const REPORT_TYPES: { key: ReportType; label: string; icon: any }[] = [
 export default function ExportsScreen() {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
-  const { bills, expenses, products, settings } = useAppStore();
+  const { bills, expenses, products, settings } = useAppStore(
+    useShallow(state => ({
+      bills: state.bills,
+      expenses: state.expenses,
+      products: state.products,
+      settings: state.settings,
+    }))
+  );
   const [period, setPeriod] = useState<Period>('month');
   const [report, setReport] = useState<ReportType>('pl');
   const [exporting, setExporting] = useState(false);

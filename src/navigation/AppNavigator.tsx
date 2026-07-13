@@ -381,7 +381,7 @@ export default function AppNavigator() {
 
   useEffect(() => {
     if (!onlineShopEnabled && mode === 'online') {
-      navigationRef.current?.navigate('Local' as never);
+      switchAppMode('local');
     }
   }, [onlineShopEnabled, mode]);
 

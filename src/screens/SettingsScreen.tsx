@@ -3,6 +3,7 @@ import { View, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIndicato
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/useAppStore';
 import { useTranslation } from '../hooks/useTranslation';
 import { Language } from '../types';
@@ -31,7 +32,14 @@ type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 export default function SettingsScreen({ navigation }: any) {
   const { t } = useTranslation();
   const { colors, themeMode, setThemeMode } = useAppTheme();
-  const { settings, updateSettings, resetApp, factoryReset } = useAppStore();
+  const { settings, updateSettings, resetApp, factoryReset } = useAppStore(
+    useShallow(state => ({
+      settings: state.settings,
+      updateSettings: state.updateSettings,
+      resetApp: state.resetApp,
+      factoryReset: state.factoryReset,
+    }))
+  );
   const { confirm } = useConfirm();
   const s = makeStyles(colors);
   const radius = useScreenRadius();

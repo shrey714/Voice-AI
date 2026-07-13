@@ -3,6 +3,7 @@ import { View, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
 import { Text } from "react-native-paper";
 import { Ionicons } from "@expo/vector-icons";
 import { MotiView } from "moti";
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from "../stores/useAppStore";
 import { useAppTheme } from "../theme";
 import { fonts } from "../theme/typography";
@@ -17,7 +18,14 @@ type Item = { label: string; sub: string; icon: IoniconsName; screen: string };
 export default function MenuScreen({ navigation }: any) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
-  const { bills, products, returns, settings } = useAppStore();
+  const { bills, products, returns, settings } = useAppStore(
+    useShallow(state => ({
+      bills: state.bills,
+      products: state.products,
+      returns: state.returns,
+      settings: state.settings,
+    }))
+  );
 
   const SECTIONS: { title: string; items: Item[] }[] = [
     {

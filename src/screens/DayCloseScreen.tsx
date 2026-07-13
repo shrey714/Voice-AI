@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/useAppStore';
 import { computeSalesStats, makeCostOf } from '../utils/stats';
 import { formatCurrency, startOfDay, endOfDay, sanitizeDecimal } from '../utils/helpers';
@@ -19,7 +20,15 @@ const localeMap: Record<string, string> = { en: 'en-IN', hi: 'hi-IN', kn: 'kn-IN
 export default function DayCloseScreen() {
   const { colors } = useAppTheme();
   const { t, language } = useTranslation();
-  const { bills, returns, expenses, products, settings } = useAppStore();
+  const { bills, returns, expenses, products, settings } = useAppStore(
+    useShallow(state => ({
+      bills: state.bills,
+      returns: state.returns,
+      expenses: state.expenses,
+      products: state.products,
+      settings: state.settings,
+    }))
+  );
   const s = makeStyles(colors);
 
   // Today's cash position (netted of returns) from the shared stats helper.

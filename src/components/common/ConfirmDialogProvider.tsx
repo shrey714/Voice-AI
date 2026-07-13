@@ -1,6 +1,19 @@
 import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
 import { Alert, Platform, StyleSheet, View } from 'react-native';
-import { Host, ConfirmationDialog, Button as SwiftUIButton, Text as SwiftUIText } from '@expo/ui/swift-ui';
+// `Alert` (SwiftUI's real centered modal dialog, native scale/fade
+// transitions) instead of `ConfirmationDialog` (SwiftUI's action-sheet
+// presentation — no real enter animation, abrupt appear/minimal fade on
+// dismiss). This app only ever uses it as a full-screen modal-style prompt
+// anyway, never as an actual "pick one of several options" action sheet, so
+// `Alert` is the correct native primitive here, not a downgrade — its
+// `Trigger`/`Actions`/`Message` shape (including `role` on `Actions`
+// buttons) is otherwise identical to `ConfirmationDialog`'s.
+import { Host, Alert as SwiftUIAlert, Button as SwiftUIButton } from '@expo/ui/swift-ui';
+// `Text` (unlike `Button`, which needs the swift-ui-only `role` prop for
+// destructive/cancel styling — no universal equivalent) is a pure pass-
+// through wrapper around swift-ui `Text` with no functional gap, confirmed
+// by reading @expo/ui's own source — safe to take from the universal layer.
+import { Text } from '@expo/ui';
 import { useAppTheme } from '../../theme';
 
 export type ConfirmOptions = {
@@ -39,9 +52,9 @@ const ConfirmContext = createContext<ConfirmContextValue | null>(null);
 /**
  * Replaces ad-hoc `Alert.alert(title, message, [Cancel, Confirm])` call
  * sites app-wide with a single native confirmation dialog — real SwiftUI
- * `ConfirmationDialog` on iOS (via @expo/ui), `Alert.alert` on Android
- * (no @expo/ui equivalent there, and the platform's own alert already looks
- * native). Mount once near the app root; call `useConfirm()` anywhere below it.
+ * `Alert` on iOS (via @expo/ui), `Alert.alert` on Android (no @expo/ui
+ * equivalent there, and the platform's own alert already looks native).
+ * Mount once near the app root; call `useConfirm()` anywhere below it.
  */
 export function ConfirmDialogProvider({ children }: { children: React.ReactNode }) {
   const { isDark } = useAppTheme();
@@ -96,15 +109,15 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
         // confirmationDialog pinned to that corner instead of centered/full-width.
         <View style={StyleSheet.absoluteFill} pointerEvents={pending ? 'auto' : 'none'}>
         <Host style={StyleSheet.absoluteFill} colorScheme={isDark ? 'dark' : 'light'}>
-          <ConfirmationDialog
+          <SwiftUIAlert
             title={pending?.options.title ?? ''}
             isPresented={!!pending}
             onIsPresentedChange={handleIsPresentedChange}
           >
-            <ConfirmationDialog.Trigger>
+            <SwiftUIAlert.Trigger>
               <View style={StyleSheet.absoluteFill} pointerEvents="none" />
-            </ConfirmationDialog.Trigger>
-            <ConfirmationDialog.Actions>
+            </SwiftUIAlert.Trigger>
+            <SwiftUIAlert.Actions>
               {pending?.kind === 'confirm' && (
                 <>
                   <SwiftUIButton
@@ -136,13 +149,13 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
                   />
                 </>
               )}
-            </ConfirmationDialog.Actions>
+            </SwiftUIAlert.Actions>
             {pending?.options.message ? (
-              <ConfirmationDialog.Message>
-                <SwiftUIText>{pending.options.message}</SwiftUIText>
-              </ConfirmationDialog.Message>
+              <SwiftUIAlert.Message>
+                <Text>{pending.options.message}</Text>
+              </SwiftUIAlert.Message>
             ) : null}
-          </ConfirmationDialog>
+          </SwiftUIAlert>
         </Host>
         </View>
       )}

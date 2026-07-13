@@ -2,8 +2,9 @@ import React from 'react';
 import { Platform, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { type SFSymbol } from 'sf-symbols-typescript';
-import { Host, Menu as SwiftUIMenu, Button as SwiftUIButton, Section as SwiftUISection, Image as SwiftUIImage } from '@expo/ui/swift-ui';
+import { Menu as SwiftUIMenu, Section as SwiftUISection } from '@expo/ui/swift-ui';
 import { buttonStyle, cornerRadius, frame, tint } from '@expo/ui/swift-ui/modifiers';
+import { Host, Button, Icon, Row, Text } from '@expo/ui';
 import { MenuView, type MenuAction } from '@expo/ui/community/menu';
 import { useAppTheme } from '../../theme';
 
@@ -29,6 +30,12 @@ export type LiquidMenuSection = {
  * native equivalent existed). Replaces inline sort-toggle/category-chip rows
  * that used to sit below the header on screens like Inventory; grouped sort
  * + filter options live here instead, same look as `LiquidHeaderIconButton`.
+ *
+ * `Menu`/`Section` (SwiftUI's own menu composition) have no universal
+ * `@expo/ui` equivalent, so those two stay on `@expo/ui/swift-ui` — but the
+ * trigger's `Host`/icon and the individual menu-item buttons don't have that
+ * blocker (unlike `ConfirmDialogProvider`'s buttons, these don't need the
+ * swift-ui-only `role` prop), so they're on the universal layer.
  */
 export default function LiquidHeaderMenu({
   icon = 'line.3.horizontal.decrease.circle',
@@ -49,18 +56,24 @@ export default function LiquidHeaderMenu({
       <View style={{ width: SIZE, height: SIZE }}>
         <Host colorScheme={isDark ? 'dark' : 'light'} style={{ width: SIZE, height: SIZE }}>
           <SwiftUIMenu
-            label={<SwiftUIImage systemName={icon} size={16} color={tintColor} />}
+            label={<Icon name={icon} size={16} color={tintColor} />}
             modifiers={[buttonStyle('glass'), tint(tintColor), frame({ width: SIZE, height: SIZE }), cornerRadius(SIZE / 2)]}
           >
             {sections.map((section, i) => (
               <SwiftUISection key={i} title={section.title}>
                 {section.options.map(opt => (
-                  <SwiftUIButton
-                    key={opt.value}
-                    label={opt.label}
-                    systemImage={opt.selected ? 'checkmark' : undefined}
-                    onPress={() => section.onSelect(opt.value)}
-                  />
+                  // `variant="text"` (→ SwiftUI's `plain` style) — the
+                  // universal `Button` defaults to `'filled'`
+                  // (`borderedProminent`), which would paint each row as a
+                  // bordered pill instead of a plain menu row; the original
+                  // bare `swift-ui` `Button` here had no `buttonStyle` at
+                  // all, so `plain` is the actual equivalent.
+                  <Button key={opt.value} variant="text" onPress={() => section.onSelect(opt.value)}>
+                    <Row spacing={6} alignment="center">
+                      {opt.selected && <Icon name="checkmark" size={16} />}
+                      <Text>{opt.label}</Text>
+                    </Row>
+                  </Button>
                 ))}
               </SwiftUISection>
             ))}

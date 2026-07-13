@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import Animated, { useSharedValue, useAnimatedStyle, useAnimatedProps, withRepeat, withTiming, Easing, SharedValue } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/useAppStore';
 import { useOnlineShopStore } from '../stores/useOnlineShopStore';
 import { useTranslation } from '../hooks/useTranslation';
@@ -103,7 +104,6 @@ import AnimatedNumber from '../components/common/AnimatedNumber';
 import PressableScale from '../components/common/PressableScale';
 import LiquidButton from '../components/common/LiquidButton';
 import { DashboardSkeleton } from '../components/common/Skeleton';
-import BusiestHours from '../components/common/BusiestHours';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { computeSalesStats, makeCostOf } from '../utils/stats';
 import { whatsappUrl } from '../utils/reminder';
@@ -163,7 +163,25 @@ function ShimmerBrand({ colors }: { colors: any }) {
 export default function DashboardScreen({ navigation }: any) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
-  const { products, bills, expenses, returns, loadProducts, loadBills, loadExpenses, settings } = useAppStore();
+  // Was a bare `useAppStore()` (whole store, no selector) — any store field
+  // changing anywhere in the app (a background sync, an online order
+  // arriving, etc.) re-rendered this entire screen, including every one of
+  // its ~20 mount-time MotiView entrance animations re-evaluating. `useShallow`
+  // only re-renders when one of these specific fields actually changes
+  // (shallow-compared, since a bare object-returning selector would
+  // otherwise be a new reference — and therefore "changed" — on every call).
+  const { products, bills, expenses, returns, loadProducts, loadBills, loadExpenses, settings } = useAppStore(
+    useShallow(state => ({
+      products: state.products,
+      bills: state.bills,
+      expenses: state.expenses,
+      returns: state.returns,
+      loadProducts: state.loadProducts,
+      loadBills: state.loadBills,
+      loadExpenses: state.loadExpenses,
+      settings: state.settings,
+    }))
+  );
   const dataReady = useAppStore(state => state.dataReady);
   const isOnline = useIsOnline();
   const fetchShopConfig = useOnlineShopStore(state => state.fetchShopConfig);
@@ -516,9 +534,6 @@ export default function DashboardScreen({ navigation }: any) {
             </View>
           </MotiView>
         )}
-
-        {/* Busiest hours heatmap */}
-        <BusiestHours onPress={() => navigation.navigate('More', { screen: 'Analytics' })} />
 
         {/* Alerts */}
         {lowStockItems.length > 0 && (

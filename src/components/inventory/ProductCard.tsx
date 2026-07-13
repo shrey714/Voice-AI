@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -17,15 +18,21 @@ interface Props {
   product: Product;
   currency: string;
   colors: any;
-  onAddStock: () => void;
-  onMenu: () => void;
+  // Item-aware (takes the product, not pre-bound) so a caller rendering a
+  // `FlatList` of these can pass a single stable top-level callback
+  // (e.g. `onAddStock={openStockSheet}`) instead of a fresh inline closure
+  // per row per render — the latter defeats this component's own `React.memo`
+  // below regardless of what it does internally, since a "new" function prop
+  // every render always fails memo's shallow-equality check.
+  onAddStock: (product: Product) => void;
+  onMenu: (product: Product) => void;
   index?: number;
   /** When true, wraps in FadeSlideIn; set false when used inside a BottomSheet scroll view */
   animated?: boolean;
   showMargin?: boolean;
 }
 
-export default function ProductCard({ product: item, currency, colors, onAddStock, onMenu, index = 0, animated = true, showMargin = true }: Props) {
+function ProductCard({ product: item, currency, colors, onAddStock, onMenu, index = 0, animated = true, showMargin = true }: Props) {
   const out = item.quantity <= 0;
   const isLow = !out && item.quantity <= item.lowStockThreshold;
   const margin = item.costPrice > 0
@@ -95,10 +102,10 @@ export default function ProductCard({ product: item, currency, colors, onAddStoc
           {margin && showMargin ? <Text style={[s.productMargin, { color: colors.success }]}>+{margin}% margin</Text> : null}
         </View>
         <View style={s.productActions}>
-          <TouchableOpacity style={[s.actionBtn, { backgroundColor: colors.primary }]} onPress={onAddStock}>
+          <TouchableOpacity style={[s.actionBtn, { backgroundColor: colors.primary }]} onPress={() => onAddStock(item)}>
             <Ionicons name="add" size={18} color="#fff" />
           </TouchableOpacity>
-          <TouchableOpacity style={[s.actionBtn, { backgroundColor: colors.surfaceHigh }]} onPress={onMenu}>
+          <TouchableOpacity style={[s.actionBtn, { backgroundColor: colors.surfaceHigh }]} onPress={() => onMenu(item)}>
             <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSub} />
           </TouchableOpacity>
         </View>
@@ -109,6 +116,13 @@ export default function ProductCard({ product: item, currency, colors, onAddStoc
   if (!animated) return card;
   return <FadeSlideIn index={index}>{card}</FadeSlideIn>;
 }
+
+// Memoized — this renders inside a `FlatList` (InventoryScreen), so without
+// this every row re-renders on any state change anywhere upstream, not just
+// when its own `product` data actually changes. Only pays off if the
+// caller's `onAddStock`/`onMenu` callbacks are also stable (`useCallback`)
+// — an inline arrow function recreated every render defeats this either way.
+export default React.memo(ProductCard);
 
 const makeStyles = (c: any) => StyleSheet.create({
   productCard: { flexDirection: 'row', borderRadius: 10, padding: 14, marginBottom: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, alignItems: 'center', gap: 12 },

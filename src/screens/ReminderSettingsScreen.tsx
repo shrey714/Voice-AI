@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity, Switch, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/useAppStore';
 import { ReminderLang, ReminderTone } from '../types';
 import { buildReminderMessage, buildReorderMessage } from '../utils/reminder';
@@ -18,7 +19,12 @@ const LANGS: { key: ReminderLang; label: string }[] = [
 export default function ReminderSettingsScreen() {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
-  const { settings, updateSettings } = useAppStore();
+  const { settings, updateSettings } = useAppStore(
+    useShallow(state => ({
+      settings: state.settings,
+      updateSettings: state.updateSettings,
+    }))
+  );
   const s = makeStyles(colors);
   const [template, setTemplate] = useState(settings.reminderTemplate || '');
   const [reorderTpl, setReorderTpl] = useState(settings.reorderTemplate || '');

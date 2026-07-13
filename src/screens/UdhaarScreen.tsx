@@ -9,6 +9,7 @@ import LiquidButton from '../components/common/LiquidButton';
 import SheetHeader from '../components/common/SheetHeader';
 import LiquidTabs from '../components/common/LiquidTabs';
 import LiquidHeaderIconButton from '../components/common/LiquidHeaderIconButton';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/useAppStore';
 import { useTranslation } from '../hooks/useTranslation';
 import { formatCurrency, formatDate, formatTime, generateId, sanitizeDecimal } from '../utils/helpers';
@@ -27,11 +28,76 @@ import { useConfirm } from '../components/common/ConfirmDialogProvider';
 const sortedDebtors = (customers: Customer[], balances: Record<string, number>): Customer[] =>
   customers.filter(c => (balances[c.id] || 0) > 0).sort((a, b) => (balances[b.id] || 0) - (balances[a.id] || 0));
 
+// Extracted + memoized — renders inside a `FlatList`; `onPress`/`onLongPress`
+// are stable top-level callbacks (passed directly, not wrapped in a fresh
+// per-row closure) and `remindLabel`/`lastRemindedTemplate` are precomputed
+// translation strings (not the `t` function itself, which isn't stable
+// across renders) so `React.memo`'s shallow-equality check can actually
+// skip re-rendering unchanged rows.
+const CustomerRow = React.memo(function CustomerRow({
+  customer, index, colors, s, currency, balance, remindLabel, lastRemindedTemplate, onPress, onLongPress, onRemind,
+}: {
+  customer: Customer; index: number; colors: any; s: any; currency: string; balance: number;
+  remindLabel: string; lastRemindedTemplate: string;
+  onPress: (c: Customer) => void; onLongPress: (c: Customer) => void; onRemind: (c: Customer) => void;
+}) {
+  const hasBalance = balance > 0;
+  return (
+    <FadeSlideIn index={index}>
+      <TouchableOpacity style={[s.customerCard, { backgroundColor: colors.surface }]}
+        onPress={() => onPress(customer)}
+        onLongPress={() => onLongPress(customer)}>
+        <View style={[s.avatar, { backgroundColor: hasBalance ? colors.danger + '15' : colors.success + '15' }]}>
+          <Text style={[s.avatarText, { color: hasBalance ? colors.danger : colors.success }]}>{customer.name[0].toUpperCase()}</Text>
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={[s.customerName, { color: colors.text }]} numberOfLines={1}>{customer.name}</Text>
+          {customer.phone ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 }}>
+              <Ionicons name="call-outline" size={12} color={colors.textMuted} />
+              <Text style={[s.customerPhone, { color: colors.textMuted }]}>{customer.phone}</Text>
+            </View>
+          ) : null}
+          {hasBalance && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
+              <TouchableOpacity onPress={() => onRemind(customer)} style={[s.waBadge, { backgroundColor: '#25D36615', alignSelf: 'flex-start' }]}>
+                <Ionicons name="logo-whatsapp" size={12} color="#25D366" />
+                <Text style={[s.waBadgeText, { color: '#25D366' }]}>{remindLabel}</Text>
+              </TouchableOpacity>
+              {customer.lastRemindedAt ? (
+                <Text style={[s.remindedAgo, { color: colors.textMuted, marginTop: 0 }]}>· {lastRemindedTemplate.replace('{time}', remindedAgo(customer.lastRemindedAt) ?? '')}</Text>
+              ) : null}
+            </View>
+          )}
+        </View>
+        <View style={{ alignItems: 'flex-end', gap: 6 }}>
+          <Text style={{ fontFamily: fonts.extraBold, fontSize: 16, color: hasBalance ? colors.danger : balance < 0 ? colors.success : colors.textMuted }}>
+            {hasBalance ? formatCurrency(balance, currency) : balance < 0 ? formatCurrency(Math.abs(balance), currency) : '—'}
+          </Text>
+          <MotiView key={hasBalance ? 'due' : balance < 0 ? 'adv' : 'settled'}
+            from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ type: 'timing', duration: 240 }}
+            style={[s.balCaption, { backgroundColor: (hasBalance ? colors.danger : balance < 0 ? colors.success : colors.textMuted) + '1A' }]}>
+            <Text style={[s.balCaptionText, { color: hasBalance ? colors.danger : balance < 0 ? colors.success : colors.textMuted }]}>
+              {hasBalance ? 'DUE' : balance < 0 ? 'ADVANCE' : 'SETTLED'}
+            </Text>
+          </MotiView>
+        </View>
+      </TouchableOpacity>
+    </FadeSlideIn>
+  );
+});
+
 export default function UdhaarScreen() {
   const { colors } = useAppTheme();
+  const s = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useTranslation();
   const { confirm, confirmActions } = useConfirm();
-  const { settings, bills } = useAppStore();
+  const { settings, bills } = useAppStore(
+    useShallow(state => ({
+      settings: state.settings,
+      bills: state.bills,
+    }))
+  );
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [balances, setBalances] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -89,12 +155,12 @@ export default function UdhaarScreen() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const openCustomer = async (customer: Customer) => {
+  const openCustomer = useCallback(async (customer: Customer) => {
     setSelectedCustomer(customer);
     setDetailTab('ledger');
     setTransactions(await db.getUdhaarForCustomer(customer.id));
     customerDetailSheetRef.current?.expand();
-  };
+  }, []);
 
   const saveCustomer = async () => {
     if (!newName.trim()) { Alert.alert(t('error'), t('nameRequired')); return; }
@@ -107,12 +173,12 @@ export default function UdhaarScreen() {
     await loadData();
   };
 
-  const editCustomer = (customer: Customer) => {
+  const editCustomer = useCallback((customer: Customer) => {
     setEditingCustomer(customer); setNewName(customer.name); setNewPhone(customer.phone || '');
     addCustomerSheetRef.current?.expand();
-  };
+  }, []);
 
-  const confirmDeleteCustomer = async (customer: Customer) => {
+  const confirmDeleteCustomer = useCallback(async (customer: Customer) => {
     const ok = await confirm({
       title: t('deleteCustomer'),
       message: t('removeCustomerConfirm').replace('{name}', customer.name),
@@ -121,20 +187,25 @@ export default function UdhaarScreen() {
       destructive: true,
     });
     if (ok) { await db.deleteCustomer(customer.id); closeCustomerDetail(); await loadData(); }
-  };
+  }, [confirm, t, closeCustomerDetail, loadData]);
 
-  const addTransaction = async () => {
-    const amt = parseFloat(txAmount);
-    if (!amt || isNaN(amt) || amt <= 0) { Alert.alert(t('error'), t('enterValidAmount')); return; }
-    if (!selectedCustomer) return;
-    await db.insertUdhaarEntry({ id: generateId(), customerId: selectedCustomer.id, amount: amt, type: txType, note: txNote.trim() || undefined, createdAt: Date.now() });
-    setTxAmount(''); setTxNote(''); closeAddTx();
-    setTransactions(await db.getUdhaarForCustomer(selectedCustomer.id));
-    await loadData();
-  };
+  const handleCustomerLongPress = useCallback((customer: Customer) => {
+    confirmActions({
+      title: customer.name,
+      message: 'What would you like to do?',
+      actions: [
+        { label: 'Edit', value: 'edit' },
+        { label: 'Delete', value: 'delete', destructive: true },
+      ],
+      cancelLabel: 'Cancel',
+    }).then(choice => {
+      if (choice === 'edit') editCustomer(customer);
+      else if (choice === 'delete') confirmDeleteCustomer(customer);
+    });
+  }, [confirmActions, editCustomer, confirmDeleteCustomer]);
 
   // Open WhatsApp pre-filled with the dues reminder, then record that we reminded.
-  const sendReminder = async (customer: Customer) => {
+  const sendReminder = useCallback(async (customer: Customer) => {
     const balance = balances[customer.id] || 0;
     if (balance <= 0) { Alert.alert(t('noDues'), t('noDuesMsg').replace('{name}', customer.name)); return; }
     const msg = buildReminderMessage({ name: customer.name, balance, settings });
@@ -145,6 +216,34 @@ export default function UdhaarScreen() {
     } catch {
       Alert.alert(t('whatsappNotFound'), t('pleaseInstallWhatsapp'));
     }
+  }, [balances, t, settings]);
+
+  const remindLabel = t('remind');
+  const lastRemindedTemplate = t('lastReminded');
+  const renderCustomerItem = useCallback(({ item, index }: { item: Customer; index: number }) => (
+    <CustomerRow
+      customer={item}
+      index={index}
+      colors={colors}
+      s={s}
+      currency={settings.currency}
+      balance={balances[item.id] || 0}
+      remindLabel={remindLabel}
+      lastRemindedTemplate={lastRemindedTemplate}
+      onPress={openCustomer}
+      onLongPress={handleCustomerLongPress}
+      onRemind={sendReminder}
+    />
+  ), [colors, s, settings.currency, balances, remindLabel, lastRemindedTemplate, openCustomer, handleCustomerLongPress, sendReminder]);
+
+  const addTransaction = async () => {
+    const amt = parseFloat(txAmount);
+    if (!amt || isNaN(amt) || amt <= 0) { Alert.alert(t('error'), t('enterValidAmount')); return; }
+    if (!selectedCustomer) return;
+    await db.insertUdhaarEntry({ id: generateId(), customerId: selectedCustomer.id, amount: amt, type: txType, note: txNote.trim() || undefined, createdAt: Date.now() });
+    setTxAmount(''); setTxNote(''); closeAddTx();
+    setTransactions(await db.getUdhaarForCustomer(selectedCustomer.id));
+    await loadData();
   };
 
   // Sequential "remind everyone who owes" — WhatsApp can't bulk-send, so we step
@@ -178,7 +277,6 @@ export default function UdhaarScreen() {
 
   const totalOutstanding = Object.values(balances).filter(b => b > 0).reduce((s, b) => s + b, 0);
   const sorted = [...customers].sort((a, b) => (balances[b.id] || 0) - (balances[a.id] || 0));
-  const s = makeStyles(colors);
 
   return (
     <View style={[s.container, { backgroundColor: colors.bg }]}>
@@ -202,65 +300,12 @@ export default function UdhaarScreen() {
           keyExtractor={c => c.id}
           onScroll={onScroll}
           scrollEventThrottle={16}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews
           contentContainerStyle={{ paddingHorizontal: 8, paddingVertical: 8, paddingBottom: 120, flexGrow: 1 }}
-          renderItem={({ item: customer, index }) => {
-            const balance = balances[customer.id] || 0;
-            const hasBalance = balance > 0;
-            return (
-              <FadeSlideIn index={index}>
-                <TouchableOpacity style={[s.customerCard, { backgroundColor: colors.surface }]}
-                  onPress={() => openCustomer(customer)}
-                  onLongPress={() => confirmActions({
-                    title: customer.name,
-                    message: 'What would you like to do?',
-                    actions: [
-                      { label: 'Edit', value: 'edit' },
-                      { label: 'Delete', value: 'delete', destructive: true },
-                    ],
-                    cancelLabel: 'Cancel',
-                  }).then(choice => {
-                    if (choice === 'edit') editCustomer(customer);
-                    else if (choice === 'delete') confirmDeleteCustomer(customer);
-                  })}>
-                  <View style={[s.avatar, { backgroundColor: hasBalance ? colors.danger + '15' : colors.success + '15' }]}>
-                    <Text style={[s.avatarText, { color: hasBalance ? colors.danger : colors.success }]}>{customer.name[0].toUpperCase()}</Text>
-                  </View>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={[s.customerName, { color: colors.text }]} numberOfLines={1}>{customer.name}</Text>
-                    {customer.phone ? (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 }}>
-                        <Ionicons name="call-outline" size={12} color={colors.textMuted} />
-                        <Text style={[s.customerPhone, { color: colors.textMuted }]}>{customer.phone}</Text>
-                      </View>
-                    ) : null}
-                    {hasBalance && (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                        <TouchableOpacity onPress={() => sendReminder(customer)} style={[s.waBadge, { backgroundColor: '#25D36615', alignSelf: 'flex-start' }]}>
-                          <Ionicons name="logo-whatsapp" size={12} color="#25D366" />
-                          <Text style={[s.waBadgeText, { color: '#25D366' }]}>{t('remind')}</Text>
-                        </TouchableOpacity>
-                        {customer.lastRemindedAt ? (
-                          <Text style={[s.remindedAgo, { color: colors.textMuted, marginTop: 0 }]}>· {t('lastReminded').replace('{time}', remindedAgo(customer.lastRemindedAt) ?? '')}</Text>
-                        ) : null}
-                      </View>
-                    )}
-                  </View>
-                  <View style={{ alignItems: 'flex-end', gap: 6 }}>
-                    <Text style={{ fontFamily: fonts.extraBold, fontSize: 16, color: hasBalance ? colors.danger : balance < 0 ? colors.success : colors.textMuted }}>
-                      {hasBalance ? formatCurrency(balance, settings.currency) : balance < 0 ? formatCurrency(Math.abs(balance), settings.currency) : '—'}
-                    </Text>
-                    <MotiView key={hasBalance ? 'due' : balance < 0 ? 'adv' : 'settled'}
-                      from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ type: 'timing', duration: 240 }}
-                      style={[s.balCaption, { backgroundColor: (hasBalance ? colors.danger : balance < 0 ? colors.success : colors.textMuted) + '1A' }]}>
-                      <Text style={[s.balCaptionText, { color: hasBalance ? colors.danger : balance < 0 ? colors.success : colors.textMuted }]}>
-                        {hasBalance ? 'DUE' : balance < 0 ? 'ADVANCE' : 'SETTLED'}
-                      </Text>
-                    </MotiView>
-                  </View>
-                </TouchableOpacity>
-              </FadeSlideIn>
-            );
-          }}
+          renderItem={renderCustomerItem}
           ListEmptyComponent={<EmptyState icon="book-outline" title={t('noCustomersYet')} subtitle={t('tapToAddCustomer')} />}
         />
       )}

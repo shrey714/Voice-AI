@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { Gesture, GestureDetector, ScrollView as GHScrollView } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS, interpolate, Extrapolation } from 'react-native-reanimated';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/useAppStore';
 import { Product } from '../../types';
 import { formatCurrency } from '../../utils/helpers';
@@ -74,7 +75,13 @@ const isDirty = (p: Product, d: Draft) =>
 export default function QuickEditScreen({ navigation }: any) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
-  const { products, updateProduct, settings } = useAppStore();
+  const { products, updateProduct, settings } = useAppStore(
+    useShallow(state => ({
+      products: state.products,
+      updateProduct: state.updateProduct,
+      settings: state.settings,
+    }))
+  );
   const s = makeStyles(colors);
   const productCategories: string[] = settings.productCategories || [];
   const units: string[] = settings.units || ['pcs'];

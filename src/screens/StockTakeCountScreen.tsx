@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/useAppStore';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
@@ -21,7 +22,13 @@ interface Section {
 export default function StockTakeCountScreen({ navigation }: any) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
-  const { stockTakeItems, activeStockTake, updateStockTakeCount } = useAppStore();
+  const { stockTakeItems, activeStockTake, updateStockTakeCount } = useAppStore(
+    useShallow(state => ({
+      stockTakeItems: state.stockTakeItems,
+      activeStockTake: state.activeStockTake,
+      updateStockTakeCount: state.updateStockTakeCount,
+    }))
+  );
 
   // Local string values for controlled inputs — avoids setState cascade on every keystroke
   const [inputValues, setInputValues] = useState<Record<string, string>>(() => {

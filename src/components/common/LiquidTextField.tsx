@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Platform, TextInput, View, StyleSheet, type LayoutChangeEvent } from 'react-native';
-import { Host, TextField as SwiftUITextField, useNativeState } from '@expo/ui/swift-ui';
-import { glassEffect, textFieldStyle, padding, keyboardType as keyboardTypeMod, frame, lineLimit, background, shapes } from '@expo/ui/swift-ui/modifiers';
+import { Platform, View, StyleSheet, type LayoutChangeEvent } from 'react-native';
+import { Host, TextInput as UniversalTextInput, useNativeState } from '@expo/ui';
+import { glassEffect, lineLimit } from '@expo/ui/swift-ui/modifiers';
+import { border as androidBorder } from '@expo/ui/jetpack-compose/modifiers';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
 
@@ -9,15 +10,23 @@ export type LiquidTextFieldKeyboard = 'default' | 'numeric' | 'phone-pad' | 'ema
 
 /**
  * A single-line text input that renders as real native iOS 26 Liquid Glass
- * on iOS (via @expo/ui's SwiftUI `TextField` + the `glassEffect` modifier —
- * there's no `textFieldStyle('glass')`, glass is a general-purpose modifier
- * applied to the field itself) and the app's existing themed `Input` look
- * on Android.
+ * on iOS and a real native Jetpack Compose `BasicTextField` on Android — one
+ * shared render path via `@expo/ui`'s stable SDK 56 universal `TextInput`
+ * (`Host`/`TextInput` from `@expo/ui`, not the old platform-split
+ * `@expo/ui/swift-ui`-only import), instead of a plain RN `TextInput`
+ * fallback on Android.
  *
- * As of stable @expo/ui (SDK 56), `TextField` is properly controlled via an
- * `ObservableState<string>` (`useNativeState` + `text`/`onTextChange`)
- * instead of the old `defaultValue`-only API, so it no longer needs the
- * imperative `setText`-via-ref workaround this used to require.
+ * `style` carries the cross-platform look (background/border/radius/padding
+ * — the universal component translates these to the right SwiftUI/Compose
+ * modifiers per platform on its own). The `modifiers` escape hatch is used
+ * only for the truly platform-exclusive pieces that have no cross-platform
+ * equivalent: iOS's `glassEffect` material, and Android's `border` (kept
+ * separate from `style.borderWidth`/`borderColor` since iOS deliberately has
+ * no border — just background + glass).
+ *
+ * `TextInput` is properly controlled via an `ObservableState<string>`
+ * (`useNativeState` + `value`/`onChangeText`), no imperative ref workaround
+ * needed.
  */
 export default function LiquidTextField({
   value,
@@ -43,8 +52,15 @@ export default function LiquidTextField({
   const { colors, isDark } = useAppTheme();
   const text = useNativeState(value);
   useEffect(() => {
-    if (Platform.OS === 'ios' && value !== text.get()) {
-      text.set(value);
+    // `.value` (not `.get()`/`.set()`) — those methods exist on the real
+    // native `ObservableState` but aren't part of the universal `@expo/ui`
+    // entrypoint's *type* (only its per-platform `.ios`/`.android` type
+    // files declare them, which `tsc`'s module resolution doesn't pick for
+    // a bare `@expo/ui` import the way Metro's bundler resolution does).
+    // `.value` is the one accessor declared on every variant, so it's both
+    // correctly typed and functionally identical here.
+    if (value !== text.value) {
+      text.value = value;
     }
   }, [value]);
 
@@ -54,106 +70,60 @@ export default function LiquidTextField({
     if (w > 0 && w !== measuredWidth) setMeasuredWidth(w);
   };
 
-  if (Platform.OS === 'ios') {
-    const fieldHeight = multiline ? Math.max(height, 80) : height;
+  const fieldHeight = multiline ? Math.max(height, 80) : height;
 
-    // Reserve layout space immediately so nothing jumps once the real width
-    // is measured on the first layout pass — same pattern LiquidButton uses
-    // for the same reason (SwiftUI's `frame` needs a concrete pixel width,
-    // not `maxWidth: Infinity`, which doesn't survive the JSON bridge).
-    if (measuredWidth === 0) {
-      return <View style={[{ height: fieldHeight, width: '100%' }, style]} onLayout={onLayout} />;
-    }
-
-    return (
-      // onLayout lives on this plain wrapping View, not `Host` — `Host` is a
-      // custom Fabric-hosted view (see LiquidButton/LiquidBottomSheet for
-      // the same established gotcha) and its RN prop passthrough doesn't
-      // reliably behave like a plain View's.
-      <View style={[{ height: fieldHeight, width: '100%' }, style]} onLayout={onLayout}>
-      {/* `key={measuredWidth}`: same reasoning as LiquidButton — Host's
-          SwiftUI content doesn't reliably re-layout from a post-mount
-          style.width change, so remount fresh whenever the real measured
-          width lands instead of risking it getting stuck at an early,
-          too-small size.
-          colorScheme: this app's dark mode is its own setting, independent
-          of the OS's — Host defaults to following the system otherwise. */}
-      <Host key={measuredWidth} colorScheme={isDark ? 'dark' : 'light'} style={{ height: fieldHeight, width: measuredWidth }}>
-        <SwiftUITextField
-          text={text}
-          placeholder={placeholder}
-          autoFocus={autoFocus}
-          axis={multiline ? 'vertical' : 'horizontal'}
-          onTextChange={onChangeText}
-          modifiers={[
-            // Order matters a lot here, and it's subtle: `padding` insets
-            // whatever it's applied to at that point in the chain, and
-            // `frame` locks in a size from that point onward — so `padding`
-            // has to come BEFORE `frame`, or the padding ends up wrapping
-            // *outside* the already-fixed-size box instead of inset *within*
-            // it, which is exactly why text was starting flush against the
-            // left edge with zero visible margin.
-            padding({ horizontal: 14, vertical: multiline ? 10 : 0 }),
-            // `minWidth` (not a fixed `width`) + `alignment: 'leading'`: the
-            // padded text field's own natural size is just "text + padding",
-            // much narrower than the box. `minWidth` stretches it out to
-            // fill the full measured width regardless, while `leading`
-            // keeps the (already-padded) text pinned to the left instead of
-            // SwiftUI's default centering it as a small pill in the middle
-            // of all that extra space.
-            frame({ minWidth: measuredWidth, height: fieldHeight, alignment: 'leading' }),
-            // A pure `glassEffect` here reads as nearly invisible against an
-            // already-transparent `LiquidBottomSheet` — there's no longer a
-            // solid surface behind it to contrast against, so the field's
-            // edges (and placeholder/typed text) become hard to make out.
-            // Backing it with the app's own `surfaceHigh` tone first (dimmed
-            // slightly via alpha rather than fully opaque) keeps the field
-            // legible while the glass modifier on top still gives it a real
-            // native material/highlight, instead of looking like flat paint.
-            background(colors.surfaceHigh + 'CC', shapes.roundedRectangle({ cornerRadius: 12 })),
-            glassEffect({ glass: { variant: 'regular' }, shape: 'roundedRectangle', cornerRadius: 12 }),
-            textFieldStyle('plain'),
-            ...(multiline ? [lineLimit({ min: 3, max: 8 })] : []),
-            keyboardTypeMod(keyboardType),
-          ]}
-        />
-      </Host>
-      </View>
-    );
+  // Reserve layout space immediately so nothing jumps once the real width is
+  // measured on the first layout pass — same pattern LiquidButton uses for
+  // the same reason (the native `frame`/`width` modifiers need a concrete
+  // pixel width, not `maxWidth: Infinity`, which doesn't survive the JSON
+  // bridge).
+  if (measuredWidth === 0) {
+    return <View style={[{ height: fieldHeight, width: '100%' }, style]} onLayout={onLayout} />;
   }
 
-  // Android / fallback — existing themed input look.
   return (
-    <TextInput
-      value={value}
-      onChangeText={onChangeText}
-      placeholder={placeholder}
-      placeholderTextColor={colors.textMuted}
-      autoFocus={autoFocus}
-      multiline={multiline}
-      textAlignVertical={multiline ? 'top' : 'center'}
-      keyboardType={
-        keyboardType === 'numeric' ? 'numeric'
-          : keyboardType === 'decimal-pad' ? 'decimal-pad'
-          : keyboardType === 'phone-pad' ? 'phone-pad'
-          : keyboardType === 'email-address' ? 'email-address'
-          : 'default'
-      }
-      style={[
-        styles.androidInput,
-        { height: multiline ? Math.max(height, 80) : height, color: colors.text, backgroundColor: colors.surfaceHigh, borderColor: colors.border },
-        style,
-      ]}
-    />
+    // onLayout lives on this plain wrapping View, not `Host` — `Host` is a
+    // custom Fabric-hosted view (see LiquidButton/LiquidBottomSheet for the
+    // same established gotcha) and its RN prop passthrough doesn't reliably
+    // behave like a plain View's.
+    <View style={[{ height: fieldHeight, width: '100%' }, style]} onLayout={onLayout}>
+    {/* `key={measuredWidth}`: same reasoning as LiquidButton — Host's
+        native content doesn't reliably re-layout from a post-mount
+        style.width change, so remount fresh whenever the real measured
+        width lands instead of risking it getting stuck at an early,
+        too-small size.
+        colorScheme: this app's dark mode is its own setting, independent of
+        the OS's — Host defaults to following the system otherwise. */}
+    <Host key={measuredWidth} colorScheme={isDark ? 'dark' : 'light'} style={{ height: fieldHeight, width: measuredWidth }}>
+      <UniversalTextInput
+        value={text}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textMuted}
+        autoFocus={autoFocus}
+        multiline={multiline}
+        keyboardType={keyboardType}
+        textStyle={{ fontFamily: fonts.regular, fontSize: 15, color: colors.text }}
+        style={{
+          width: measuredWidth,
+          height: fieldHeight,
+          paddingHorizontal: 14,
+          paddingVertical: multiline ? 10 : 0,
+          borderRadius: 12,
+          // Backing the field with the app's own `surfaceHigh` tone (dimmed
+          // via alpha) before iOS's glass modifier keeps it legible against
+          // an already-transparent `LiquidBottomSheet` instead of the glass
+          // reading as nearly invisible with nothing solid behind it.
+          backgroundColor: colors.surfaceHigh + 'CC',
+        }}
+        modifiers={[
+          Platform.OS === 'ios'
+            ? glassEffect({ glass: { variant: 'regular' }, shape: 'roundedRectangle', cornerRadius: 12 })
+            : androidBorder(StyleSheet.hairlineWidth, colors.border),
+          ...(multiline && Platform.OS === 'ios' ? [lineLimit({ min: 3, max: 8 })] : []),
+        ]}
+      />
+    </Host>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  androidInput: {
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 14,
-    fontFamily: fonts.regular,
-    fontSize: 15,
-  },
-});

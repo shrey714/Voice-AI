@@ -4,6 +4,7 @@ import { Text } from 'react-native-paper';
 import { LineChart } from 'react-native-chart-kit';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/useAppStore';
 import { useTranslation } from '../hooks/useTranslation';
 import { formatCurrency, startOfDay, startOfWeek, startOfMonth } from '../utils/helpers';
@@ -18,7 +19,17 @@ type Period = 'daily' | 'weekly' | 'monthly';
 export default function AnalyticsScreen() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
-  const { bills, expenses, products, settings, returns, suppliers, purchases } = useAppStore();
+  const { bills, expenses, products, settings, returns, suppliers, purchases } = useAppStore(
+    useShallow(state => ({
+      bills: state.bills,
+      expenses: state.expenses,
+      products: state.products,
+      settings: state.settings,
+      returns: state.returns,
+      suppliers: state.suppliers,
+      purchases: state.purchases,
+    }))
+  );
   const [period, setPeriod] = useState<Period>('daily');
 
   const rangeStart = period === 'daily' ? startOfDay() : period === 'weekly' ? startOfWeek() : startOfMonth();

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { View, FlatList, ScrollView, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, Image, Alert } from 'react-native';
+import { View, FlatList, ScrollView, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, Alert } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
@@ -8,6 +9,7 @@ import LiquidTextField from '../../components/common/LiquidTextField';
 import SheetHeader, { SHEET_PADDING } from '../../components/common/SheetHeader';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/useAppStore';
 import { useOnlineShopStore } from '../../stores/useOnlineShopStore';
 import { OnlineInventorySkeleton } from '../../components/common/Skeleton';
@@ -21,6 +23,71 @@ import { Product } from '../../types';
 import { toast } from '../../utils/toast';
 import { useConfirm } from '../../components/common/ConfirmDialogProvider';
 
+// Extracted + memoized — renders inside a `FlatList`; `onEdit`/`onDelete` are
+// stable top-level callbacks (passed directly, not wrapped in a fresh
+// per-row closure) so `React.memo`'s shallow-equality check can actually
+// skip re-rendering unchanged rows.
+const OnlineProductRow = React.memo(function OnlineProductRow({
+  product, colors, s, currency, isDeleting, onEdit, onDelete,
+}: {
+  product: OnlineProduct; colors: any; s: any; currency: string; isDeleting: boolean;
+  onEdit: (p: OnlineProduct) => void; onDelete: (p: OnlineProduct) => void;
+}) {
+  return (
+    <TouchableOpacity
+      style={[s.card, { backgroundColor: colors.surface }]}
+      activeOpacity={0.7}
+      onPress={() => onEdit(product)}
+    >
+      <View style={s.cardMain}>
+        {product.imageUrl ? (
+          <Image source={{ uri: product.imageUrl }} style={s.thumb} />
+        ) : (
+          <View style={[s.thumb, s.thumbPlaceholder, { backgroundColor: colors.surfaceHigh }]}>
+            <Ionicons name="image-outline" size={18} color={colors.textMuted} />
+          </View>
+        )}
+        <View style={{ flex: 1 }}>
+          <Text style={[s.productName, { color: colors.text }]} numberOfLines={1}>{product.name}</Text>
+          <Text style={[s.productMeta, { color: colors.textMuted }]}>
+            {product.category} · {product.quantity} {product.unit} in stock
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+            {product.onlinePrice != null ? (
+              <>
+                <Text style={[s.priceStrike, { color: colors.textMuted }]}>{formatCurrency(product.storePrice, currency)}</Text>
+                <Text style={[s.priceNow, { color: colors.primary }]}>{formatCurrency(product.onlinePrice, currency)}</Text>
+              </>
+            ) : (
+              <Text style={[s.priceNow, { color: colors.text }]}>{formatCurrency(product.storePrice, currency)}</Text>
+            )}
+          </View>
+        </View>
+        <View style={[s.visBadge, { backgroundColor: product.isVisible ? colors.success + '1A' : colors.border + '40' }]}>
+          <Ionicons name={product.isVisible ? 'eye' : 'eye-off-outline'} size={14} color={product.isVisible ? colors.success : colors.textMuted} />
+        </View>
+      </View>
+
+      <View style={[s.actionsRow, { borderTopColor: colors.border }]}>
+        <TouchableOpacity style={s.actionBtn} onPress={() => onEdit(product)}>
+          <Ionicons name="pencil-outline" size={15} color={colors.primary} />
+          <Text style={[s.actionText, { color: colors.primary }]}>Edit</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.actionBtn} onPress={() => onDelete(product)} disabled={isDeleting}>
+          {isDeleting ? (
+            <ActivityIndicator size="small" color={colors.danger} />
+          ) : (
+            <>
+              <Ionicons name="trash-outline" size={15} color={colors.danger} />
+              <Text style={[s.actionText, { color: colors.danger }]}>Remove</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
 /**
  * Online catalog — a fully independent list of listings, fetched straight
  * from Supabase `online_products`. There is no relation to local inventory:
@@ -29,16 +96,27 @@ import { useConfirm } from '../../components/common/ConfirmDialogProvider';
  */
 export default function OnlineInventoryScreen({ navigation }: any) {
   const { colors } = useAppTheme();
-  const { settings } = useAppStore();
+  const { settings } = useAppStore(
+    useShallow(state => ({
+      settings: state.settings,
+    }))
+  );
   const { confirm, confirmActions } = useConfirm();
-  const { onlineProducts, isLoadingOnlineProducts, fetchOnlineProducts, deleteOnlineProduct } = useOnlineShopStore();
+  const { onlineProducts, isLoadingOnlineProducts, fetchOnlineProducts, deleteOnlineProduct } = useOnlineShopStore(
+    useShallow(state => ({
+      onlineProducts: state.onlineProducts,
+      isLoadingOnlineProducts: state.isLoadingOnlineProducts,
+      fetchOnlineProducts: state.fetchOnlineProducts,
+      deleteOnlineProduct: state.deleteOnlineProduct,
+    }))
+  );
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const { extended, onScroll } = useFabScroll();
   const importSheetRef = useRef<LiquidBottomSheetRef>(null);
-  const s = makeStyles(colors);
+  const s = useMemo(() => makeStyles(colors), [colors]);
 
   useEffect(() => {
     navigation.setOptions({
@@ -91,7 +169,7 @@ export default function OnlineInventoryScreen({ navigation }: any) {
     navigation.navigate('OnlineProductForm', { importFrom: product });
   };
 
-  const handleDelete = async (product: OnlineProduct) => {
+  const handleDelete = useCallback(async (product: OnlineProduct) => {
     const ok = await confirm({
       title: 'Remove listing?',
       message: `"${product.name}" will be removed from your online shop. This cannot be undone.`,
@@ -108,7 +186,23 @@ export default function OnlineInventoryScreen({ navigation }: any) {
     } finally {
       setDeletingId(null);
     }
-  };
+  }, [confirm]);
+
+  const openEditProduct = useCallback((product: OnlineProduct) => {
+    navigation.navigate('OnlineProductForm', { editing: product });
+  }, [navigation]);
+
+  const renderProductItem = useCallback(({ item }: { item: OnlineProduct }) => (
+    <OnlineProductRow
+      product={item}
+      colors={colors}
+      s={s}
+      currency={settings.currency}
+      isDeleting={deletingId === item.id}
+      onEdit={openEditProduct}
+      onDelete={handleDelete}
+    />
+  ), [colors, s, settings.currency, deletingId, openEditProduct, handleDelete]);
 
   const visibleCount = onlineProducts.filter((p) => p.isVisible).length;
 
@@ -144,63 +238,12 @@ export default function OnlineInventoryScreen({ navigation }: any) {
           contentContainerStyle={{ paddingHorizontal: 10, paddingTop: 10, paddingBottom: 120 }}
           onScroll={onScroll}
           scrollEventThrottle={16}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
-          renderItem={({ item: product }) => {
-            const isDeleting = deletingId === product.id;
-            return (
-              <TouchableOpacity
-                style={[s.card, { backgroundColor: colors.surface }]}
-                activeOpacity={0.7}
-                onPress={() => navigation.navigate('OnlineProductForm', { editing: product })}
-              >
-                <View style={s.cardMain}>
-                  {product.imageUrl ? (
-                    <Image source={{ uri: product.imageUrl }} style={s.thumb} />
-                  ) : (
-                    <View style={[s.thumb, s.thumbPlaceholder, { backgroundColor: colors.surfaceHigh }]}>
-                      <Ionicons name="image-outline" size={18} color={colors.textMuted} />
-                    </View>
-                  )}
-                  <View style={{ flex: 1 }}>
-                    <Text style={[s.productName, { color: colors.text }]} numberOfLines={1}>{product.name}</Text>
-                    <Text style={[s.productMeta, { color: colors.textMuted }]}>
-                      {product.category} · {product.quantity} {product.unit} in stock
-                    </Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                      {product.onlinePrice != null ? (
-                        <>
-                          <Text style={[s.priceStrike, { color: colors.textMuted }]}>{formatCurrency(product.storePrice, settings.currency)}</Text>
-                          <Text style={[s.priceNow, { color: colors.primary }]}>{formatCurrency(product.onlinePrice, settings.currency)}</Text>
-                        </>
-                      ) : (
-                        <Text style={[s.priceNow, { color: colors.text }]}>{formatCurrency(product.storePrice, settings.currency)}</Text>
-                      )}
-                    </View>
-                  </View>
-                  <View style={[s.visBadge, { backgroundColor: product.isVisible ? colors.success + '1A' : colors.border + '40' }]}>
-                    <Ionicons name={product.isVisible ? 'eye' : 'eye-off-outline'} size={14} color={product.isVisible ? colors.success : colors.textMuted} />
-                  </View>
-                </View>
-
-                <View style={[s.actionsRow, { borderTopColor: colors.border }]}>
-                  <TouchableOpacity style={s.actionBtn} onPress={() => navigation.navigate('OnlineProductForm', { editing: product })}>
-                    <Ionicons name="pencil-outline" size={15} color={colors.primary} />
-                    <Text style={[s.actionText, { color: colors.primary }]}>Edit</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={s.actionBtn} onPress={() => handleDelete(product)} disabled={isDeleting}>
-                    {isDeleting ? (
-                      <ActivityIndicator size="small" color={colors.danger} />
-                    ) : (
-                      <>
-                        <Ionicons name="trash-outline" size={15} color={colors.danger} />
-                        <Text style={[s.actionText, { color: colors.danger }]}>Remove</Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
-            );
-          }}
+          renderItem={renderProductItem}
           ListHeaderComponent={      
           <View style={[s.header]}>
             <View style={s.headerRow}>
@@ -229,7 +272,11 @@ function ImportPickerSheet({ sheetRef, onPick }: {
   sheetRef: React.RefObject<LiquidBottomSheetRef | null>; onPick: (p: Product) => void;
 }) {
   const { colors } = useAppTheme();
-  const { products } = useAppStore();
+  const { products } = useAppStore(
+    useShallow(state => ({
+      products: state.products,
+    }))
+  );
   const [query, setQuery] = useState('');
   const s = makeStyles(colors);
 

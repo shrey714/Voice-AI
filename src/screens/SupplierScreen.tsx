@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { View, FlatList, ScrollView, StyleSheet, TouchableOpacity, Alert, Linking } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import LiquidTextField from '../components/common/LiquidTextField';
 import LiquidButton from '../components/common/LiquidButton';
 import SheetHeader from '../components/common/SheetHeader';
 import { useNavigation } from '@react-navigation/native';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/useAppStore';
 import { useTranslation } from '../hooks/useTranslation';
 import { Product, Supplier } from '../types';
@@ -29,11 +30,81 @@ const PAYMENT_MODES_KEYS = [
 
 const emptyForm = { name: '', phone: '', email: '', address: '', notes: '' };
 
+// Extracted + memoized — renders inside a `FlatList`; `onPress` is a stable
+// top-level callback (`openSupplierDetail`, passed directly) rather than a
+// fresh per-row closure, and `linkedCount`/`lowCount`/`outstanding` are
+// precomputed once per data change (see `supplierStats` below) rather than
+// re-scanned from `products`/`purchases` on every row on every render.
+const SupplierRow = React.memo(function SupplierRow({
+  supplier, index, c, s, currency, linkedCount, lowCount, outstanding, onPress,
+}: {
+  supplier: Supplier; index: number; c: any; s: any; currency: string;
+  linkedCount: number; lowCount: number; outstanding: number; onPress: (supplier: Supplier) => void;
+}) {
+  return (
+    <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: 'timing', duration: 280, delay: Math.min(index * 40, 400) }}>
+      <TouchableOpacity
+        style={[s.card, { backgroundColor: c.surface }]}
+        onPress={() => onPress(supplier)}
+      >
+        <View style={[s.cardAvatar, { backgroundColor: c.primaryLight }]}>
+          <Text style={[s.cardAvatarText, { color: c.primary }]}>{supplier.name[0].toUpperCase()}</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[s.cardName, { color: c.text }]}>{supplier.name}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 3, flexWrap: 'wrap' }}>
+            {supplier.phone ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="call-outline" size={12} color={c.textMuted} />
+                <Text style={{ fontFamily: fonts.regular, fontSize: 12, color: c.textMuted }}>{supplier.phone}</Text>
+              </View>
+            ) : null}
+            {linkedCount > 0 ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="cube-outline" size={12} color={c.textMuted} />
+                <Text style={{ fontFamily: fonts.regular, fontSize: 12, color: c.textMuted }}>{linkedCount} product{linkedCount > 1 ? 's' : ''}</Text>
+              </View>
+            ) : null}
+            {lowCount > 0 ? (
+              <View style={[s.lowBadge, { backgroundColor: c.warning + '20' }]}>
+                <Text style={[s.lowBadgeText, { color: c.warning }]}>{lowCount} low</Text>
+              </View>
+            ) : null}
+            {outstanding > 0 ? (
+              <View style={[s.lowBadge, { backgroundColor: c.danger + '18' }]}>
+                <Text style={[s.lowBadgeText, { color: c.danger }]}>Due {formatCurrency(outstanding, currency)}</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={c.textMuted} />
+      </TouchableOpacity>
+    </MotiView>
+  );
+});
+
 export default function SupplierScreen() {
   const { colors: c } = useAppTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const { t } = useTranslation();
   const { confirm, confirmActions } = useConfirm();
-  const { suppliers, products, expenses, supplierLedger, purchases, settings, addSupplier, updateSupplier, deleteSupplier, updateProduct, deleteProduct, recordSupplierPayment } = useAppStore();
+  const { suppliers, products, expenses, supplierLedger, purchases, settings, addSupplier, updateSupplier, deleteSupplier, updateProduct, deleteProduct, recordSupplierPayment } = useAppStore(
+    useShallow(state => ({
+      suppliers: state.suppliers,
+      products: state.products,
+      expenses: state.expenses,
+      supplierLedger: state.supplierLedger,
+      purchases: state.purchases,
+      settings: state.settings,
+      addSupplier: state.addSupplier,
+      updateSupplier: state.updateSupplier,
+      deleteSupplier: state.deleteSupplier,
+      updateProduct: state.updateProduct,
+      deleteProduct: state.deleteProduct,
+      recordSupplierPayment: state.recordSupplierPayment,
+    }))
+  );
   const navigation = useNavigation<any>();
 
   const [editing, setEditing] = useState<Supplier | null>(null);
@@ -58,6 +129,31 @@ export default function SupplierScreen() {
     purchases
       .filter(p => p.supplierId === supplierId)
       .reduce((s, p) => s + Math.max(0, p.totalAmount - p.paidAmount), 0);
+
+  // One combined O(products + purchases) pass instead of 3 separate
+  // per-row-per-render `.filter()` scans over the full `products`/
+  // `purchases` arrays (`linkedCount`/`lowCount`/`outstanding` used to
+  // re-scan on every row on every render) — the list's own row component is
+  // memoized below, so this is what actually makes that memoization pay off.
+  const supplierStats = useMemo(() => {
+    const map = new Map<string, { linkedCount: number; lowCount: number; outstanding: number }>();
+    const get = (id: string) => {
+      let entry = map.get(id);
+      if (!entry) { entry = { linkedCount: 0, lowCount: 0, outstanding: 0 }; map.set(id, entry); }
+      return entry;
+    };
+    for (const p of products) {
+      if (!p.supplierId) continue;
+      const entry = get(p.supplierId);
+      entry.linkedCount++;
+      if (p.quantity <= p.lowStockThreshold) entry.lowCount++;
+    }
+    for (const pu of purchases) {
+      if (!pu.supplierId) continue;
+      get(pu.supplierId).outstanding += Math.max(0, pu.totalAmount - pu.paidAmount);
+    }
+    return map;
+  }, [products, purchases]);
 
   const filtered = search.trim()
     ? suppliers.filter(sup =>
@@ -85,6 +181,28 @@ export default function SupplierScreen() {
     setSelectedSupplier(null);
     setEditingStockId(null);
   }, []);
+  const openSupplierDetail = useCallback((supplier: Supplier) => {
+    setSelectedSupplier(supplier);
+    setEditingStockId(null);
+    detailSheetRef.current?.expand();
+  }, []);
+
+  const renderSupplierItem = useCallback(({ item, index }: { item: Supplier; index: number }) => {
+    const stats = supplierStats.get(item.id);
+    return (
+      <SupplierRow
+        supplier={item}
+        index={index}
+        c={c}
+        s={s}
+        currency={settings.currency}
+        linkedCount={stats?.linkedCount ?? 0}
+        lowCount={stats?.lowCount ?? 0}
+        outstanding={stats?.outstanding ?? 0}
+        onPress={openSupplierDetail}
+      />
+    );
+  }, [supplierStats, c, s, settings.currency, openSupplierDetail]);
 
   const openAdd = () => { setEditing(null); setForm({ ...emptyForm }); openFormSheet(); };
   const openEdit = (sup: Supplier) => {
@@ -191,8 +309,6 @@ export default function SupplierScreen() {
     if (ok) deleteProduct(product.id);
   };
 
-  const s = makeStyles(c);
-
   return (
     <View style={[s.container, { backgroundColor: c.bg }]}>
       {searchOpen && (
@@ -209,53 +325,12 @@ export default function SupplierScreen() {
         keyExtractor={item => item.id}
         onScroll={onScroll}
         scrollEventThrottle={16}
+        initialNumToRender={12}
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        removeClippedSubviews
         contentContainerStyle={{ paddingHorizontal: 8, paddingVertical: 8, paddingBottom: 120, flexGrow: 1 }}
-        renderItem={({ item: supplier, index }) => {
-          const linkedCount = products.filter(p => p.supplierId === supplier.id).length;
-          const lowCount = products.filter(p => p.supplierId === supplier.id && p.quantity <= p.lowStockThreshold).length;
-          const outstanding = getOutstanding(supplier.id);
-          return (
-            <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }}
-              transition={{ type: 'timing', duration: 280, delay: Math.min(index * 40, 400) }}>
-              <TouchableOpacity
-                style={[s.card, { backgroundColor: c.surface }]}
-                onPress={() => { setSelectedSupplier(supplier); setEditingStockId(null); detailSheetRef.current?.expand(); }}
-              >
-                <View style={[s.cardAvatar, { backgroundColor: c.primaryLight }]}>
-                  <Text style={[s.cardAvatarText, { color: c.primary }]}>{supplier.name[0].toUpperCase()}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[s.cardName, { color: c.text }]}>{supplier.name}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 3, flexWrap: 'wrap' }}>
-                    {supplier.phone ? (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Ionicons name="call-outline" size={12} color={c.textMuted} />
-                        <Text style={{ fontFamily: fonts.regular, fontSize: 12, color: c.textMuted }}>{supplier.phone}</Text>
-                      </View>
-                    ) : null}
-                    {linkedCount > 0 ? (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Ionicons name="cube-outline" size={12} color={c.textMuted} />
-                        <Text style={{ fontFamily: fonts.regular, fontSize: 12, color: c.textMuted }}>{linkedCount} product{linkedCount > 1 ? 's' : ''}</Text>
-                      </View>
-                    ) : null}
-                    {lowCount > 0 ? (
-                      <View style={[s.lowBadge, { backgroundColor: c.warning + '20' }]}>
-                        <Text style={[s.lowBadgeText, { color: c.warning }]}>{lowCount} low</Text>
-                      </View>
-                    ) : null}
-                    {outstanding > 0 ? (
-                      <View style={[s.lowBadge, { backgroundColor: c.danger + '18' }]}>
-                        <Text style={[s.lowBadgeText, { color: c.danger }]}>Due {formatCurrency(outstanding, settings.currency)}</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={c.textMuted} />
-              </TouchableOpacity>
-            </MotiView>
-          );
-        }}
+        renderItem={renderSupplierItem}
         ListEmptyComponent={
           search.trim()
             ? <EmptyState icon="search-outline" title="No results" subtitle={`No suppliers match "${search}"`} />
@@ -563,18 +638,18 @@ export default function SupplierScreen() {
                           colors={c}
                           animated={false}
                           showMargin={false}
-                          onAddStock={() => editingStockId === p.id ? setEditingStockId(null) : startEditStock(p)}
-                          onMenu={() =>
+                          onAddStock={(product) => editingStockId === product.id ? setEditingStockId(null) : startEditStock(product)}
+                          onMenu={(product) =>
                             confirmActions({
-                              title: p.name,
+                              title: product.name,
                               actions: [
                                 { label: t('edit') + ' ' + t('product'), value: 'edit' },
                                 { label: t('deleteProduct'), value: 'delete', destructive: true },
                               ],
                               cancelLabel: t('cancel'),
                             }).then(choice => {
-                              if (choice === 'edit') handleEditProduct(p);
-                              else if (choice === 'delete') confirmDeleteProduct(p);
+                              if (choice === 'edit') handleEditProduct(product);
+                              else if (choice === 'delete') confirmDeleteProduct(product);
                             })
                           }
                         />

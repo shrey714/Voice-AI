@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, TextInput, Alert, Image, ScrollView, type TextInput as TI } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView, type TextInput as TI } from 'react-native';
+import { Image } from 'expo-image';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/useAppStore';
 import { useTranslation } from '../../hooks/useTranslation';
 import { formatCurrency, sanitizeDecimal, sanitizeInteger } from '../../utils/helpers';
@@ -22,7 +24,15 @@ export default function ProductFormScreen({ route, navigation }: any) {
   const { t } = useTranslation();
   const { confirm, confirmActions } = useConfirm();
   const { colors } = useAppTheme();
-  const { addProduct, updateProduct, settings, products, suppliers } = useAppStore();
+  const { addProduct, updateProduct, settings, products, suppliers } = useAppStore(
+    useShallow(state => ({
+      addProduct: state.addProduct,
+      updateProduct: state.updateProduct,
+      settings: state.settings,
+      products: state.products,
+      suppliers: state.suppliers,
+    }))
+  );
 
   const editingProduct: Product | null = route?.params?.product ?? null;
   const prefillBarcode: string = route?.params?.prefillBarcode ?? '';

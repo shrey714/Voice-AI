@@ -4,6 +4,7 @@ import { Text, ActivityIndicator } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import LiquidBottomSheet, { LiquidBottomSheetRef } from '../../components/common/LiquidBottomSheet';
 import LiquidTextField from '../../components/common/LiquidTextField';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/useAppStore';
 import { formatCurrency, fuzzyMatch } from '../../utils/helpers';
 import { Product } from '../../types';
@@ -27,7 +28,14 @@ export default function InventoryScreen({ route, navigation }: any) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
   const { confirm, confirmActions } = useConfirm();
-  const { products, deleteProduct, updateProduct, settings } = useAppStore();
+  const { products, deleteProduct, updateProduct, settings } = useAppStore(
+    useShallow(state => ({
+      products: state.products,
+      deleteProduct: state.deleteProduct,
+      updateProduct: state.updateProduct,
+      settings: state.settings,
+    }))
+  );
   const dataReady = useAppStore(st => st.dataReady);
   const CATEGORIES = ['All', ...(settings.productCategories ?? [])];
 
@@ -55,6 +63,21 @@ export default function InventoryScreen({ route, navigation }: any) {
     menuSheetRef.current?.expand();
   }, []);
   const closeMenuSheet = useCallback(() => menuSheetRef.current?.close(), []);
+
+  // Stable `renderItem` (and stable `onAddStock`/`onMenu` passed straight
+  // through, not wrapped in a fresh per-row closure) — this is what lets
+  // `ProductCard`'s own `React.memo` actually skip re-rendering off-screen/
+  // unchanged rows, instead of every row re-rendering on any list re-render.
+  const renderProductItem = useCallback(({ item, index }: { item: Product; index: number }) => (
+    <ProductCard
+      product={item}
+      currency={settings.currency}
+      colors={colors}
+      index={index}
+      onAddStock={openStockSheet}
+      onMenu={openMenuSheet}
+    />
+  ), [settings.currency, colors, openStockSheet, openMenuSheet]);
 
   // If navigated with prefillBarcode, open form immediately
   useEffect(() => {
@@ -169,17 +192,12 @@ export default function InventoryScreen({ route, navigation }: any) {
         style={{ flex: 1 }}
         onScroll={onScroll}
         scrollEventThrottle={16}
+        initialNumToRender={12}
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        removeClippedSubviews
         contentContainerStyle={{ paddingHorizontal: 8, paddingTop: 8, paddingBottom: 150, flexGrow: 1 }}
-        renderItem={({ item, index }) => (
-          <ProductCard
-            product={item}
-            currency={settings.currency}
-            colors={colors}
-            index={index}
-            onAddStock={() => openStockSheet(item)}
-            onMenu={() => openMenuSheet(item)}
-          />
-        )}
+        renderItem={renderProductItem}
         ListEmptyComponent={
           <EmptyState icon="cube-outline" title={t('noProducts')} subtitle={t('tapPlusToAdd')}
             actionLabel={t('addProduct')} onAction={() => navigation.navigate('ProductForm', {})} />

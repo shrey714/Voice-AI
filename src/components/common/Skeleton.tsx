@@ -1,7 +1,5 @@
 import React from 'react';
 import { View, StyleSheet, StyleProp, ViewStyle } from 'react-native';
-import { MotiView } from 'moti';
-import { Easing } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '../../theme';
 
@@ -10,16 +8,11 @@ import { useAppTheme } from '../../theme';
 // here so they stay consistent and easy to tweak in one place.
 // ──────────────────────────────────────────────────────────────────────────────
 
-/** A single placeholder block with a gentle opacity pulse (no shimmer sweep, no bounce). */
+/** A single static placeholder block (no pulse/shimmer animation). */
 export function Skeleton({ style }: { style?: StyleProp<ViewStyle> }) {
   const { colors } = useAppTheme();
   return (
-    <MotiView
-      from={{ opacity: 0.4 }}
-      animate={{ opacity: 0.8 }}
-      transition={{ loop: true, repeatReverse: true, type: 'timing', duration: 700, easing: Easing.inOut(Easing.ease) }}
-      style={[{ backgroundColor: colors.surfaceHigh, borderRadius: 8 }, style]}
-    />
+    <View style={[{ backgroundColor: colors.surfaceHigh, borderRadius: 8, opacity: 0.6 }, style]} />
   );
 }
 

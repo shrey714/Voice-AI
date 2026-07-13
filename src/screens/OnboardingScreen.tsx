@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView } from 'moti';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/useAppStore';
 import { fonts } from '../theme/typography';
 import { useTranslation } from '../hooks/useTranslation';
@@ -58,7 +59,12 @@ const ORDER: StepKey[] = ['welcome', 'shop', 'contact', 'upi', 'gst', 'goal'];
 
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
-  const { settings, updateSettings } = useAppStore();
+  const { settings, updateSettings } = useAppStore(
+    useShallow(state => ({
+      settings: state.settings,
+      updateSettings: state.updateSettings,
+    }))
+  );
   const { t } = useTranslation();
   const [step, setStep] = useState(0);
 

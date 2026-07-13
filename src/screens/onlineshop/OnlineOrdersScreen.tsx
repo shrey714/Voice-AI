@@ -12,6 +12,7 @@ import { fonts } from '../../theme/typography';
 import { useOnlineShopStore } from '../../stores/useOnlineShopStore';
 import { OnlineOrder, OrderStatus } from '../../types/online';
 import { formatCurrency, startOfDay, startOfWeek, startOfMonth } from '../../utils/helpers';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/useAppStore';
 import EmptyState from '../../components/common/EmptyState';
 import { OnlineOrdersSkeleton } from '../../components/common/Skeleton';
@@ -56,10 +57,79 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
 }
 
+// Extracted + memoized — renders inside a `FlatList`; `onPress` is a stable
+// top-level callback (`openOrderDetail`, passed directly, not wrapped in a
+// fresh per-row closure) so `React.memo`'s shallow-equality check can
+// actually skip re-rendering unchanged rows.
+const OrderRow = React.memo(function OrderRow({
+  order, index, colors, s, currency, onPress,
+}: {
+  order: OnlineOrder; index: number; colors: any; s: any; currency: string; onPress: (order: OnlineOrder) => void;
+}) {
+  const statusColor = STATUS_COLOR[order.status] ?? colors.textMuted;
+  return (
+    <MotiView
+      from={{ opacity: 0, translateY: 8 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: 'timing', duration: 250, delay: Math.min(index * 30, 300) }}
+    >
+      <TouchableOpacity
+        style={[s.card, { backgroundColor: colors.surface }]}
+        onPress={() => onPress(order)}
+        activeOpacity={0.8}
+      >
+        <View style={s.cardTop}>
+          <View style={{ flex: 1 }}>
+            <Text style={[s.customerName, { color: colors.text }]}>{order.customerName}</Text>
+            {order.customerPhone ? (
+              <Text style={[s.customerPhone, { color: colors.textMuted }]}>{order.customerPhone}</Text>
+            ) : null}
+            <Text style={[s.itemsText, { color: colors.textSub }]}>
+              {order.items.length} item{order.items.length !== 1 ? 's' : ''} ·{' '}
+              {order.items.map((i) => i.productName).join(', ')}
+            </Text>
+          </View>
+          <View style={{ alignItems: 'flex-end', gap: 6 }}>
+            <Text style={[s.total, { color: colors.text }]}>{formatCurrency(order.total, currency)}</Text>
+            <View style={[s.statusBadge, { backgroundColor: statusColor + '20' }]}>
+              <Text style={[s.statusText, { color: statusColor }]}>{order.status.toUpperCase()}</Text>
+            </View>
+          </View>
+        </View>
+        <View style={[s.cardBottom, { borderTopColor: colors.border }]}>
+          <Ionicons name="time-outline" size={13} color={colors.textMuted} />
+          <Text style={[s.timeText, { color: colors.textMuted }]}>
+            {formatDate(order.createdAt)} · {formatTime(order.createdAt)}
+          </Text>
+          {order.deliveryFee > 0 && (
+            <Text style={[s.deliveryTag, { color: colors.info }]}>
+              + {formatCurrency(order.deliveryFee, currency)} delivery
+            </Text>
+          )}
+          <Ionicons name="chevron-forward" size={14} color={colors.textMuted} style={{ marginLeft: 'auto' }} />
+        </View>
+      </TouchableOpacity>
+    </MotiView>
+  );
+});
+
 export default function OnlineOrdersScreen({ navigation, route }: any) {
   const { colors } = useAppTheme();
-  const { settings } = useAppStore();
-  const { config, orders, isLoadingConfig, isLoadingOrders, fetchShopConfig, fetchOrders } = useOnlineShopStore();
+  const { settings } = useAppStore(
+    useShallow(state => ({
+      settings: state.settings,
+    }))
+  );
+  const { config, orders, isLoadingConfig, isLoadingOrders, fetchShopConfig, fetchOrders } = useOnlineShopStore(
+    useShallow(state => ({
+      config: state.config,
+      orders: state.orders,
+      isLoadingConfig: state.isLoadingConfig,
+      isLoadingOrders: state.isLoadingOrders,
+      fetchShopConfig: state.fetchShopConfig,
+      fetchOrders: state.fetchOrders,
+    }))
+  );
   const [activeTab, setActiveTab] = useState<OrderStatus | 'all'>(route?.params?.filterStatus ?? 'all');
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('today');
   const [customFrom, setCustomFrom] = useState<Date | null>(null);
@@ -73,7 +143,10 @@ export default function OnlineOrdersScreen({ navigation, route }: any) {
   const openFilterSheet = useCallback(() => filterSheetRef.current?.expand(), []);
 
   const activeFilterCount = (activeTab !== 'all' ? 1 : 0) + (periodFilter !== 'today' ? 1 : 0);
-  const s = makeStyles(colors);
+  const s = useMemo(() => makeStyles(colors), [colors]);
+  const openOrderDetail = useCallback((order: OnlineOrder) => {
+    navigation.navigate('OnlineOrderDetail', { orderId: order.id });
+  }, [navigation]);
 
   // Plain flex row, not absolutely-positioned siblings — see
   // AppNavigator's useHeaderOpts comment for why.
@@ -164,53 +237,9 @@ export default function OnlineOrdersScreen({ navigation, route }: any) {
     return <OnlineOrdersSkeleton />;
   }
 
-  const renderOrder = ({ item: order, index }: { item: OnlineOrder; index: number }) => {
-    const statusColor = STATUS_COLOR[order.status] ?? colors.textMuted;
-    return (
-      <MotiView
-        from={{ opacity: 0, translateY: 8 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 250, delay: Math.min(index * 30, 300) }}
-      >
-        <TouchableOpacity
-          style={[s.card, { backgroundColor: colors.surface }]}
-          onPress={() => navigation.navigate('OnlineOrderDetail', { orderId: order.id })}
-          activeOpacity={0.8}
-        >
-          <View style={s.cardTop}>
-            <View style={{ flex: 1 }}>
-              <Text style={[s.customerName, { color: colors.text }]}>{order.customerName}</Text>
-              {order.customerPhone ? (
-                <Text style={[s.customerPhone, { color: colors.textMuted }]}>{order.customerPhone}</Text>
-              ) : null}
-              <Text style={[s.itemsText, { color: colors.textSub }]}>
-                {order.items.length} item{order.items.length !== 1 ? 's' : ''} ·{' '}
-                {order.items.map((i) => i.productName).join(', ')}
-              </Text>
-            </View>
-            <View style={{ alignItems: 'flex-end', gap: 6 }}>
-              <Text style={[s.total, { color: colors.text }]}>{formatCurrency(order.total, settings.currency)}</Text>
-              <View style={[s.statusBadge, { backgroundColor: statusColor + '20' }]}>
-                <Text style={[s.statusText, { color: statusColor }]}>{order.status.toUpperCase()}</Text>
-              </View>
-            </View>
-          </View>
-          <View style={[s.cardBottom, { borderTopColor: colors.border }]}>
-            <Ionicons name="time-outline" size={13} color={colors.textMuted} />
-            <Text style={[s.timeText, { color: colors.textMuted }]}>
-              {formatDate(order.createdAt)} · {formatTime(order.createdAt)}
-            </Text>
-            {order.deliveryFee > 0 && (
-              <Text style={[s.deliveryTag, { color: colors.info }]}>
-                + {formatCurrency(order.deliveryFee, settings.currency)} delivery
-              </Text>
-            )}
-            <Ionicons name="chevron-forward" size={14} color={colors.textMuted} style={{ marginLeft: 'auto' }} />
-          </View>
-        </TouchableOpacity>
-      </MotiView>
-    );
-  };
+  const renderOrder = useCallback(({ item, index }: { item: OnlineOrder; index: number }) => (
+    <OrderRow order={item} index={index} colors={colors} s={s} currency={settings.currency} onPress={openOrderDetail} />
+  ), [colors, s, settings.currency, openOrderDetail]);
 
   const activeStatusTab = STATUS_TABS.find((t) => t.key === activeTab)!;
 
@@ -258,6 +287,10 @@ export default function OnlineOrdersScreen({ navigation, route }: any) {
           renderItem={renderOrder}
           onScroll={onListScroll}
           scrollEventThrottle={16}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews
           contentContainerStyle={{ paddingHorizontal: 10, paddingTop: listPaddingTop, paddingBottom: 120, flexGrow: 1 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
           ListEmptyComponent={

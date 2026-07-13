@@ -168,6 +168,10 @@ function MessageList({ colors, s, bottomPad, t }: { colors: any; s: any; bottomP
       data={data}
       keyExtractor={(m: any) => m.id}
       renderItem={renderItem}
+      initialNumToRender={15}
+      maxToRenderPerBatch={10}
+      windowSize={7}
+      removeClippedSubviews
       style={{ flex: 1 }}
       // Inverted flips contentContainer too: paddingTop is the VISUAL bottom, so it
       // reserves room for the floating composer; paddingBottom is the visual top.

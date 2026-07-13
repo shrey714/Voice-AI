@@ -7,6 +7,7 @@ import { fonts } from '../../theme/typography';
 import { useOnlineShopStore } from '../../stores/useOnlineShopStore';
 import { OnlineOrderDetailSkeleton } from '../../components/common/Skeleton';
 import { formatCurrency } from '../../utils/helpers';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/useAppStore';
 import LiquidButton from '../../components/common/LiquidButton';
 import { OrderStatus } from '../../types/online';
@@ -31,9 +32,19 @@ function formatDateTime(iso: string) {
 
 export default function OnlineOrderDetailScreen({ route, navigation }: any) {
   const { colors } = useAppTheme();
-  const { settings } = useAppStore();
+  const { settings } = useAppStore(
+    useShallow(state => ({
+      settings: state.settings,
+    }))
+  );
   const { confirm } = useConfirm();
-  const { orders, updateOrderStatus, fetchOrderById } = useOnlineShopStore();
+  const { orders, updateOrderStatus, fetchOrderById } = useOnlineShopStore(
+    useShallow(state => ({
+      orders: state.orders,
+      updateOrderStatus: state.updateOrderStatus,
+      fetchOrderById: state.fetchOrderById,
+    }))
+  );
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [refreshing, setRefreshing] = useState(false);

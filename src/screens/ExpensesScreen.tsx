@@ -9,6 +9,7 @@ import LiquidBottomSheet, { LiquidBottomSheetRef } from '../components/common/Li
 import LiquidTextField from '../components/common/LiquidTextField';
 import LiquidButton from '../components/common/LiquidButton';
 import SheetHeader from '../components/common/SheetHeader';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/useAppStore';
 import { useTranslation } from '../hooks/useTranslation';
 import { formatCurrency, formatDate, startOfDay, endOfDay, sanitizeDecimal } from '../utils/helpers';
@@ -27,7 +28,15 @@ export default function ExpensesScreen() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { confirm } = useConfirm();
-  const { expenses, addExpense, deleteExpense, settings, suppliers } = useAppStore();
+  const { expenses, addExpense, deleteExpense, settings, suppliers } = useAppStore(
+    useShallow(state => ({
+      expenses: state.expenses,
+      addExpense: state.addExpense,
+      deleteExpense: state.deleteExpense,
+      settings: state.settings,
+      suppliers: state.suppliers,
+    }))
+  );
   // Built-in categories + the user's custom ones (managed in Manage Lists).
   const CATEGORIES = useMemo<{ key: string; label: string; icon: IoniconsName }[]>(() => [
     ...BUILTIN_EXPENSE_CATEGORIES,
@@ -128,6 +137,10 @@ export default function ExpensesScreen() {
           style={{ flex: 1 }}
           onScroll={onListScroll}
           scrollEventThrottle={16}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews
         contentContainerStyle={{ paddingHorizontal: 8, paddingTop: listPaddingTop, paddingBottom: 120, flexGrow: 1 }}
         renderItem={({ item, index }) => {
           const cat = getCatInfo(item.category);

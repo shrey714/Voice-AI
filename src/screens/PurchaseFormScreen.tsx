@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import LiquidBottomSheet, { LiquidBottomSheetRef } from '../components/common/LiquidBottomSheet';
 import LiquidButton from '../components/common/LiquidButton';
 import SheetHeader, { SHEET_PADDING } from '../components/common/SheetHeader';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/useAppStore';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
@@ -30,7 +31,14 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
   const { confirm } = useConfirm();
-  const { products, suppliers, createPurchase, settings } = useAppStore();
+  const { products, suppliers, createPurchase, settings } = useAppStore(
+    useShallow(state => ({
+      products: state.products,
+      suppliers: state.suppliers,
+      createPurchase: state.createPurchase,
+      settings: state.settings,
+    }))
+  );
 
   const prefillSupplierId: string | undefined = route?.params?.supplierId;
   // Optional reorder prefill: [{ productId, quantity }] (e.g. from the Reorder screen).
@@ -447,6 +455,10 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
             keyExtractor={p => p.id}
             contentContainerStyle={{ paddingBottom: 24, paddingHorizontal: SHEET_PADDING }}
             keyboardShouldPersistTaps="handled"
+            initialNumToRender={12}
+            maxToRenderPerBatch={10}
+            windowSize={7}
+            removeClippedSubviews
             renderItem={({ item: p }) => (
               <TouchableOpacity
                 style={[s.productRow, { borderBottomColor: colors.border }]}
@@ -485,6 +497,10 @@ export default function PurchaseFormScreen({ route, navigation }: any) {
             keyExtractor={s => s.id}
             contentContainerStyle={{ paddingBottom: 24, paddingHorizontal: SHEET_PADDING }}
             keyboardShouldPersistTaps="handled"
+            initialNumToRender={12}
+            maxToRenderPerBatch={10}
+            windowSize={7}
+            removeClippedSubviews
             renderItem={({ item: sup }) => (
               <TouchableOpacity
                 style={[s.productRow, { borderBottomColor: colors.border }]}

@@ -1,8 +1,10 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, TextInput, Alert, Image, ScrollView, Switch } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView, Switch } from 'react-native';
+import { Image } from 'expo-image';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/useAppStore';
 import { useOnlineShopStore, OnlineProductInput } from '../../stores/useOnlineShopStore';
 import { formatCurrency, sanitizeDecimal, sanitizeInteger } from '../../utils/helpers';
@@ -24,9 +26,19 @@ const emptyForm = { name: '', category: 'General', storePrice: '', onlinePrice: 
  */
 export default function OnlineProductFormScreen({ route, navigation }: any) {
   const { colors } = useAppTheme();
-  const { settings } = useAppStore();
+  const { settings } = useAppStore(
+    useShallow(state => ({
+      settings: state.settings,
+    }))
+  );
   const { confirmActions } = useConfirm();
-  const { createOnlineProduct, updateOnlineProduct, isSavingProduct } = useOnlineShopStore();
+  const { createOnlineProduct, updateOnlineProduct, isSavingProduct } = useOnlineShopStore(
+    useShallow(state => ({
+      createOnlineProduct: state.createOnlineProduct,
+      updateOnlineProduct: state.updateOnlineProduct,
+      isSavingProduct: state.isSavingProduct,
+    }))
+  );
 
   const editing: OnlineProduct | null = route?.params?.editing ?? null;
   const importFrom: Product | null = route?.params?.importFrom ?? null;

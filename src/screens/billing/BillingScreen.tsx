@@ -2,16 +2,19 @@ import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View, ScrollView, StyleSheet, TouchableOpacity,
-  TextInput, Alert, Linking, FlatList, Image, Keyboard, Pressable,
+  TextInput, Alert, Linking, FlatList, Keyboard, Pressable,
   Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import LiquidBottomSheet, { LiquidBottomSheetRef } from '../../components/common/LiquidBottomSheet';
 import LiquidTextField from '../../components/common/LiquidTextField';
 import QRCode from 'react-native-qrcode-svg';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/useAppStore';
+import { Product } from '../../types';
 import { useTranslation } from '../../hooks/useTranslation';
 import { formatCurrency, generateBillText, fuzzyMatch, sanitizeDecimal } from '../../utils/helpers';
 import { toast } from '../../utils/toast';
@@ -29,11 +32,64 @@ import { fonts } from '../../theme/typography';
 
 const initials = (name: string) => name.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
 
+// Extracted + memoized — renders inside a `FlatList` over the full product
+// catalog; `onAdd` is a stable top-level callback (`addProductToCart`,
+// passed directly, not wrapped in a fresh per-row closure) so `React.memo`'s
+// shallow-equality check can actually skip re-rendering unchanged rows.
+const CatalogRow = React.memo(function CatalogRow({
+  product: p, index, colors, s, currency, onAdd,
+}: {
+  product: Product; index: number; colors: any; s: any; currency: string; onAdd: (product: Product) => void;
+}) {
+  return (
+    <MotiView from={{ opacity: 0, translateX: -8 }} animate={{ opacity: 1, translateX: 0 }}
+      transition={{ type: 'timing', duration: 250, delay: index * 30 }}>
+      <TouchableOpacity style={[s.productRow, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}
+        onPress={() => onAdd(p)} activeOpacity={0.7}>
+        {p.imageUri ? (
+          <Image source={{ uri: p.imageUri }} style={s.rowThumb} />
+        ) : (
+          <View style={[s.rowThumb, { backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center' }]}>
+            <Text style={{ color: colors.primary, fontFamily: fonts.extraBold, fontSize: 15 }}>{initials(p.name)}</Text>
+          </View>
+        )}
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={[s.productName, { color: colors.text }]} numberOfLines={1}>{p.name}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 }}>
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: p.quantity <= 0 ? colors.danger : p.quantity <= p.lowStockThreshold ? colors.warning : colors.success }} />
+            <Text style={[s.productMeta, { color: colors.textMuted }]}>{p.category} · {p.quantity} in stock</Text>
+          </View>
+        </View>
+        <Text style={[s.productPrice, { color: colors.text }]}>{formatCurrency(p.sellingPrice, currency)}</Text>
+        <View style={[s.addBtn, { backgroundColor: colors.primary }]}>
+          <Ionicons name="add" size={20} color="#fff" />
+        </View>
+      </TouchableOpacity>
+    </MotiView>
+  );
+});
+
 export default function BillingScreen({ navigation }: any) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
+  const s = useMemo(() => makeStyles(colors), [colors]);
   const { confirm, confirmActions } = useConfirm();
-  const { products, cart, addToCart, removeFromCart, updateCartQuantity, clearCart, checkout, settings, templates, saveTemplate, renameTemplate, deleteTemplate } = useAppStore();
+  const { products, cart, addToCart, removeFromCart, updateCartQuantity, clearCart, checkout, settings, templates, saveTemplate, renameTemplate, deleteTemplate } = useAppStore(
+    useShallow(state => ({
+      products: state.products,
+      cart: state.cart,
+      addToCart: state.addToCart,
+      removeFromCart: state.removeFromCart,
+      updateCartQuantity: state.updateCartQuantity,
+      clearCart: state.clearCart,
+      checkout: state.checkout,
+      settings: state.settings,
+      templates: state.templates,
+      saveTemplate: state.saveTemplate,
+      renameTemplate: state.renameTemplate,
+      deleteTemplate: state.deleteTemplate,
+    }))
+  );
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showScanner, setShowScanner] = useState(false);
@@ -187,6 +243,16 @@ export default function BillingScreen({ navigation }: any) {
     }, delay);
   }, [btEnabled]);
 
+  const addProductToCart = useCallback((product: Product) => {
+    addToCart(product);
+    setSearchQuery('');
+    refocusBtInput();
+  }, [addToCart, refocusBtInput]);
+
+  const renderCatalogItem = useCallback(({ item, index }: { item: Product; index: number }) => (
+    <CatalogRow product={item} index={index} colors={colors} s={s} currency={settings.currency} onAdd={addProductToCart} />
+  ), [colors, s, settings.currency, addProductToCart]);
+
   const handleBtScan = useCallback(() => {
     if (scanTimer.current) { clearTimeout(scanTimer.current); scanTimer.current = null; }
 
@@ -295,8 +361,6 @@ export default function BillingScreen({ navigation }: any) {
     }
   };
 
-  const s = makeStyles(colors);
-
   const payModeColors = { cash: colors.success, upi: colors.info, credit: colors.warning };
 
   return (
@@ -372,32 +436,11 @@ export default function BillingScreen({ navigation }: any) {
           keyExtractor={p => p.id}
           style={{ flex: 1, backgroundColor: colors.bg, marginHorizontal: 8, marginVertical: 8, borderRadius: 10 }}
           contentContainerStyle={{ flexGrow: 1 }}
-          renderItem={({ item: p, index }) => (
-            <MotiView from={{ opacity: 0, translateX: -8 }} animate={{ opacity: 1, translateX: 0 }}
-              transition={{ type: 'timing', duration: 250, delay: index * 30 }}>
-              <TouchableOpacity style={[s.productRow, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}
-                onPress={() => { addToCart(p); setSearchQuery(''); refocusBtInput(); }} activeOpacity={0.7}>
-                {p.imageUri ? (
-                  <Image source={{ uri: p.imageUri }} style={s.rowThumb} />
-                ) : (
-                  <View style={[s.rowThumb, { backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center' }]}>
-                    <Text style={{ color: colors.primary, fontFamily: fonts.extraBold, fontSize: 15 }}>{initials(p.name)}</Text>
-                  </View>
-                )}
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={[s.productName, { color: colors.text }]} numberOfLines={1}>{p.name}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 }}>
-                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: p.quantity <= 0 ? colors.danger : p.quantity <= p.lowStockThreshold ? colors.warning : colors.success }} />
-                    <Text style={[s.productMeta, { color: colors.textMuted }]}>{p.category} · {p.quantity} in stock</Text>
-                  </View>
-                </View>
-                <Text style={[s.productPrice, { color: colors.text }]}>{formatCurrency(p.sellingPrice, settings.currency)}</Text>
-                <View style={[s.addBtn, { backgroundColor: colors.primary }]}>
-                  <Ionicons name="add" size={20} color="#fff" />
-                </View>
-              </TouchableOpacity>
-            </MotiView>
-          )}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews
+          renderItem={renderCatalogItem}
           ListEmptyComponent={
             <EmptyState
               icon="search-outline"

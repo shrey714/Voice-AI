@@ -3,6 +3,7 @@ import { View, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-nat
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/useAppStore';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
@@ -18,7 +19,16 @@ export default function StockTakeScreen({ navigation }: any) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
   const { confirm } = useConfirm();
-  const { activeStockTake, stockTakeItems, products, startStockTake, cancelStockTake, settings } = useAppStore();
+  const { activeStockTake, stockTakeItems, products, startStockTake, cancelStockTake, settings } = useAppStore(
+    useShallow(state => ({
+      activeStockTake: state.activeStockTake,
+      stockTakeItems: state.stockTakeItems,
+      products: state.products,
+      startStockTake: state.startStockTake,
+      cancelStockTake: state.cancelStockTake,
+      settings: state.settings,
+    }))
+  );
   const CATEGORIES = ['All', ...(settings.productCategories ?? [])];
   const [scope, setScope] = useState('all');
   const [starting, setStarting] = useState(false);

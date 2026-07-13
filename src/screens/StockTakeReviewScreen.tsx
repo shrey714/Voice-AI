@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { View, FlatList, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/useAppStore';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
@@ -11,11 +12,68 @@ import { useTranslation } from '../hooks/useTranslation';
 import LiquidButton from '../components/common/LiquidButton';
 import { useConfirm } from '../components/common/ConfirmDialogProvider';
 
+// Extracted + memoized — renders inside a `FlatList`. No press handler here
+// (static display row) — `wasLabel`/`nowLabel` are precomputed translation
+// strings (not the `t` function itself, which isn't stable across renders)
+// so `React.memo`'s shallow-equality check can actually skip re-rendering
+// unchanged rows.
+const ReviewRow = React.memo(function ReviewRow({
+  item, index, colors, s, wasLabel, nowLabel,
+}: {
+  item: StockTakeItem; index: number; colors: any; s: any; wasLabel: string; nowLabel: string;
+}) {
+  const diff = item.countedQty! - item.systemQty;
+  return (
+    <MotiView
+      from={{ opacity: 0, translateY: 6 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: 'timing', duration: 200, delay: Math.min(index * 25, 300) }}
+    >
+      <View style={[s.row, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={[s.productName, { color: colors.text }]} numberOfLines={1}>{item.productName}</Text>
+          <Text style={[s.category, { color: colors.textMuted }]}>{item.category}</Text>
+        </View>
+        <View style={s.qtyGroup}>
+          <View style={s.qtyCol}>
+            <Text style={[s.qtyLabel, { color: colors.textMuted }]}>{wasLabel}</Text>
+            <Text style={[s.qtyVal, { color: colors.textSub }]}>{item.systemQty}</Text>
+          </View>
+          <Ionicons name="arrow-forward" size={14} color={colors.textMuted} style={{ marginTop: 14 }} />
+          <View style={s.qtyCol}>
+            <Text style={[s.qtyLabel, { color: colors.textMuted }]}>{nowLabel}</Text>
+            <Text style={[s.qtyVal, { color: colors.text }]}>{item.countedQty}</Text>
+          </View>
+        </View>
+        {diff === 0 ? (
+          <View style={[s.diffBadge, { backgroundColor: colors.success + '18' }]}>
+            <Ionicons name="checkmark" size={13} color={colors.success} />
+          </View>
+        ) : diff > 0 ? (
+          <View style={[s.diffBadge, { backgroundColor: colors.success + '18' }]}>
+            <Text style={[s.diffText, { color: colors.success }]} accessibilityLabel={`Over by ${diff}`}>+{diff}</Text>
+          </View>
+        ) : (
+          <View style={[s.diffBadge, { backgroundColor: colors.danger + '18' }]}>
+            <Text style={[s.diffText, { color: colors.danger }]} accessibilityLabel={`Short by ${Math.abs(diff)}`}>{diff}</Text>
+          </View>
+        )}
+      </View>
+    </MotiView>
+  );
+});
+
 export default function StockTakeReviewScreen({ navigation }: any) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
   const { confirm } = useConfirm();
-  const { stockTakeItems, commitStockTake, cancelStockTake } = useAppStore();
+  const { stockTakeItems, commitStockTake, cancelStockTake } = useAppStore(
+    useShallow(state => ({
+      stockTakeItems: state.stockTakeItems,
+      commitStockTake: state.commitStockTake,
+      cancelStockTake: state.cancelStockTake,
+    }))
+  );
   const [showAll, setShowAll] = useState(false);
   const [committing, setCommitting] = useState(false);
 
@@ -73,49 +131,12 @@ export default function StockTakeReviewScreen({ navigation }: any) {
     }
   };
 
-  const renderItem = ({ item, index }: { item: StockTakeItem; index: number }) => {
-    const diff = item.countedQty! - item.systemQty;
-    return (
-      <MotiView
-        from={{ opacity: 0, translateY: 6 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 200, delay: Math.min(index * 25, 300) }}
-      >
-        <View style={[s.row, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={[s.productName, { color: colors.text }]} numberOfLines={1}>{item.productName}</Text>
-            <Text style={[s.category, { color: colors.textMuted }]}>{item.category}</Text>
-          </View>
-          <View style={s.qtyGroup}>
-            <View style={s.qtyCol}>
-              <Text style={[s.qtyLabel, { color: colors.textMuted }]}>{t('wasSt')}</Text>
-              <Text style={[s.qtyVal, { color: colors.textSub }]}>{item.systemQty}</Text>
-            </View>
-            <Ionicons name="arrow-forward" size={14} color={colors.textMuted} style={{ marginTop: 14 }} />
-            <View style={s.qtyCol}>
-              <Text style={[s.qtyLabel, { color: colors.textMuted }]}>{t('nowSt')}</Text>
-              <Text style={[s.qtyVal, { color: colors.text }]}>{item.countedQty}</Text>
-            </View>
-          </View>
-          {diff === 0 ? (
-            <View style={[s.diffBadge, { backgroundColor: colors.success + '18' }]}>
-              <Ionicons name="checkmark" size={13} color={colors.success} />
-            </View>
-          ) : diff > 0 ? (
-            <View style={[s.diffBadge, { backgroundColor: colors.success + '18' }]}>
-              <Text style={[s.diffText, { color: colors.success }]} accessibilityLabel={`Over by ${diff}`}>+{diff}</Text>
-            </View>
-          ) : (
-            <View style={[s.diffBadge, { backgroundColor: colors.danger + '18' }]}>
-              <Text style={[s.diffText, { color: colors.danger }]} accessibilityLabel={`Short by ${Math.abs(diff)}`}>{diff}</Text>
-            </View>
-          )}
-        </View>
-      </MotiView>
-    );
-  };
-
-  const s = makeStyles(colors);
+  const s = useMemo(() => makeStyles(colors), [colors]);
+  const wasLabel = t('wasSt');
+  const nowLabel = t('nowSt');
+  const renderItem = useCallback(({ item, index }: { item: StockTakeItem; index: number }) => (
+    <ReviewRow item={item} index={index} colors={colors} s={s} wasLabel={wasLabel} nowLabel={nowLabel} />
+  ), [colors, s, wasLabel, nowLabel]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -178,6 +199,10 @@ export default function StockTakeReviewScreen({ navigation }: any) {
         data={displayItems}
         keyExtractor={i => i.id}
         renderItem={renderItem}
+        initialNumToRender={12}
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        removeClippedSubviews
         contentContainerStyle={{ paddingBottom: 140, flexGrow: 1 }}
         ListEmptyComponent={
           <View style={{ alignItems: 'center', paddingTop: 60, gap: 10 }}>

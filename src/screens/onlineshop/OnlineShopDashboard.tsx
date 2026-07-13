@@ -27,6 +27,7 @@ import PressableScale from '../../components/common/PressableScale';
 import LiquidButton from '../../components/common/LiquidButton';
 import { formatCurrency } from '../../utils/helpers';
 import { isShopOpenNow } from '../../utils/shopStatus';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/useAppStore';
 import { toast } from '../../utils/toast';
 
@@ -186,8 +187,22 @@ function OrderTicker({ items, colors }: { items: string[]; colors: any }) {
 
 export default function OnlineShopDashboard({ navigation }: any) {
   const { colors } = useAppTheme();
-  const { settings } = useAppStore();
-  const { config, orders, isLoadingConfig, isSavingConfig, fetchShopConfig, fetchOrders, updateConfig } = useOnlineShopStore();
+  const { settings } = useAppStore(
+    useShallow(state => ({
+      settings: state.settings,
+    }))
+  );
+  const { config, orders, isLoadingConfig, isSavingConfig, fetchShopConfig, fetchOrders, updateConfig } = useOnlineShopStore(
+    useShallow(state => ({
+      config: state.config,
+      orders: state.orders,
+      isLoadingConfig: state.isLoadingConfig,
+      isSavingConfig: state.isSavingConfig,
+      fetchShopConfig: state.fetchShopConfig,
+      fetchOrders: state.fetchOrders,
+      updateConfig: state.updateConfig,
+    }))
+  );
   const [refreshing, setRefreshing] = useState(false);
   const [copied, setCopied] = useState(false);
 

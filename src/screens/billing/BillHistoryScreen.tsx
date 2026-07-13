@@ -12,6 +12,7 @@ import LiquidButton from '../../components/common/LiquidButton';
 import SheetHeader from '../../components/common/SheetHeader';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/useAppStore';
 import { useTranslation } from '../../hooks/useTranslation';
 import { formatCurrency, formatDate, formatTime, generateBillText, startOfDay, startOfWeek, startOfMonth } from '../../utils/helpers';
@@ -52,12 +53,73 @@ type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 const PAY_ICONS: Record<string, string> = { cash: '💵', upi: '📱', credit: '📝' };
 const PAY_ICON: Record<string, IoniconsName> = { cash: 'cash-outline', upi: 'phone-portrait-outline', credit: 'document-text-outline' };
 
+// Extracted + memoized — this renders inside a `FlatList`, so without this
+// every row re-rendered on any state change anywhere in the screen, not
+// just when its own bill/return data actually changed. Takes `colors`/`s`
+// (both stable references — `s` is now itself memoized on `colors` in the
+// screen below) and `onPress` as a stable top-level callback (`openDetail`,
+// passed directly, not wrapped in a fresh per-row closure) so `React.memo`'s
+// shallow-equality check can actually skip re-rendering unchanged rows.
+const BillRow = React.memo(function BillRow({
+  bill, index, colors, s, currency, hasReturn, refunded, returnsLabel, onPress,
+}: {
+  bill: Bill; index: number; colors: any; s: any; currency: string;
+  hasReturn: boolean; refunded: number; returnsLabel: string; onPress: (bill: Bill) => void;
+}) {
+  const modeColor = bill.paymentMode === 'cash' ? colors.success : bill.paymentMode === 'upi' ? colors.info : colors.warning;
+  return (
+    <FadeSlideIn index={index}>
+      <TouchableOpacity style={[s.billCard, { backgroundColor: colors.surface }]} onPress={() => onPress(bill)} activeOpacity={0.7}>
+        <View style={[s.billIconBox, { backgroundColor: modeColor + '1A' }]}>
+          <Ionicons name={PAY_ICON[bill.paymentMode]} size={24} color={modeColor} />
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={[s.billItems, { color: colors.text }]} numberOfLines={1}>
+            {bill.items.map(i => `${i.productName} ×${i.quantity}`).join(', ')}
+          </Text>
+          <View style={s.billMetaRow}>
+            <Text style={[s.billDate, { color: colors.textMuted }]}>{formatDate(bill.createdAt)} · {formatTime(bill.createdAt)}</Text>
+            {bill.customerName ? (
+              <View style={[s.billCustomerPill, { backgroundColor: colors.info + '15' }]}>
+                <Ionicons name="person" size={9} color={colors.info} />
+                <Text style={[s.billCustomerText, { color: colors.info }]} numberOfLines={1}>{bill.customerName}</Text>
+              </View>
+            ) : null}
+            {hasReturn && (
+              <View style={[s.returnBadge, { backgroundColor: colors.warning + '20' }]}>
+                <Ionicons name="arrow-undo" size={9} color={colors.warning} />
+                <Text style={[s.returnBadgeText, { color: colors.warning }]}>
+                  {refunded > 0 ? `${formatCurrency(refunded, currency)}` : returnsLabel}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+        <View style={{ alignItems: 'flex-end', gap: 6 }}>
+          <Text style={[s.billTotal, { color: colors.text }]}>{formatCurrency(bill.total, currency)}</Text>
+          <View style={[s.payPill, { backgroundColor: modeColor + '1A' }]}>
+            <Text style={[s.payPillText, { color: modeColor }]}>{bill.paymentMode.toUpperCase()}</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    </FadeSlideIn>
+  );
+});
+
 export default function BillHistoryScreen() {
   const { colors } = useAppTheme();
   const navigation = useNavigation();
   const { t } = useTranslation();
   const { confirm } = useConfirm();
-  const { bills, returns, products, settings, processReturn } = useAppStore();
+  const { bills, returns, products, settings, processReturn } = useAppStore(
+    useShallow(state => ({
+      bills: state.bills,
+      returns: state.returns,
+      products: state.products,
+      settings: state.settings,
+      processReturn: state.processReturn,
+    }))
+  );
   const dataReady = useAppStore(st => st.dataReady);
   const [filter, setFilter] = useState<Filter>('today');
   const [payFilter, setPayFilter] = useState<PayFilter>('all');
@@ -92,7 +154,27 @@ export default function BillHistoryScreen() {
     return n;
   }, [filter, payFilter, returnedOnly]);
 
-  const s = makeStyles(colors);
+  // Memoized — `StyleSheet.create` was being re-invoked (a brand new object
+  // every time) on every render regardless of whether `colors` actually
+  // changed, which also meant any memoized child given `s` as a prop could
+  // never actually skip re-rendering (a "new" prop reference every render
+  // always fails `React.memo`'s shallow-equality check).
+  const s = useMemo(() => makeStyles(colors), [colors]);
+
+  // O(1) return lookup per bill instead of an O(returns.length) scan per
+  // row per render (`billHasReturn`/`billTotalRefunded` below) — with a
+  // busy shop's return history this was a real cost multiplied across every
+  // visible row on every render.
+  const returnsByBill = useMemo(() => {
+    const map = new Map<string, { hasReturn: boolean; refunded: number }>();
+    for (const r of returns) {
+      const entry = map.get(r.billId) ?? { hasReturn: false, refunded: 0 };
+      entry.hasReturn = true;
+      entry.refunded += r.refundAmount;
+      map.set(r.billId, entry);
+    }
+    return map;
+  }, [returns]);
 
   // Plain flex row, not absolutely-positioned siblings — see
   // AppNavigator's useHeaderOpts comment for why.
@@ -126,6 +208,24 @@ export default function BillHistoryScreen() {
     detailSheetRef.current?.expand();
   }, []);
   const closeDetail = useCallback(() => detailSheetRef.current?.close(), []);
+
+  const returnsLabel = t('returns');
+  const renderBillItem = useCallback(({ item, index }: { item: Bill; index: number }) => {
+    const entry = returnsByBill.get(item.id);
+    return (
+      <BillRow
+        bill={item}
+        index={index}
+        colors={colors}
+        s={s}
+        currency={settings.currency}
+        hasReturn={entry?.hasReturn ?? false}
+        refunded={entry?.refunded ?? 0}
+        returnsLabel={returnsLabel}
+        onPress={openDetail}
+      />
+    );
+  }, [returnsByBill, colors, s, settings.currency, returnsLabel, openDetail]);
 
   const openReturnSheet = useCallback((bill: Bill) => {
     // Capture bill in its own state BEFORE closing detail (which nulls selectedBill)
@@ -186,10 +286,9 @@ export default function BillHistoryScreen() {
       .filter(ri => ri.productId === productId)
       .reduce((s, ri) => s + ri.quantity, 0);
 
-  const billHasReturn = (billId: string) => returns.some(r => r.billId === billId);
+  const billHasReturn = (billId: string) => returnsByBill.get(billId)?.hasReturn ?? false;
 
-  const billTotalRefunded = (billId: string) =>
-    returns.filter(r => r.billId === billId).reduce((s, r) => s + r.refundAmount, 0);
+  const billTotalRefunded = (billId: string) => returnsByBill.get(billId)?.refunded ?? 0;
 
   // Auto-compute refund amount whenever returnQtys changes
   const autoRefund = (bill: Bill) =>
@@ -434,49 +533,12 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
           style={{ flex: 1 }}
           onScroll={onListScroll}
           scrollEventThrottle={16}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews
           contentContainerStyle={{ paddingHorizontal: 8, paddingTop: filter !== 'today' || payFilter !== 'all' || returnedOnly ? listPaddingTop : 8, paddingBottom: 120, flexGrow: 1 }}
-        renderItem={({ item: bill, index }) => {
-          const modeColor = bill.paymentMode === 'cash' ? colors.success : bill.paymentMode === 'upi' ? colors.info : colors.warning;
-          const hasReturn = billHasReturn(bill.id);
-          const refunded = billTotalRefunded(bill.id);
-          return (
-            <FadeSlideIn index={index}>
-              <TouchableOpacity style={[s.billCard, { backgroundColor: colors.surface }]} onPress={() => openDetail(bill)} activeOpacity={0.7}>
-                <View style={[s.billIconBox, { backgroundColor: modeColor + '1A' }]}>
-                  <Ionicons name={PAY_ICON[bill.paymentMode]} size={24} color={modeColor} />
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={[s.billItems, { color: colors.text }]} numberOfLines={1}>
-                    {bill.items.map(i => `${i.productName} ×${i.quantity}`).join(', ')}
-                  </Text>
-                  <View style={s.billMetaRow}>
-                    <Text style={[s.billDate, { color: colors.textMuted }]}>{formatDate(bill.createdAt)} · {formatTime(bill.createdAt)}</Text>
-                    {bill.customerName ? (
-                      <View style={[s.billCustomerPill, { backgroundColor: colors.info + '15' }]}>
-                        <Ionicons name="person" size={9} color={colors.info} />
-                        <Text style={[s.billCustomerText, { color: colors.info }]} numberOfLines={1}>{bill.customerName}</Text>
-                      </View>
-                    ) : null}
-                    {hasReturn && (
-                      <View style={[s.returnBadge, { backgroundColor: colors.warning + '20' }]}>
-                        <Ionicons name="arrow-undo" size={9} color={colors.warning} />
-                        <Text style={[s.returnBadgeText, { color: colors.warning }]}>
-                          {refunded > 0 ? `${formatCurrency(refunded, settings.currency)}` : t('returns')}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-                <View style={{ alignItems: 'flex-end', gap: 6 }}>
-                  <Text style={[s.billTotal, { color: colors.text }]}>{formatCurrency(bill.total, settings.currency)}</Text>
-                  <View style={[s.payPill, { backgroundColor: modeColor + '1A' }]}>
-                    <Text style={[s.payPillText, { color: modeColor }]}>{bill.paymentMode.toUpperCase()}</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            </FadeSlideIn>
-          );
-        }}
+        renderItem={renderBillItem}
           ListEmptyComponent={<EmptyState icon="receipt-outline" title={t('noBillsFound')} subtitle={t('tryDifferentFilter')} />}
         />
       </View>

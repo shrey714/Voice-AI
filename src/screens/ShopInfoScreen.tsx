@@ -4,6 +4,7 @@ import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useAppStore } from '../stores/useAppStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useOnlineShopStore } from '../stores/useOnlineShopStore';
 import { useAppTheme } from '../theme';
 import { useTranslation } from '../hooks/useTranslation';
@@ -37,7 +38,11 @@ const ORDER_TIMEOUT_DEFAULT = 10;
  */
 export default function ShopInfoScreen(props: any) {
   const isOnline = useIsOnline();
-  const { fetchShopConfig } = useOnlineShopStore();
+  const { fetchShopConfig } = useOnlineShopStore(
+    useShallow(state => ({
+      fetchShopConfig: state.fetchShopConfig,
+    }))
+  );
   // The store's own isLoadingConfig only reflects the app's FIRST-EVER fetch
   // this session — every later visit to this screen would otherwise skip
   // straight to rendering the form with whatever (possibly stale) config is
@@ -65,7 +70,16 @@ function ShopInfoForm({ isOnline }: { isOnline: boolean }) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
   const appSettings = useAppStore((s) => s.settings);
-  const { config, updateConfig, saveConfigToSupabase, fetchShopConfig, isSavingConfig, lastError } = useOnlineShopStore();
+  const { config, updateConfig, saveConfigToSupabase, fetchShopConfig, isSavingConfig, lastError } = useOnlineShopStore(
+    useShallow(state => ({
+      config: state.config,
+      updateConfig: state.updateConfig,
+      saveConfigToSupabase: state.saveConfigToSupabase,
+      fetchShopConfig: state.fetchShopConfig,
+      isSavingConfig: state.isSavingConfig,
+      lastError: state.lastError,
+    }))
+  );
 
   // Cloud config is the source of truth once we've actually fetched it
   // (i.e. we're online); offline, fall back to the last-known local cache

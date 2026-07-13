@@ -3,6 +3,7 @@ import { View, ScrollView, StyleSheet, TouchableOpacity, TextInput, Linking, Ale
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/useAppStore';
 import { Product } from '../types';
 import { buildReorderMessage, whatsappUrl } from '../utils/reminder';
@@ -19,7 +20,13 @@ const suggestQty = (p: Product) => Math.max(1, p.lowStockThreshold * 2 - p.quant
 export default function ReorderScreen({ navigation }: any) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
-  const { products, suppliers, settings } = useAppStore();
+  const { products, suppliers, settings } = useAppStore(
+    useShallow(state => ({
+      products: state.products,
+      suppliers: state.suppliers,
+      settings: state.settings,
+    }))
+  );
   const s = makeStyles(colors);
 
   const lowStock = useMemo(() => products.filter(p => p.quantity <= p.lowStockThreshold), [products]);

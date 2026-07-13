@@ -4,6 +4,7 @@ import { Text, ActivityIndicator } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/useAppStore';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
@@ -50,7 +51,12 @@ function flagDuplicateBarcodes(rows: ParsedRow[], existing: Product[]): ParsedRo
 }
 
 export default function CsvImportScreen({ navigation }: any) {
-  const { addProduct, products } = useAppStore();
+  const { addProduct, products } = useAppStore(
+    useShallow(state => ({
+      addProduct: state.addProduct,
+      products: state.products,
+    }))
+  );
   const { colors } = useAppTheme();
   const { t } = useTranslation();
   const [rows, setRows] = useState<ParsedRow[]>([]);
