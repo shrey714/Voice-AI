@@ -189,7 +189,7 @@ export default function PurchasesScreen({ navigation }: any) {
           maxToRenderPerBatch={10}
           windowSize={7}
           removeClippedSubviews
-          contentContainerStyle={{ paddingHorizontal: 8, paddingTop: suppliers.length > 0 ? listPaddingTop : 8, paddingBottom: 150, flexGrow: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 8, paddingTop: suppliers.length > 0 ? listPaddingTop : 8, paddingBottom: 120, flexGrow: 1 }}
           renderItem={renderItem}
           ListHeaderComponent={()=>{
           if(filtered.length > 0 && totalOutstanding > 0) {
@@ -214,7 +214,7 @@ export default function PurchasesScreen({ navigation }: any) {
       </View>
 
       <CollapsibleFab
-        bottom={90}
+        bottom={24}
         icon="add"
         label={t('newPurchase')}
         extended={extended}

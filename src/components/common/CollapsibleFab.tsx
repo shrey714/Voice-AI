@@ -30,7 +30,7 @@ interface Props {
   bottom?: number;
 }
 
-export default function CollapsibleFab({ icon, label, extended, onPress, bottom = 110 }: Props) {
+export default function CollapsibleFab({ icon, label, extended, onPress, bottom = 24 }: Props) {
   const { colors, isDark } = useAppTheme();
   const [labelW, setLabelW] = useState(0); // natural label width, measured once
   // Real native Liquid Glass background on iOS 26+ (tinted with the app's

@@ -106,7 +106,14 @@ export default function LiquidHeaderMenu({
       }}
     >
       <TouchableOpacity
-        style={{ width: SIZE, height: SIZE, alignItems: 'center', justifyContent: 'center' }}
+        style={{
+          width: SIZE,
+          height: SIZE,
+          borderRadius: SIZE / 2,
+          backgroundColor: tintColor + '14',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
         hitSlop={8}
       >
         <Ionicons name={androidIcon} size={20} color={tintColor} />

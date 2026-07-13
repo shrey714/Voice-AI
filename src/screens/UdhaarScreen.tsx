@@ -310,7 +310,7 @@ export default function UdhaarScreen() {
         />
       )}
 
-      <CollapsibleFab bottom={90} icon="add" label={t('addCustomer')} extended={extended} onPress={() => { setEditingCustomer(null); setNewName(''); setNewPhone(''); openAddCustomer(); }} />
+      <CollapsibleFab bottom={24} icon="add" label={t('addCustomer')} extended={extended} onPress={() => { setEditingCustomer(null); setNewName(''); setNewPhone(''); openAddCustomer(); }} />
 
       {/* Add/Edit Customer Sheet */}
       <LiquidBottomSheet ref={addCustomerSheetRef}>
@@ -526,7 +526,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   waBadgeText: { fontFamily: fonts.semiBold, fontSize: 11 },
   balCaption: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   balCaptionText: { fontFamily: fonts.extraBold, fontSize: 11, letterSpacing: 0.5 },
-  sheetContent: { paddingHorizontal: 20, paddingBottom: 24 },
+  sheetContent: { paddingHorizontal: 4, paddingBottom: 20 },
   modalTitle: { fontFamily: fonts.extraBold, fontSize: 18, marginBottom: 16 },
   input: { borderRadius: 14, padding: 16, fontSize: 15, borderWidth: 1, marginBottom: 14, fontFamily: fonts.regular },
   btnRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8 },

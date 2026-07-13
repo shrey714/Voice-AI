@@ -1,39 +1,30 @@
 import React from 'react';
-import { View, type ImageSourcePropType } from 'react-native';
+import { Platform, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { type SFSymbol } from 'sf-symbols-typescript';
 import { Host, Button, Icon } from '@expo/ui';
 import { buttonStyle, cornerRadius, frame, tint } from '@expo/ui/swift-ui/modifiers';
-import { border, clip, Shapes } from '@expo/ui/jetpack-compose/modifiers';
 import { useAppTheme } from '../../theme';
 
 const SIZE = 34;
+// Matches `LiquidHeaderMenu`'s Android trigger icon size — the two used to
+// diverge (this component rendered its icon at 16, the menu trigger at 20),
+// which is why the document/search icons looked noticeably smaller than the
+// filter icon sitting right next to them in the same header row.
+const ANDROID_ICON_SIZE = 20;
 
-// This component's public API takes an Ionicons name for `androidIcon` (used
-// at every call site app-wide) — mapping it here to the matching Material
-// Symbols XML asset means adopting @expo/ui's universal `Icon` (which needs
-// a bundled vector asset on Android, not an arbitrary RN component) doesn't
-// require touching every caller. Only the handful of icons actually used by
-// this component are mapped; add to this list as new `androidIcon` values
-// are introduced.
-const ANDROID_ICON_ASSET = {
-  'search-outline': require('@expo/material-symbols/search.xml') as ImageSourcePropType,
-  'options-outline': require('@expo/material-symbols/tune.xml') as ImageSourcePropType,
-  'document-text-outline': require('@expo/material-symbols/description.xml') as ImageSourcePropType,
-  'chevron-back': require('@expo/material-symbols/chevron_left.xml') as ImageSourcePropType,
-};
-
-type AndroidIconName = keyof typeof ANDROID_ICON_ASSET;
+type AndroidIconName = React.ComponentProps<typeof Ionicons>['name'];
 
 /**
  * A small icon-only button for use in `headerRight` — real native iOS 26
- * Liquid Glass on iOS and a real native Jetpack Compose button on Android,
- * via `@expo/ui`'s stable SDK 56 universal `Button`/`Icon` (one shared
- * render path, not a platform-split `@expo/ui/swift-ui`-only iOS branch +
- * plain RN `TouchableOpacity` Android fallback). Always a fixed-size,
- * non-absolutely-positioned view — a normal flex sibling wherever it's
- * placed, deliberately not the `position: 'absolute'` + percentage-centering
- * pattern that broke several header buttons under native-stack's real
- * native header (see AppNavigator's useHeaderOpts comment).
+ * Liquid Glass on iOS. Android renders as a plain `TouchableOpacity` with a
+ * themed circular fill, same as `LiquidHeaderMenu`'s Android trigger, rather
+ * than `@expo/ui`'s universal Jetpack Compose `Button`: that Compose
+ * `Button` carries its own default Material shape/min-size/elevation that
+ * the app's manual `clip`/`background` overrides never fully suppressed —
+ * visible as a boxy halo behind the intended circular button. A plain RN
+ * touchable has no such intrinsics to fight, and gives full pixel control
+ * over size to match sibling header buttons exactly.
  */
 export default function LiquidHeaderIconButton({
   icon,
@@ -44,7 +35,7 @@ export default function LiquidHeaderIconButton({
 }: {
   /** SF Symbol name, used on iOS. */
   icon: SFSymbol;
-  /** Ionicons-style name, mapped internally to a Material Symbols asset for Android. */
+  /** Ionicons name, used on Android. */
   androidIcon: AndroidIconName;
   onPress: () => void;
   color?: string;
@@ -53,6 +44,28 @@ export default function LiquidHeaderIconButton({
 }) {
   const { colors, isDark } = useAppTheme();
   const tintColor = color ?? colors.primary;
+
+  if (Platform.OS !== 'ios') {
+    return (
+      <View style={{ width: SIZE, height: SIZE }}>
+        <TouchableOpacity
+          onPress={onPress}
+          hitSlop={8}
+          style={{
+            width: SIZE,
+            height: SIZE,
+            borderRadius: SIZE / 2,
+            backgroundColor: tintColor + '14',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Ionicons name={androidIcon} size={ANDROID_ICON_SIZE} color={tintColor} />
+        </TouchableOpacity>
+        {badge}
+      </View>
+    );
+  }
 
   return (
     <View style={{ width: SIZE, height: SIZE }}>
@@ -74,17 +87,9 @@ export default function LiquidHeaderIconButton({
             buttonStyle('glass'),
             tint(tintColor),
             cornerRadius(SIZE / 2),
-            // Android has no glass material — approximate the same
-            // circular tap target with a plain themed outline instead.
-            border(1, tintColor + '33'),
-            clip(Shapes.Circle),
           ]}
         >
-          <Icon
-            name={{ ios: icon, android: ANDROID_ICON_ASSET[androidIcon] }}
-            size={16}
-            color={tintColor}
-          />
+          <Icon name={icon} size={16} color={tintColor} />
         </Button>
       </Host>
       {badge}

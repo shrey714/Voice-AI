@@ -338,7 +338,7 @@ export default function SupplierScreen() {
         }
       />
 
-      <CollapsibleFab bottom={90} icon="add" label={t('addSupplier')} extended={extended} onPress={openAdd} />
+      <CollapsibleFab bottom={24} icon="add" label={t('addSupplier')} extended={extended} onPress={openAdd} />
 
       {/* Add/Edit Supplier Form Sheet */}
       <LiquidBottomSheet ref={formSheetRef}>
@@ -362,7 +362,7 @@ export default function SupplierScreen() {
               />
             </View>
           ))}
-          <LiquidButton title={t('save')} onPress={save} variant="glassProminent" style={s.btnRow} />
+          <LiquidButton title={t('save')} fullWidth onPress={save} variant="glassProminent" style={s.btnRow} />
         </ScrollView>
       </LiquidBottomSheet>
 

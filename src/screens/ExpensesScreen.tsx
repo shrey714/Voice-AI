@@ -179,7 +179,7 @@ export default function ExpensesScreen() {
         />
       </View>{/* end scrollable area */}
 
-      <CollapsibleFab bottom={90} icon="add" label={t('saveExpense')} extended={extended} onPress={openForm} />
+      <CollapsibleFab bottom={24} icon="add" label={t('saveExpense')} extended={extended} onPress={openForm} />
 
       <LiquidBottomSheet ref={formSheetRef}>
         <SheetHeader title={t('addExpense')} onClose={closeForm} />
@@ -261,7 +261,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8, borderWidth: 1 },
   deleteBtnLabel: { fontFamily: fonts.semiBold, fontSize: 11 },
 
-  sheetContent: { paddingHorizontal: 20, paddingBottom: 24 },
+  sheetContent: { paddingHorizontal: 4, paddingBottom: 20 },
   input: { borderRadius: 14, padding: 16, fontSize: 15, borderWidth: 1, marginBottom: 14, fontFamily: fonts.regular },
   fieldLabel: { fontFamily: fonts.bold, fontSize: 13, marginBottom: 8 },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },

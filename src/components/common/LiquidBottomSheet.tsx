@@ -69,7 +69,17 @@ const LiquidBottomSheet = forwardRef<LiquidBottomSheetRef, LiquidBottomSheetProp
         onDismiss={() => { setIsPresented(false); onDismiss?.(); }}
         snapPoints={snapPoints}
       >
-        <RNHostView matchContents>
+        {/* `matchContents` (default false = fill the native sheet's own
+            width/height) must stay off here — turning it on made the hosted
+            RN content size itself to its own intrinsic width instead of
+            filling the sheet, so on Android the content rendered narrower
+            and shifted left while the native Compose sheet's own full-width
+            rounded background still showed behind/around it (every button
+            inside, e.g. DatePickerSheet's Confirm, showed the same "box
+            behind it" look for the identical reason). The native sheet
+            already auto-sizes its height to content when no `heightFraction`
+            is given, so nothing is lost by leaving this at the default. */}
+        <RNHostView>
           <View>{children}</View>
         </RNHostView>
       </UniversalBottomSheet>

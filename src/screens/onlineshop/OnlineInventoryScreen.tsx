@@ -257,7 +257,7 @@ export default function OnlineInventoryScreen({ navigation }: any) {
         />
       )}
 
-      <CollapsibleFab icon="add" label="Add Product" extended={extended} onPress={handleAdd} bottom={90} />
+      <CollapsibleFab icon="add" label="Add Product" extended={extended} onPress={handleAdd} bottom={24} />
 
       <ImportPickerSheet sheetRef={importSheetRef} onPick={handleImportPick} />
     </View>

@@ -7,7 +7,7 @@ import { fonts } from '../../theme/typography';
 
 /** Shared horizontal padding for every `LiquidBottomSheet`'s content — was
  * inconsistent (20/16/10/8/0) across screens before this was pulled out. */
-export const SHEET_PADDING = 20;
+export const SHEET_PADDING = 16;
 
 /**
  * The title row every bottom sheet should lead with — title text + an
@@ -60,15 +60,15 @@ const styles = StyleSheet.create({
     // both lines.
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    paddingHorizontal: SHEET_PADDING,
+    paddingHorizontal: 4,
     // Extra top padding gives the header real room under the drag handle
     // instead of the title crowding right up against it, and the taller
     // bottom padding + border reads as a deliberate divider rather than a
     // cramped one-line strip.
-    paddingTop: 20,
-    paddingBottom: 18,
+    paddingTop: 0,
+    paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   title: { fontFamily: fonts.extraBold, fontSize: 19 },
   subtitle: { fontFamily: fonts.medium, fontSize: 13, marginTop: 3 },

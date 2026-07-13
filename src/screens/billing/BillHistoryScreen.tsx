@@ -918,7 +918,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   payPill: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8 },
   payPillText: { fontFamily: fonts.extraBold, fontSize: 11, letterSpacing: 0.3 },
 
-  sheetContent: { paddingHorizontal: 20, paddingBottom: 24 },
+  sheetContent: { paddingHorizontal: 4, paddingBottom: 20 },
   billHeader: { alignItems: 'center', paddingBottom: 16, borderBottomWidth: 1, marginBottom: 14 },
   billShopName: { fontFamily: fonts.extraBold, fontSize: 18 },
   billDateTime: { fontFamily: fonts.medium, fontSize: 13, marginTop: 6 },

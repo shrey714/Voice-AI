@@ -979,7 +979,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   checkoutBtn: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', margin: 14, paddingHorizontal: 18, paddingVertical: 14, borderRadius: 16 },
   checkoutTotal: { color: '#fff', fontFamily: fonts.display, fontSize: 18 },
   checkoutLabel: { color: '#fff', fontFamily: fonts.bold, fontSize: 15 },
-  sheetContent: { paddingHorizontal: 20, paddingBottom: 24 },
+  sheetContent: { paddingHorizontal: 4, paddingBottom: 20 },
   modalLabel: { fontFamily: fonts.bold, fontSize: 13, marginBottom: 8, marginTop: 14 },
   modalInput: { borderRadius: 14, padding: 14, fontSize: 15, borderWidth: 1, fontFamily: fonts.regular, color: 'black' },
   paymentRow: { flexDirection: 'row', gap: 10, marginTop: 6 },

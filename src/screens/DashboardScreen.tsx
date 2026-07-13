@@ -4,7 +4,7 @@ import { Text } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
-import Animated, { useSharedValue, useAnimatedStyle, useAnimatedProps, withRepeat, withTiming, Easing, SharedValue } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedProps, withTiming, Easing } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/useAppStore';
@@ -110,50 +110,22 @@ import { whatsappUrl } from '../utils/reminder';
 import { toast } from '../utils/toast';
 import * as db from '../db/database';
 
-// A single letter whose brightness peaks as the shimmer sweep passes its position.
-function ShimmerLetter({ char, t, progress, base, peakAdd, color, textStyle }: {
-  char: string; t: number; progress: SharedValue<number>;
-  base: number; peakAdd: number; color: string; textStyle: any;
-}) {
-  const style = useAnimatedStyle(() => {
-    const d = progress.value - t;
-    const peak = Math.exp(-(d * d) * 55); // tight gaussian → a focused band of light
-    return { opacity: base + peak * peakAdd };
-  });
-  return <Animated.Text style={[textStyle, { color }, style]}>{char}</Animated.Text>;
-}
-
-// Big faded wordmark with a light that glides left→right through the letters.
+// Big faded wordmark — same look as the old animated version's resting
+// state (dot in `colors.primary` at full brightness, letters in `colors.text`
+// at a fixed low opacity), just without the looping light-sweep animation.
 function ShimmerBrand({ colors }: { colors: any }) {
   const brand = 'shopkeeper.ai';
   const chars = brand.split('');
-  const n = chars.length;
   const { width } = Dimensions.get('window');
   const size = Math.min(60, Math.round((width - 36) / 7.2));
   const textStyle = { fontFamily: fonts.extraBold, fontSize: size, lineHeight: size * 1.04, includeFontPadding: false };
-
-  const progress = useSharedValue(-0.3);
-  useEffect(() => {
-    // Sweep from before the first letter to past the last, then loop seamlessly
-    // (everything is back at base brightness at the wrap point, so no flicker).
-    progress.value = withRepeat(withTiming(1.3, { duration: 3000, easing: Easing.inOut(Easing.ease) }), -1, false);
-  }, []);
 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
       {chars.map((c, i) => {
         const isDot = c === '.';
         return (
-          <ShimmerLetter
-            key={i}
-            char={c}
-            t={i / (n - 1)}
-            progress={progress}
-            base={isDot ? 0.85 : 0.07}
-            peakAdd={isDot ? 0.15 : 0.6}
-            color={isDot ? colors.primary : colors.text}
-            textStyle={textStyle}
-          />
+          <Text key={i} style={[textStyle, { color: isDot ? colors.primary : colors.text, opacity: isDot ? 1 : 0.25 }]}>{c}</Text>
         );
       })}
     </View>
@@ -662,7 +634,7 @@ export default function DashboardScreen({ navigation }: any) {
           </MotiView>
         )}
 
-        {/* Brand watermark footer — shimmer sweeps through the letters */}
+        {/* Brand watermark footer */}
         <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ type: 'timing', duration: 600 }} style={s.brandWrap}>
           <Text style={[s.brandTagline, { color: colors.textMuted }]}>{t('runByVoice')}</Text>
           <ShimmerBrand colors={colors} />

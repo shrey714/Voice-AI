@@ -139,7 +139,6 @@ export default function InventoryScreen({ route, navigation }: any) {
           <LiquidHeaderIconButton
             icon="doc.text"
             androidIcon="document-text-outline"
-            color={colors.textMuted}
             onPress={() => navigation.navigate('CsvImport')}
           />
           <LiquidHeaderIconButton
@@ -196,7 +195,7 @@ export default function InventoryScreen({ route, navigation }: any) {
         maxToRenderPerBatch={10}
         windowSize={7}
         removeClippedSubviews
-        contentContainerStyle={{ paddingHorizontal: 8, paddingTop: 8, paddingBottom: 150, flexGrow: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 8, paddingTop: 8, paddingBottom: 120, flexGrow: 1 }}
         renderItem={renderProductItem}
         ListEmptyComponent={
           <EmptyState icon="cube-outline" title={t('noProducts')} subtitle={t('tapPlusToAdd')}
@@ -205,7 +204,7 @@ export default function InventoryScreen({ route, navigation }: any) {
       />
       </View>{/* end scrollable area */}
 
-      <CollapsibleFab bottom={90} icon="add" label="Add Product" extended={extended} onPress={() => {
+      <CollapsibleFab bottom={24} icon="add" label="Add Product" extended={extended} onPress={() => {
         confirmActions({
           title: t('addStock'),
           actions: [
@@ -279,7 +278,7 @@ export default function InventoryScreen({ route, navigation }: any) {
 
 const makeStyles = (c: any) => StyleSheet.create({
 
-  sheetContent: { paddingHorizontal: 20, paddingBottom: 24 },
+  sheetContent: { paddingHorizontal: 4, paddingBottom: 20 },
   stockCurrent: { fontFamily: fonts.medium, fontSize: 14, marginBottom: 18 },
   stockQuickRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
   stockQuickBtn: { flex: 1, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
