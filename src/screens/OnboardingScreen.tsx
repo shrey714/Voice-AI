@@ -233,6 +233,7 @@ export default function OnboardingScreen() {
               onPress={next}
               disabled={primaryDisabled}
               tintColor={CREAM}
+              textColor={SAGE_DARK}
               height={52}
               style={{ flex: 1 }}
             />

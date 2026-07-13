@@ -3,7 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import {
   View, ScrollView, StyleSheet, TouchableOpacity,
   TextInput, Alert, Linking, FlatList, Keyboard, Pressable,
-  Platform,
+  Platform, LayoutAnimation,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Text, ActivityIndicator } from 'react-native-paper';
@@ -529,8 +529,6 @@ export default function BillingScreen({ navigation }: any) {
         )}
       </View>
 
-      <View style={[s.emptyContainer]}></View>
-
       {/* Checkout Bottom Sheet */}
       <LiquidBottomSheet
         ref={checkoutSheetRef}
@@ -751,7 +749,10 @@ export default function BillingScreen({ navigation }: any) {
                   {/* Compact header — always visible */}
                   <TouchableOpacity
                     style={s.templateCardHeader}
-                    onPress={() => setExpandedTemplateId(isExpanded ? null : tmpl.id)}
+                    onPress={() => {
+                      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                      setExpandedTemplateId(isExpanded ? null : tmpl.id);
+                    }}
                     activeOpacity={0.7}
                   >
                     <View style={[s.templateIconBox, { backgroundColor: colors.primaryLight }]}>
@@ -961,8 +962,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   productMeta: { fontFamily: fonts.regular, fontSize: 12 },
   productPrice: { fontFamily: fonts.extraBold, fontSize: 15, marginRight: 4 },
   addBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
-  cartContainer: { marginHorizontal: 8, borderRadius: 10, display: 'flex', flex: 1 },
-  emptyContainer: { height: 90 },
+  cartContainer: { marginHorizontal: 8, marginBottom: 9, borderRadius: 10, display: 'flex', flex: 1 },
   cartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 0.5 },
   cartTitle: { fontFamily: fonts.extraBold, fontSize: 16 },
   cartBadge: { width: 18, height: 18, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },

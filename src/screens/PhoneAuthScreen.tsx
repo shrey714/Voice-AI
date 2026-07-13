@@ -106,6 +106,7 @@ export default function PhoneAuthScreen() {
                   disabled={phone.length < 10}
                   loading={loading}
                   tintColor={BRAND.cream}
+                  textColor={BRAND.sageDark}
                   height={52}
                 />
               </>
@@ -128,6 +129,7 @@ export default function PhoneAuthScreen() {
                   disabled={otp.length !== 6}
                   loading={loading}
                   tintColor={BRAND.cream}
+                  textColor={BRAND.sageDark}
                   height={52}
                 />
                 <TouchableOpacity style={{ marginTop: 14, alignItems: 'center' }} onPress={() => { setStep('phone'); setOtp(''); }}>

@@ -68,6 +68,7 @@ export default function LiquidButton({
   icon,
   variant = 'glassProminent',
   tintColor: tintColorOverride,
+  textColor: textColorOverride,
   disabled = false,
   loading = false,
   height = 54,
@@ -80,6 +81,14 @@ export default function LiquidButton({
   variant?: LiquidButtonVariant;
   /** Overrides the variant's default tint (primary/danger) — e.g. a success green. */
   tintColor?: string;
+  /**
+   * Overrides the variant's default text/icon color (`'#fff'` for
+   * `glassProminent`/`destructive`, `colors.text` for `glass`). Needed
+   * whenever `tintColor` is overridden to something light (e.g. a cream
+   * pill on a colored background) — the default white text would otherwise
+   * render at near-zero contrast against it.
+   */
+  textColor?: string;
   disabled?: boolean;
   loading?: boolean;
   height?: number;
@@ -96,7 +105,7 @@ export default function LiquidButton({
     : variant === 'glass' ? colors.surfaceHigh
     : colors.primary
   );
-  const fg = variant === 'glass' ? colors.text : '#fff';
+  const fg = textColorOverride ?? (variant === 'glass' ? colors.text : '#fff');
 
   const onRowLayout = (e: LayoutChangeEvent) => {
     const w = e.nativeEvent.layout.width;

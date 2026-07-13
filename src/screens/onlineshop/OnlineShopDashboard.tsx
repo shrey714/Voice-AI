@@ -303,6 +303,7 @@ export default function OnlineShopDashboard({ navigation }: any) {
               onPress={() => navigation.navigate('ShopInfo')}
               variant="glassProminent"
               tintColor="#fff"
+              textColor={colors.primaryDark}
             />
           </MotiView>
         </LinearGradient>
