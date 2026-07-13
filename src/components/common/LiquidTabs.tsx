@@ -3,7 +3,7 @@ import { Platform, TouchableOpacity, View, StyleSheet, type LayoutChangeEvent } 
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { Host, Picker, Text as SwiftUIText } from '@expo/ui/swift-ui';
-import { pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
+import { pickerStyle, tag, tint } from '@expo/ui/swift-ui/modifiers';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
 
@@ -55,7 +55,7 @@ export default function LiquidTabs({
             <Picker
               selection={selected}
               onSelectionChange={onSelect}
-              modifiers={[pickerStyle('segmented')]}
+              modifiers={[pickerStyle('segmented'), tint(colors.primary)]}
             >
               {tabs.map(t => (
                 <SwiftUIText key={t.key} modifiers={[tag(t.key)]}>{t.label}</SwiftUIText>

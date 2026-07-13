@@ -6,6 +6,7 @@ import {
   Platform, LayoutAnimation,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -72,6 +73,7 @@ const CatalogRow = React.memo(function CatalogRow({
 export default function BillingScreen({ navigation }: any) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const { confirm, confirmActions } = useConfirm();
   const { products, cart, addToCart, removeFromCart, updateCartQuantity, clearCart, checkout, settings, templates, saveTemplate, renameTemplate, deleteTemplate } = useAppStore(
@@ -363,8 +365,16 @@ export default function BillingScreen({ navigation }: any) {
 
   const payModeColors = { cash: colors.success, upi: colors.info, credit: colors.warning };
 
+  // iOS sits under `createNativeBottomTabNavigator` (a real
+  // UITabBarController) whose content area extends full-height *behind* the
+  // tab bar, unlike Android's classic JS bottom-tabs — same root cause as
+  // `CollapsibleFab`'s `IOS_TAB_BAR_HEIGHT` fix. Without this, the cart's
+  // checkout button (flowing normally at the bottom of this screen, not
+  // absolutely positioned) renders underneath the tab bar on iOS.
+  const iosTabBarPad = Platform.OS === 'ios' ? 49 + insets.bottom : 0;
+
   return (
-    <View style={[s.container, { backgroundColor: colors.bg }]}>
+    <View style={[s.container, { backgroundColor: colors.bg, paddingBottom: iosTabBarPad }]}>
       {/* Top bar */}
       <View style={[s.topBar, { backgroundColor: colors.surface }]}>
         <View style={[s.searchBox, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>

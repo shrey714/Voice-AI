@@ -233,13 +233,13 @@ export default function OnlineOrdersScreen({ navigation, route }: any) {
       });
   }, [orders, activeTab, periodFilter, customFrom, customTo, searchQuery]);
 
-  if (isLoadingConfig || isLoadingOrders) {
-    return <OnlineOrdersSkeleton />;
-  }
-
   const renderOrder = useCallback(({ item, index }: { item: OnlineOrder; index: number }) => (
     <OrderRow order={item} index={index} colors={colors} s={s} currency={settings.currency} onPress={openOrderDetail} />
   ), [colors, s, settings.currency, openOrderDetail]);
+
+  if (isLoadingConfig || isLoadingOrders) {
+    return <OnlineOrdersSkeleton />;
+  }
 
   const activeStatusTab = STATUS_TABS.find((t) => t.key === activeTab)!;
 

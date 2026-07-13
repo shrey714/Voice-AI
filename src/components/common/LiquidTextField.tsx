@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Platform, View } from 'react-native';
 import { Host, TextInput as UniversalTextInput, useNativeState } from '@expo/ui';
-import { glassEffect, lineLimit } from '@expo/ui/swift-ui/modifiers';
+import { lineLimit } from '@expo/ui/swift-ui/modifiers';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
 
@@ -31,12 +31,13 @@ export type LiquidTextFieldKeyboard = 'default' | 'numeric' | 'phone-pad' | 'ema
  *
  * `style` carries the cross-platform look (background/radius/padding — the
  * universal component translates these to the right SwiftUI/Compose
- * modifiers per platform on its own). No border on either platform — just
- * background + glass on iOS, background only on Android (a `border()`
- * modifier was tried for Android, but the jetpack-compose `border()` has no
- * shape parameter, so it always draws a plain rectangle regardless of this
- * field's `borderRadius`, showing as a visible square edge poking out past
- * the rounded corners — worse than no border).
+ * modifiers per platform on its own). No border on either platform, and no
+ * `glassEffect()` on iOS either — both were tried and both rendered as a
+ * mismatched box nested inside the field instead of blending with it (glass:
+ * doesn't fill the same bounds as the flat backing fill under it; Android's
+ * `border()` modifier has no shape parameter, so it always draws a plain
+ * rectangle regardless of this field's `borderRadius`). Flat `backgroundColor`
+ * fill only, same look on both platforms.
  *
  * Android's vertical centering uses `Host matchContents={{ vertical: true }}`
  * (sizes the Host to the field's real, small content height instead of a
@@ -109,16 +110,16 @@ export default function LiquidTextField({
             paddingHorizontal: 14,
             paddingVertical: multiline ? 10 : (isAndroid ? 13 : 0),
             borderRadius: 12,
-            // Backing the field with the app's own `surfaceHigh` tone (dimmed
-            // via alpha) before iOS's glass modifier keeps it legible against
-            // an already-transparent `LiquidBottomSheet` instead of the glass
-            // reading as nearly invisible with nothing solid behind it.
+            // Flat fill on both platforms — a `glassEffect()` modifier was
+            // tried on iOS layered on top of this same `backgroundColor`,
+            // but the glass material doesn't fill the exact same bounds as
+            // the flat backing fill underneath it, so it rendered as a
+            // visibly mismatched inset box nested inside the field instead
+            // of a single seamless surface. Matches Android's already-fine
+            // flat-fill look instead.
             backgroundColor: colors.surfaceHigh + 'CC',
           }}
           modifiers={[
-            ...(Platform.OS === 'ios'
-              ? [glassEffect({ glass: { variant: 'regular' }, shape: 'roundedRectangle', cornerRadius: 12 })]
-              : []),
             ...(multiline && Platform.OS === 'ios' ? [lineLimit({ min: 3, max: 8 })] : []),
           ]}
         />

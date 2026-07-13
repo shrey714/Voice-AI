@@ -4,6 +4,7 @@ import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
 
@@ -30,21 +31,33 @@ interface Props {
   bottom?: number;
 }
 
+// iOS screens sit under `createNativeBottomTabNavigator` (a real
+// UITabBarController), whose content area extends full-height *behind* the
+// tab bar — unlike Android's classic JS bottom-tabs, where the screen's own
+// layout already stops above the tab bar. So on iOS, `bottom` needs the tab
+// bar's own height (standard UIKit tab bar content height) plus the home
+// indicator safe area added on top, or this floats behind the bar instead
+// of above it. 49 is UIKit's standard tab bar height; `insets.bottom`
+// covers the home indicator separately.
+const IOS_TAB_BAR_HEIGHT = 49;
+
 export default function CollapsibleFab({ icon, label, extended, onPress, bottom = 24 }: Props) {
   const { colors, isDark } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const [labelW, setLabelW] = useState(0); // natural label width, measured once
   // Real native Liquid Glass background on iOS 26+ (tinted with the app's
   // brand color, same as Apple's own floating action buttons), a plain
   // solid fill everywhere else — all the extend/collapse animation logic
   // below is untouched either way, only the background rendering changes.
   const glass = Platform.OS === 'ios' && isLiquidGlassAvailable();
+  const resolvedBottom = bottom + (Platform.OS === 'ios' ? IOS_TAB_BAR_HEIGHT + insets.bottom : 0);
 
   return (
     // Shadow lives on this outer view (no overflow:hidden here — RN clips
     // shadows along with content, so the rounded-clip layer for the glass
     // background has to be a separate inner view instead of sharing this
     // one, or the shadow would vanish).
-    <TouchableOpacity activeOpacity={0.88} onPress={onPress} style={[styles.fabShadow, { bottom }]}>
+    <TouchableOpacity activeOpacity={0.88} onPress={onPress} style={[styles.fabShadow, { bottom: resolvedBottom }]}>
       <View style={[styles.fab, !glass && { backgroundColor: colors.primary }]}>
         {glass && (
           // `isInteractive` deliberately omitted (and pointerEvents:'none'
