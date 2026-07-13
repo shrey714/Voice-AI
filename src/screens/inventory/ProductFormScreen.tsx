@@ -463,7 +463,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   },
   productImage: { width: '100%', height: 120, borderRadius: 14 },
   visionOverlay: {
-    ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)',
+    ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center', alignItems: 'center', borderRadius: 14,
   },
   input: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, borderWidth: 1, fontFamily: fonts.regular },

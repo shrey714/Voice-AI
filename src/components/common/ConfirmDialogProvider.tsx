@@ -94,15 +94,15 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
         // Full-screen, touch-transparent when idle — a zero-size anchor here
         // collapses to the screen's (0,0) corner and SwiftUI presents the
         // confirmationDialog pinned to that corner instead of centered/full-width.
-        <View style={StyleSheet.absoluteFillObject} pointerEvents={pending ? 'auto' : 'none'}>
-        <Host style={StyleSheet.absoluteFillObject} colorScheme={isDark ? 'dark' : 'light'}>
+        <View style={StyleSheet.absoluteFill} pointerEvents={pending ? 'auto' : 'none'}>
+        <Host style={StyleSheet.absoluteFill} colorScheme={isDark ? 'dark' : 'light'}>
           <ConfirmationDialog
             title={pending?.options.title ?? ''}
             isPresented={!!pending}
             onIsPresentedChange={handleIsPresentedChange}
           >
             <ConfirmationDialog.Trigger>
-              <View style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+              <View style={StyleSheet.absoluteFill} pointerEvents="none" />
             </ConfirmationDialog.Trigger>
             <ConfirmationDialog.Actions>
               {pending?.kind === 'confirm' && (

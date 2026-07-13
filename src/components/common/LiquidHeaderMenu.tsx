@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Platform, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { type SFSymbol } from 'sf-symbols-typescript';
-import { Menu as PaperMenu, Divider, Text } from 'react-native-paper';
 import { Host, Menu as SwiftUIMenu, Button as SwiftUIButton, Section as SwiftUISection, Image as SwiftUIImage } from '@expo/ui/swift-ui';
 import { buttonStyle, cornerRadius, frame, tint } from '@expo/ui/swift-ui/modifiers';
+import { MenuView, type MenuAction } from '@expo/ui/community/menu';
 import { useAppTheme } from '../../theme';
-import { fonts } from '../../theme/typography';
 
 const SIZE = 34;
 
@@ -24,10 +23,12 @@ export type LiquidMenuSection = {
 
 /**
  * A single header icon button that opens a native dropdown/menu — real
- * SwiftUI `Menu` on iOS (via @expo/ui), `react-native-paper`'s `Menu` on
- * Android. Replaces inline sort-toggle/category-chip rows that used to sit
- * below the header on screens like Inventory; grouped sort + filter options
- * live here instead, same look as `LiquidHeaderIconButton`.
+ * SwiftUI `Menu` on iOS and a real native Jetpack Compose `DropdownMenu` on
+ * Android (both via @expo/ui's stable SDK 56 APIs — the Android side used to
+ * fall back to `react-native-paper`'s JS-rendered `Menu` before a genuine
+ * native equivalent existed). Replaces inline sort-toggle/category-chip rows
+ * that used to sit below the header on screens like Inventory; grouped sort
+ * + filter options live here instead, same look as `LiquidHeaderIconButton`.
  */
 export default function LiquidHeaderMenu({
   icon = 'line.3.horizontal.decrease.circle',
@@ -42,7 +43,6 @@ export default function LiquidHeaderMenu({
 }) {
   const { colors, isDark } = useAppTheme();
   const tintColor = color ?? colors.primary;
-  const [visible, setVisible] = useState(false);
 
   if (Platform.OS === 'ios') {
     return (
@@ -70,36 +70,34 @@ export default function LiquidHeaderMenu({
     );
   }
 
+  // Ids are namespaced `${sectionIndex}:${value}` since `onPressAction` only
+  // gives back a flat id — this recovers which section's `onSelect` to call
+  // (sections can otherwise share option values, e.g. two independent
+  // filters both having a "none" choice).
+  const actions: MenuAction[] = sections.map((section, i) => ({
+    title: section.title,
+    displayInline: true,
+    subactions: section.options.map(opt => ({
+      id: `${i}:${opt.value}`,
+      title: opt.label,
+      state: opt.selected ? 'on' : 'off',
+    })),
+  }));
+
   return (
-    <PaperMenu
-      visible={visible}
-      onDismiss={() => setVisible(false)}
-      anchor={
-        <TouchableOpacity
-          onPress={() => setVisible(true)}
-          style={{ width: SIZE, height: SIZE, alignItems: 'center', justifyContent: 'center' }}
-          hitSlop={8}
-        >
-          <Ionicons name={androidIcon} size={20} color={tintColor} />
-        </TouchableOpacity>
-      }
+    <MenuView
+      actions={actions}
+      onPressAction={({ nativeEvent }) => {
+        const [sectionIndex, value] = nativeEvent.event.split(/:(.*)/s);
+        sections[Number(sectionIndex)]?.onSelect(value);
+      }}
     >
-      {sections.map((section, i) => (
-        <React.Fragment key={i}>
-          {i > 0 && <Divider />}
-          <Text style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4, fontSize: 12, fontFamily: fonts.bold, color: colors.textMuted }}>
-            {section.title}
-          </Text>
-          {section.options.map(opt => (
-            <PaperMenu.Item
-              key={opt.value}
-              title={opt.label}
-              leadingIcon={opt.selected ? 'check' : undefined}
-              onPress={() => { section.onSelect(opt.value); setVisible(false); }}
-            />
-          ))}
-        </React.Fragment>
-      ))}
-    </PaperMenu>
+      <TouchableOpacity
+        style={{ width: SIZE, height: SIZE, alignItems: 'center', justifyContent: 'center' }}
+        hitSlop={8}
+      >
+        <Ionicons name={androidIcon} size={20} color={tintColor} />
+      </TouchableOpacity>
+    </MenuView>
   );
 }

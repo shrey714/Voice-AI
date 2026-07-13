@@ -708,7 +708,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   // Daily goal ring
   goalCard: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 14, borderRadius: 18, padding: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border },
   goalRingWrap: { width: 96, height: 96, alignItems: 'center', justifyContent: 'center' },
-  goalRingCenter: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  goalRingCenter: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   goalPct: { fontFamily: fonts.extraBold, fontSize: 22 },
   goalLbl: { fontFamily: fonts.bold, fontSize: 10.5, letterSpacing: 1 },
   goalAmount: { fontFamily: fonts.extraBold, fontSize: 16, marginTop: 6 },

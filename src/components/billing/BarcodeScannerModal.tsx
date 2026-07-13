@@ -102,7 +102,7 @@ const CORNER = 24;
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
 
-  noCam: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', gap: 16, padding: 32, backgroundColor: '#0A0A1B' },
+  noCam: { ...StyleSheet.absoluteFill, justifyContent: 'center', alignItems: 'center', gap: 16, padding: 32, backgroundColor: '#0A0A1B' },
   noCamText: { color: 'rgba(255,255,255,0.7)', fontSize: 16, textAlign: 'center' },
   permBtn: { backgroundColor: '#6C63FF', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14 },
   permBtnText: { color: '#fff', fontFamily: fonts.bold },

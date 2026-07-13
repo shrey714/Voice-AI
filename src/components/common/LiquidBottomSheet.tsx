@@ -146,7 +146,7 @@ const LiquidBottomSheet = forwardRef<LiquidBottomSheetRef, LiquidBottomSheetProp
     // fully closed) — on BOTH platforms. This used to be Android-only
     // (`if (!isOpen) return null` was below, after the iOS branch), which
     // meant the iOS `Host` was *always* mounted as a full-screen
-    // `absoluteFillObject` overlay with `pointerEvents: 'box-none'`, even
+    // `absoluteFill` overlay with `pointerEvents: 'box-none'`, even
     // while the sheet was closed. `Host` is a custom Fabric-hosted native
     // view (bridging to a UIHostingController), not a plain RN `View` — its
     // `pointerEvents` translation to native hit-testing apparently doesn't
@@ -166,7 +166,7 @@ const LiquidBottomSheet = forwardRef<LiquidBottomSheetRef, LiquidBottomSheetProp
     if (Platform.OS === 'ios') {
       const detents: PresentationDetent[] = heightFraction ? [{ fraction: heightFraction }] : ['medium', 'large'];
       return (
-        <IOSHost colorScheme={colorScheme} style={[StyleSheet.absoluteFillObject, { pointerEvents: 'box-none' }]}>
+        <IOSHost colorScheme={colorScheme} style={[StyleSheet.absoluteFill, { pointerEvents: 'box-none' }]}>
           <IOSBottomSheet isPresented={presented} onIsPresentedChange={handleIOSPresentedChange} fitToContents={!heightFraction}>
             {/* No explicit `background()` here on purpose. The earlier fix
                 painted a solid theme color over this group to work around
@@ -197,7 +197,7 @@ const LiquidBottomSheet = forwardRef<LiquidBottomSheetRef, LiquidBottomSheetProp
     }
 
     return (
-      <AndroidHost colorScheme={colorScheme} style={[StyleSheet.absoluteFillObject, { pointerEvents: 'box-none' }]}>
+      <AndroidHost colorScheme={colorScheme} style={[StyleSheet.absoluteFill, { pointerEvents: 'box-none' }]}>
         <ModalBottomSheet
           ref={androidRef}
           onDismissRequest={handleAndroidDismissRequest}

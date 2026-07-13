@@ -4,7 +4,6 @@ import { View, StyleSheet } from 'react-native';
 import { PaperProvider, ActivityIndicator } from 'react-native-paper';
 import { Text } from 'react-native-paper';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
 import {
@@ -122,13 +121,11 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ThemeProvider>
-          <BottomSheetModalProvider>
-            <ErrorBoundary>
-              <AuthProvider>
-                <AppLoader />
-              </AuthProvider>
-            </ErrorBoundary>
-          </BottomSheetModalProvider>
+          <ErrorBoundary>
+            <AuthProvider>
+              <AppLoader />
+            </AuthProvider>
+          </ErrorBoundary>
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

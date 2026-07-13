@@ -60,7 +60,7 @@ export default function CollapsibleFab({ icon, label, extended, onPress, bottom 
             tintColor={colors.primary}
             colorScheme={isDark ? 'dark' : 'light'}
             pointerEvents="none"
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
           />
         )}
         <Ionicons name={icon} size={20} color="#fff" />

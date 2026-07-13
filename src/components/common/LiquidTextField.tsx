@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Platform, TextInput, View, StyleSheet, type LayoutChangeEvent } from 'react-native';
-import { Host, TextField as SwiftUITextField, type TextFieldRef } from '@expo/ui/swift-ui';
+import { Host, TextField as SwiftUITextField, useNativeState } from '@expo/ui/swift-ui';
 import { glassEffect, textFieldStyle, padding, keyboardType as keyboardTypeMod, frame, lineLimit, background, shapes } from '@expo/ui/swift-ui/modifiers';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
@@ -14,13 +14,10 @@ export type LiquidTextFieldKeyboard = 'default' | 'numeric' | 'phone-pad' | 'ema
  * applied to the field itself) and the app's existing themed `Input` look
  * on Android.
  *
- * @expo/ui's TextField is UNCONTROLLED (`defaultValue`, not `value` — a
- * genuine API constraint, not an oversight here). This wraps it with a
- * controlled-feeling `value`/`onChangeText` API by imperatively pushing
- * external value changes into the native field via its `setText` ref
- * method, skipping the push when the change originated from the field's own
- * `onValueChange` (tracked via `lastEmitted`) — otherwise every keystroke
- * would fight itself and the cursor would jump to the end on each render.
+ * As of stable @expo/ui (SDK 56), `TextField` is properly controlled via an
+ * `ObservableState<string>` (`useNativeState` + `text`/`onTextChange`)
+ * instead of the old `defaultValue`-only API, so it no longer needs the
+ * imperative `setText`-via-ref workaround this used to require.
  */
 export default function LiquidTextField({
   value,
@@ -44,23 +41,10 @@ export default function LiquidTextField({
   style?: any;
 }) {
   const { colors, isDark } = useAppTheme();
-  const ref = useRef<TextFieldRef>(null);
-  const lastEmitted = useRef(value);
+  const text = useNativeState(value);
   useEffect(() => {
-    if (Platform.OS === 'ios' && value !== lastEmitted.current) {
-      lastEmitted.current = value;
-      // Deferred + caught: a common case is a parent hydrating this field's
-      // `value` from async-loaded data (e.g. opening "Edit Product") right
-      // after this field first mounts — the JS ref is already attached, but
-      // the underlying Fabric native view hasn't finished its first commit
-      // yet, so calling `setText` immediately throws "Unable to find the
-      // 'TextFieldView' view with tag" as an unhandled promise rejection
-      // (`setText` returns a Promise). Pushing the call to the next tick
-      // gives that commit time to land; the `.catch` is a last-resort
-      // safety net for any other timing edge (e.g. the field having
-      // unmounted again by the time the tick fires) so it never surfaces as
-      // an uncaught crash either way.
-      setTimeout(() => { ref.current?.setText(value).catch(() => {}); }, 0);
+    if (Platform.OS === 'ios' && value !== text.get()) {
+      text.set(value);
     }
   }, [value]);
 
@@ -96,12 +80,11 @@ export default function LiquidTextField({
           of the OS's — Host defaults to following the system otherwise. */}
       <Host key={measuredWidth} colorScheme={isDark ? 'dark' : 'light'} style={{ height: fieldHeight, width: measuredWidth }}>
         <SwiftUITextField
-          ref={ref}
-          defaultValue={value}
+          text={text}
           placeholder={placeholder}
           autoFocus={autoFocus}
           axis={multiline ? 'vertical' : 'horizontal'}
-          onValueChange={(v) => { lastEmitted.current = v; onChangeText(v); }}
+          onTextChange={onChangeText}
           modifiers={[
             // Order matters a lot here, and it's subtle: `padding` insets
             // whatever it's applied to at that point in the chain, and
