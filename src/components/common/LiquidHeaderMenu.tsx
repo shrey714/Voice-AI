@@ -57,7 +57,7 @@ export default function LiquidHeaderMenu({
         <Host colorScheme={isDark ? 'dark' : 'light'} style={{ width: SIZE, height: SIZE }}>
           <SwiftUIMenu
             label={<Icon name={icon} size={16} color={tintColor} />}
-            modifiers={[buttonStyle('glass'), tint(tintColor), frame({ width: SIZE, height: SIZE }), cornerRadius(SIZE / 2)]}
+            modifiers={[buttonStyle('plain'), tint(tintColor), frame({ width: SIZE, height: SIZE }), cornerRadius(SIZE / 2)]}
           >
             {sections.map((section, i) => (
               <SwiftUISection key={i} title={section.title}>

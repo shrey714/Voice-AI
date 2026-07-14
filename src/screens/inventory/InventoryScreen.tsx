@@ -132,6 +132,8 @@ export default function InventoryScreen({ route, navigation }: any) {
           ) : null}
         </View>
       ),
+      headerTransparent: true,
+      headerStyle: { backgroundColor: 'transparent' },
       // Plain flex row, not absolutely-positioned siblings — see this file's
       // header comment / AppNavigator's useHeaderOpts for why.
       headerRight: () => (

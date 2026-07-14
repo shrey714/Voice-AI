@@ -84,7 +84,7 @@ export default function LiquidHeaderIconButton({
             // (confirmed in @expo/ui's own `omitUserOverridden`), which is
             // how this restores the real native Liquid Glass material
             // instead of a flat icon.
-            buttonStyle('glass'),
+            buttonStyle('plain'),
             tint(tintColor),
             cornerRadius(SIZE / 2),
           ]}
