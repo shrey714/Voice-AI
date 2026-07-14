@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { View, FlatList, StyleSheet, TouchableOpacity, Alert, ScrollView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import LiquidBottomSheet, { LiquidBottomSheetRef } from '../../components/common/LiquidBottomSheet';
@@ -28,6 +29,14 @@ export default function InventoryScreen({ route, navigation }: any) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
   const { confirm, confirmActions } = useConfirm();
+  const insets = useSafeAreaInsets();
+  // `headerTransparent` no longer reserves layout space for the native
+  // header on either platform, so content needs to compensate manually or
+  // it renders underneath the (now see-through) header instead of below it.
+  // 44 is UIKit's standard compact nav bar height on iOS; 56 is Material's
+  // standard app-bar height on Android. `insets.top` covers the status
+  // bar/notch on both.
+  const headerCompensation = insets.top + (Platform.OS === 'ios' ? 44 : 56);
   const { products, deleteProduct, updateProduct, settings } = useAppStore(
     useShallow(state => ({
       products: state.products,
@@ -178,12 +187,14 @@ export default function InventoryScreen({ route, navigation }: any) {
   return (
     <View style={[{ backgroundColor: colors.bg, flex: 1 }]}>
       {searchOpen && (
-        <InlineSearchBar
-          value={search}
-          onChangeText={setSearch}
-          placeholder={t('searchProducts')}
-          onClose={() => setSearchOpen(false)}
-        />
+        <View style={{ marginTop: headerCompensation }}>
+          <InlineSearchBar
+            value={search}
+            onChangeText={setSearch}
+            placeholder={t('searchProducts')}
+            onClose={() => setSearchOpen(false)}
+          />
+        </View>
       )}
       {/* Scrollable area */}
       <View style={{ flex: 1, overflow: 'hidden' }}>
@@ -197,7 +208,15 @@ export default function InventoryScreen({ route, navigation }: any) {
         maxToRenderPerBatch={10}
         windowSize={7}
         removeClippedSubviews
-        contentContainerStyle={{ paddingHorizontal: 8, paddingTop: 8, paddingBottom: 120, flexGrow: 1 }}
+        contentContainerStyle={{
+          paddingHorizontal: 8,
+          // Only applied when the search bar isn't shown — when it is, ITS
+          // `marginTop` above already accounts for the header, and adding
+          // this on top too would double the gap before the first item.
+          paddingTop: searchOpen ? 8 : headerCompensation + 8,
+          paddingBottom: 120,
+          flexGrow: 1,
+        }}
         renderItem={renderProductItem}
         ListEmptyComponent={
           <EmptyState icon="cube-outline" title={t('noProducts')} subtitle={t('tapPlusToAdd')}
