@@ -146,6 +146,13 @@ export default function InventoryScreen({ route, navigation }: any) {
         // cause overlapping effects — so this intentionally only sets
         // `headerTransparent`, nothing else.
         headerTransparent: true,
+        // `headerTransparent` only stops the header from reserving layout
+        // space — it does NOT clear `headerStyle.backgroundColor`, which
+        // `useHeaderOpts()` sets to a solid `colors.surface` fill at the
+        // Stack navigator level (`AppNavigator.tsx`). Without overriding it
+        // back to transparent here too, that solid fill still paints
+        // underneath, and the header looks exactly as opaque as before.
+        headerStyle: { backgroundColor: 'transparent' },
         headerRight: undefined,
         unstable_headerRightItems: () => ([
           {
