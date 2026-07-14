@@ -195,25 +195,19 @@ export default function InventoryScreen({ route, navigation }: any) {
           />
         </View>
       )}
-      {/* `FlatList` is a direct child here now, not wrapped in an extra
-          "scrollable area" `View` — one level shallower, closer to
-          `DashboardScreen`'s `SafeAreaView → ScrollView` pattern (the one
-          screen where `tabBarMinimizeBehavior` is confirmed to detect the
-          scroll view correctly), on the chance the extra wrapper level was
-          part of why this screen wasn't detected. `overflow: 'hidden'`
-          (previously on the wrapper, needed to clip `ProductCard` row
-          shadows/animations at the list's edges) moved onto `FlatList`'s
-          own `style` instead of being dropped. */}
-      <FlatList
-        data={filtered}
-        keyExtractor={p => p.id}
+      {/* DIAGNOSTIC SWAP: plain `ScrollView` + `.map()` instead of
+          `FlatList`, to isolate whether `FlatList`'s own internal
+          `VirtualizedList`/cell-management wrapper layers are what's
+          keeping `tabBarMinimizeBehavior` from detecting this screen's
+          scroll view — every screen confirmed to work (`DashboardScreen`,
+          Online dashboard) uses a plain `ScrollView`; every screen that
+          doesn't work uses `FlatList`. Loses row virtualization/recycling
+          while this is in place — fine for testing, not meant to be the
+          final state if this doesn't fix it. */}
+      <ScrollView
         style={{ flex: 1, overflow: 'hidden' }}
         onScroll={onScroll}
         scrollEventThrottle={16}
-        initialNumToRender={12}
-        maxToRenderPerBatch={10}
-        windowSize={7}
-        removeClippedSubviews
         contentContainerStyle={{
           paddingHorizontal: 8,
           // Only applied when the search bar isn't shown — when it is, ITS
@@ -223,12 +217,24 @@ export default function InventoryScreen({ route, navigation }: any) {
           paddingBottom: 120,
           flexGrow: 1,
         }}
-        renderItem={renderProductItem}
-        ListEmptyComponent={
+      >
+        {filtered.length === 0 ? (
           <EmptyState icon="cube-outline" title={t('noProducts')} subtitle={t('tapPlusToAdd')}
             actionLabel={t('addProduct')} onAction={() => navigation.navigate('ProductForm', {})} />
-        }
-      />
+        ) : (
+          filtered.map((item, index) => (
+            <ProductCard
+              key={item.id}
+              product={item}
+              currency={settings.currency}
+              colors={colors}
+              index={index}
+              onAddStock={openStockSheet}
+              onMenu={openMenuSheet}
+            />
+          ))
+        )}
+      </ScrollView>
 
       <CollapsibleFab bottom={24} icon="add" label="Add Product" extended={extended} onPress={() => {
         confirmActions({
