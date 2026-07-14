@@ -22,24 +22,7 @@ import LiquidButton from '../../components/common/LiquidButton';
 import SheetHeader from '../../components/common/SheetHeader';
 import { useTranslation } from '../../hooks/useTranslation';
 import { useConfirm } from '../../components/common/ConfirmDialogProvider';
-// Deep import, iOS-only: `ScrollViewMarker` isn't exported from
-// `react-native-screens`'s public top-level entry (it lives under the
-// package's experimental `gamma` namespace) and has no Android native
-// counterpart (only `.ios`/native fabric files exist for it) — importing it
-// unconditionally would crash Android at runtime with "no component found
-// for view name...". This is an unstable API that could change/break on a
-// future `react-native-screens` upgrade without a deprecation warning; it's
-// the only way currently found to fix `tabBarMinimizeBehavior` not
-// detecting this screen's `FlatList` as the scrollable content (see usage
-// below for why).
-// @ts-ignore — deep import into an undocumented path has no shipped .d.ts
-// at this exact subpath (the package's typed declarations live under a
-// separate `lib/typescript` tree Metro doesn't use for runtime resolution).
-import { ScrollViewMarker } from 'react-native-screens/lib/module/components/gamma/scroll-view-marker';
 
-// Android has no native counterpart for `ScrollViewMarker` — fall back to a
-// plain `View` there.
-const ScrollAreaWrapper: React.ComponentType<any> = Platform.OS === 'ios' ? ScrollViewMarker : View;
 
 export default function InventoryScreen({ route, navigation }: any) {
   const { colors } = useAppTheme();
@@ -212,17 +195,8 @@ export default function InventoryScreen({ route, navigation }: any) {
           />
         </View>
       )}
-      {/* Scrollable area — `ScrollViewMarker` (iOS only) explicitly
-          registers the `FlatList` below as this screen's content scroll
-          view for `react-native-screens`, regardless of what else sits in
-          the tree around it. Without it, `tabBarMinimizeBehavior` (see
-          `AppNavigator.tsx`) only works on screens where the scrollable
-          view happens to be reachable by always taking the first child at
-          every level of the native tree — true for `DashboardScreen`'s bare
-          `ScrollView`, apparently not true here for reasons not fully
-          diagnosable from source alone (see conversation history / git log
-          around this comment for the investigation). */}
-      <ScrollAreaWrapper style={{ flex: 1, overflow: 'hidden' }}>
+      {/* Scrollable area*/}
+      <View style={{ flex: 1, overflow: 'hidden' }}>
         <FlatList
         data={filtered}
         keyExtractor={p => p.id}
@@ -248,7 +222,7 @@ export default function InventoryScreen({ route, navigation }: any) {
             actionLabel={t('addProduct')} onAction={() => navigation.navigate('ProductForm', {})} />
         }
       />
-      </ScrollAreaWrapper>{/* end scrollable area */}
+      </View>{/* end scrollable area */}
 
       <CollapsibleFab bottom={24} icon="add" label="Add Product" extended={extended} onPress={() => {
         confirmActions({
