@@ -156,29 +156,16 @@ export default function InventoryScreen({ route, navigation }: any) {
       // the pill overlap list content instead of sitting in its own slot,
       // and the icon show a ghosted double-render artifact. Content just
       // fills the space it's given, same as the docs' own bare example.
-      bottomAccessory: ({ placement }: { placement: 'regular' | 'inline' }) =>
-        placement === 'inline' ? (
-          <TouchableOpacity
-            onPress={openAddMenu}
-            style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}
-            accessibilityLabel="Add Product"
-            accessibilityRole="button"
-          >
-            <Ionicons name="add" size={18} color="#fff" />
-          </TouchableOpacity>
-        ) : (
-          <View style={{ paddingHorizontal: 16, paddingVertical: 8, alignItems: 'flex-end' }}>
+          bottomAccessory: ({ placement }: { placement: 'regular' | 'inline' }) =>
             <TouchableOpacity
               onPress={openAddMenu}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 8, height: 48, borderRadius: 24, paddingHorizontal: 18, backgroundColor: colors.primary }}
+              style={{ width: '100%', height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 24, paddingHorizontal: 18 }}
               accessibilityLabel="Add Product"
               accessibilityRole="button"
             >
               <Ionicons name="add" size={20} color="#fff" />
               <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 14 }}>Add Product</Text>
             </TouchableOpacity>
-          </View>
-        ),
     });
   }, [navigation, openAddMenu, colors]);
 
