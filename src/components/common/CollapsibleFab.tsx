@@ -1,19 +1,14 @@
 import React, { useCallback, useState } from 'react';
-import { View, Platform, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, Platform, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
-import { type SFSymbol } from 'sf-symbols-typescript';
+import { MotiView } from 'moti';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import LiquidButton from './LiquidButton';
+import { useAppTheme } from '../../theme';
+import { fonts } from '../../theme/typography';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
-
-// `CollapsibleFab`'s public API takes an Ionicons name (every call site
-// already passes `icon="add"`) — `LiquidButton` takes an SF Symbol instead,
-// so this maps the one icon actually used today. Extend if a future caller
-// needs a different icon.
-const ICON_TO_SF: Partial<Record<IoniconsName, SFSymbol>> = {
-  add: 'plus',
-};
 
 /**
  * Drives the FAB's `extended` state from a list's scroll position:
@@ -46,35 +41,73 @@ interface Props {
 // covers the home indicator separately.
 const IOS_TAB_BAR_HEIGHT = 49;
 
-/**
- * Now a thin wrapper around `LiquidButton` (real native Liquid Glass on iOS,
- * flat themed pill on Android — same as every other button in the app)
- * instead of its own hand-rolled `expo-glass-effect` `GlassView` background.
- *
- * Trade-off: `LiquidButton`'s width is a concrete native `frame`/`Host` size
- * that remounts on change (an established `@expo/ui` gotcha throughout this
- * app — Host doesn't reliably re-layout from a post-mount size change), so
- * the extend/collapse transition SNAPS between icon-only and icon+label
- * instead of the old hand-animated `MotiView` glide. If that snap reads as
- * worse than the old smooth version in practice, that's the concrete thing
- * to revert this for — the previous `GlassView`-based version is straightforward
- * to restore from git history.
- */
 export default function CollapsibleFab({ icon, label, extended, onPress, bottom = 24 }: Props) {
+  const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
+  const [labelW, setLabelW] = useState(0); // natural label width, measured once
+  // Real native Liquid Glass background on iOS 26+ (tinted with the app's
+  // brand color, same as Apple's own floating action buttons), a plain
+  // solid fill everywhere else — all the extend/collapse animation logic
+  // below is untouched either way, only the background rendering changes.
+  const glass = Platform.OS === 'ios' && isLiquidGlassAvailable();
   const resolvedBottom = bottom + (Platform.OS === 'ios' ? IOS_TAB_BAR_HEIGHT + insets.bottom : 0);
-  const sfIcon = ICON_TO_SF[icon] ?? 'plus';
 
   return (
-    <View style={{ position: 'absolute', right: 16, bottom: resolvedBottom }}>
-      <LiquidButton
-        title={extended ? label : ''}
-        icon={sfIcon}
-        onPress={onPress}
-        variant="glassProminent"
-        fullWidth={false}
-        height={48}
-      />
-    </View>
+    // Shadow lives on this outer view (no overflow:hidden here — RN clips
+    // shadows along with content, so the rounded-clip layer for the glass
+    // background has to be a separate inner view instead of sharing this
+    // one, or the shadow would vanish).
+    <TouchableOpacity activeOpacity={0.88} onPress={onPress} style={[styles.fabShadow, { bottom: resolvedBottom }]}>
+      <View style={[styles.fab, !glass && { backgroundColor: colors.primary }]}>
+        {glass && (
+          // `isInteractive` deliberately omitted (and pointerEvents:'none'
+          // set) — GlassView is a real interactive UIKit responder when
+          // `isInteractive` is true (that's what drives the native
+          // "squish on press" glass feedback), and as an absolute-fill
+          // layer sitting inside this already-tappable TouchableOpacity it
+          // was intercepting the touch before TouchableOpacity's own
+          // onPress ever fired — this is a purely decorative background
+          // layer, not the tap target itself.
+          <GlassView
+            glassEffectStyle="regular"
+            tintColor={colors.primary}
+            colorScheme={isDark ? 'dark' : 'light'}
+            pointerEvents="none"
+            style={StyleSheet.absoluteFill}
+          />
+        )}
+        <Ionicons name={icon} size={20} color="#fff" />
+
+        {/* Visible label — clipped by a width-animated wrapper */}
+        <MotiView
+          animate={{ width: extended ? labelW : 0, opacity: extended ? 1 : 0, marginLeft: extended ? 8 : 0 }}
+          transition={{ type: 'timing', duration: 220 }}
+          style={styles.labelWrap}
+        >
+          <Text numberOfLines={1} style={[styles.label, labelW ? { width: labelW } : null]}>{label}</Text>
+        </MotiView>
+
+        {/* Off-screen measurer — gives the label's natural width */}
+        <Text
+          numberOfLines={1}
+          style={[styles.label, styles.measure]}
+          onLayout={e => { const w = Math.ceil(e.nativeEvent.layout.width); if (w && w !== labelW) setLabelW(w); }}
+        >{label}</Text>
+      </View>
+    </TouchableOpacity>
   );
 }
+
+const styles = StyleSheet.create({
+  fabShadow: {
+    position: 'absolute', right: 16, borderRadius: 24,
+    elevation: 4, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
+  },
+  fab: {
+    flexDirection: 'row', alignItems: 'center',
+    height: 48, borderRadius: 24, paddingHorizontal: 14, overflow: 'hidden',
+  },
+  labelWrap: { overflow: 'hidden' },
+  label: { color: '#fff', fontFamily: fonts.bold, fontSize: 14 },
+  measure: { position: 'absolute', opacity: 0, top: 0, left: 0 },
+});
