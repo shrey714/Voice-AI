@@ -149,6 +149,13 @@ export default function InventoryScreen({ route, navigation }: any) {
   useLayoutEffect(() => {
     if (Platform.OS !== 'ios') return;
     navigation.getParent()?.setOptions({
+      // No manual `margin`/`alignSelf` positioning here — the native
+      // accessory container already provides and sizes its own region
+      // (above the tab bar for `'regular'`, merged into the minimized bar
+      // for `'inline'`); fighting that with our own offsets is what made
+      // the pill overlap list content instead of sitting in its own slot,
+      // and the icon show a ghosted double-render artifact. Content just
+      // fills the space it's given, same as the docs' own bare example.
       bottomAccessory: ({ placement }: { placement: 'regular' | 'inline' }) =>
         placement === 'inline' ? (
           <TouchableOpacity
@@ -160,15 +167,17 @@ export default function InventoryScreen({ route, navigation }: any) {
             <Ionicons name="add" size={18} color="#fff" />
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity
-            onPress={openAddMenu}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-end', height: 48, borderRadius: 24, paddingHorizontal: 18, backgroundColor: colors.primary, marginRight: 16, marginBottom: 8 }}
-            accessibilityLabel="Add Product"
-            accessibilityRole="button"
-          >
-            <Ionicons name="add" size={20} color="#fff" />
-            <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 14 }}>Add Product</Text>
-          </TouchableOpacity>
+          <View style={{ paddingHorizontal: 16, paddingVertical: 8, alignItems: 'flex-end' }}>
+            <TouchableOpacity
+              onPress={openAddMenu}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 8, height: 48, borderRadius: 24, paddingHorizontal: 18, backgroundColor: colors.primary }}
+              accessibilityLabel="Add Product"
+              accessibilityRole="button"
+            >
+              <Ionicons name="add" size={20} color="#fff" />
+              <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 14 }}>Add Product</Text>
+            </TouchableOpacity>
+          </View>
         ),
     });
   }, [navigation, openAddMenu, colors]);
