@@ -217,7 +217,7 @@ export default function InventoryScreen({ route, navigation }: any) {
           // Only applied when the search bar isn't shown — when it is, ITS
           // `marginTop` above already accounts for the header, and adding
           // this on top too would double the gap before the first item.
-          paddingTop: searchOpen ? 8 : headerCompensation + 8,
+          paddingTop: 8,
           paddingBottom: 120,
           flexGrow: 1,
         }}
