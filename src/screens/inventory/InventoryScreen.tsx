@@ -122,6 +122,57 @@ export default function InventoryScreen({ route, navigation }: any) {
   const lowStockCount = products.filter(p => p.quantity <= p.lowStockThreshold).length;
   const s = makeStyles(colors);
 
+  const openAddMenu = useCallback(() => {
+    confirmActions({
+      title: t('addStock'),
+      actions: [
+        { label: t('newProduct'), value: 'new' },
+        { label: t('receiveStockGrn'), value: 'grn' },
+      ],
+      cancelLabel: t('cancel'),
+    }).then(choice => {
+      if (choice === 'new') navigation.navigate('ProductForm', {});
+      else if (choice === 'grn') navigation.navigate('More', { screen: 'PurchaseForm', params: {} });
+    });
+  }, [confirmActions, t, navigation]);
+
+  // `bottomAccessory` (iOS 26+ only) is a **Tab**-level option, one navigator
+  // up from this screen's own Stack — `navigation` here is the Stack's, so
+  // `getParent()` reaches the Tab navigator that actually owns the tab bar.
+  // Rendered twice by the native side (once per `placement`) — `'regular'`
+  // shows above the tab bar, `'inline'` is what actually merges into the
+  // minimized bar as the user scrolls, replacing the need for our own
+  // absolutely-positioned `CollapsibleFab` overlay on iOS. Android's classic
+  // tab navigator has no such option (silently ignores unknown
+  // `screenOptions` keys, same as `tabBarMinimizeBehavior`), so it keeps the
+  // existing `CollapsibleFab` below instead.
+  useLayoutEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    navigation.getParent()?.setOptions({
+      bottomAccessory: ({ placement }: { placement: 'regular' | 'inline' }) =>
+        placement === 'inline' ? (
+          <TouchableOpacity
+            onPress={openAddMenu}
+            style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}
+            accessibilityLabel="Add Product"
+            accessibilityRole="button"
+          >
+            <Ionicons name="add" size={18} color="#fff" />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            onPress={openAddMenu}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-end', height: 48, borderRadius: 24, paddingHorizontal: 18, backgroundColor: colors.primary, marginRight: 16, marginBottom: 8 }}
+            accessibilityLabel="Add Product"
+            accessibilityRole="button"
+          >
+            <Ionicons name="add" size={20} color="#fff" />
+            <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 14 }}>Add Product</Text>
+          </TouchableOpacity>
+        ),
+    });
+  }, [navigation, openAddMenu, colors]);
+
   // Show the item count beside the header title, and the CSV import at the header's right end.
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -228,19 +279,12 @@ export default function InventoryScreen({ route, navigation }: any) {
         }
       />
 
-      <CollapsibleFab bottom={24} icon="add" label="Add Product" extended={extended} onPress={() => {
-        confirmActions({
-          title: t('addStock'),
-          actions: [
-            { label: t('newProduct'), value: 'new' },
-            { label: t('receiveStockGrn'), value: 'grn' },
-          ],
-          cancelLabel: t('cancel'),
-        }).then(choice => {
-          if (choice === 'new') navigation.navigate('ProductForm', {});
-          else if (choice === 'grn') navigation.navigate('More', { screen: 'PurchaseForm', params: {} });
-        });
-      }} />
+      {/* iOS gets the native `bottomAccessory` (set up above via
+          `navigation.getParent()?.setOptions`) instead — Android has no
+          such API, so it keeps this floating overlay. */}
+      {Platform.OS !== 'ios' && (
+        <CollapsibleFab bottom={24} icon="add" label="Add Product" extended={extended} onPress={openAddMenu} />
+      )}
 
       {/* Stock Adjust Sheet */}
       <LiquidBottomSheet ref={stockSheetRef}>
