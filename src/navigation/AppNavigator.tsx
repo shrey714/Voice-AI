@@ -253,6 +253,10 @@ function LocalTabs() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
+        // iOS 26+ only (real UITabBarController minimize-on-scroll, same as
+        // Apple's own apps) — Android's classic bottom-tabs navigator has no
+        // such option and just ignores this, same as `tabBarSystemItem` above.
+        tabBarMinimizeBehavior: 'onScrollDown',
       } as any}
     >
       <LocalTab.Screen
@@ -331,6 +335,7 @@ function OnlineTabs() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
+        tabBarMinimizeBehavior: 'onScrollDown',
       } as any}
     >
       <OnlineTab.Screen
