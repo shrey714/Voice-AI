@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { View, FlatList, StyleSheet, TouchableOpacity, Alert, ScrollView, Platform } from 'react-native';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import LiquidBottomSheet, { LiquidBottomSheetRef } from '../../components/common/LiquidBottomSheet';
@@ -21,6 +21,7 @@ import LiquidButton from '../../components/common/LiquidButton';
 import SheetHeader from '../../components/common/SheetHeader';
 import { useTranslation } from '../../hooks/useTranslation';
 import { useConfirm } from '../../components/common/ConfirmDialogProvider';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 
 
@@ -28,6 +29,7 @@ export default function InventoryScreen({ route, navigation }: any) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
   const { confirm, confirmActions } = useConfirm();
+  const insets = useSafeAreaInsets();
   const { products, deleteProduct, updateProduct, settings } = useAppStore(
     useShallow(state => ({
       products: state.products,
@@ -132,42 +134,107 @@ export default function InventoryScreen({ route, navigation }: any) {
           ) : null}
         </View>
       ),
-      // Plain flex row, not absolutely-positioned siblings — see this file's
-      // header comment / AppNavigator's useHeaderOpts for why.
-      headerRight: () => (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <LiquidHeaderIconButton
-            icon="doc.text"
-            androidIcon="document-text-outline"
-            onPress={() => navigation.navigate('CsvImport')}
-          />
-          <LiquidHeaderIconButton
-            icon="magnifyingglass"
-            androidIcon="search-outline"
-            onPress={() => setSearchOpen(v => !v)}
-          />
-          <LiquidHeaderMenu
-            icon="line.3.horizontal.decrease.circle"
-            androidIcon="options-outline"
-            sections={[
-              {
-                title: 'Sort by',
-                options: [
-                  { label: 'Name', value: 'name', selected: sortBy === 'name' },
-                  { label: 'Stock', value: 'stock', selected: sortBy === 'stock' },
-                  { label: 'Price', value: 'price', selected: sortBy === 'price' },
-                ],
-                onSelect: (v) => setSortBy(v as 'name' | 'stock' | 'price'),
-              },
-              {
-                title: t('category'),
-                options: CATEGORIES.map(cat => ({ label: cat, value: cat, selected: categoryFilter === cat })),
-                onSelect: setCategoryFilter,
-              },
-            ]}
-          />
-        </View>
-      ),
+      ...(Platform.OS === 'ios' ? {
+        // Real native iOS 26 glass header: transparent bar + the OS's own
+        // pill-shaped bar-button items (`unstable_headerLeftItems`'s sibling)
+        // instead of our custom `LiquidHeaderIconButton`/`LiquidHeaderMenu`
+        // components — this is what the Settings-app-style "Cancel / Done"
+        // pill-button header (screenshot reference) actually is, no custom
+        // component involved. `scrollEdgeEffects` isn't set explicitly: its
+        // default (`'automatic'`) already gives the blur-under-header look,
+        // and setting `headerBlurEffect` at the same time is documented to
+        // cause overlapping effects — so this intentionally only sets
+        // `headerTransparent`, nothing else.
+        headerTransparent: true,
+        headerRight: undefined,
+        unstable_headerRightItems: () => ([
+          {
+            type: 'button',
+            label: 'Import CSV',
+            icon: { type: 'sfSymbol', name: 'doc.text' },
+            variant: 'plain',
+            onPress: () => navigation.navigate('CsvImport'),
+          },
+          {
+            type: 'button',
+            label: 'Search',
+            icon: { type: 'sfSymbol', name: 'magnifyingglass' },
+            variant: 'plain',
+            onPress: () => setSearchOpen(v => !v),
+          },
+          {
+            type: 'menu',
+            label: 'Filter',
+            icon: { type: 'sfSymbol', name: 'line.3.horizontal.decrease.circle' },
+            variant: 'plain',
+            menu: {
+              items: [
+                {
+                  type: 'submenu',
+                  label: 'Sort by',
+                  inline: true,
+                  items: [
+                    { type: 'action', label: 'Name', state: sortBy === 'name' ? 'on' : 'off', onPress: () => setSortBy('name') },
+                    { type: 'action', label: 'Stock', state: sortBy === 'stock' ? 'on' : 'off', onPress: () => setSortBy('stock') },
+                    { type: 'action', label: 'Price', state: sortBy === 'price' ? 'on' : 'off', onPress: () => setSortBy('price') },
+                  ],
+                },
+                {
+                  type: 'submenu',
+                  label: t('category'),
+                  inline: true,
+                  items: CATEGORIES.map(cat => ({
+                    type: 'action' as const,
+                    label: cat,
+                    state: categoryFilter === cat ? 'on' as const : 'off' as const,
+                    onPress: () => setCategoryFilter(cat),
+                  })),
+                },
+              ],
+            },
+          },
+        ]),
+      } : {
+        // Plain flex row, not absolutely-positioned siblings — see this
+        // file's header comment / AppNavigator's useHeaderOpts for why.
+        // Android has no equivalent to `unstable_headerRightItems` (iOS-only
+        // per react-navigation's own docs), so it keeps the existing custom
+        // header row.
+        headerRight: () => (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <LiquidHeaderIconButton
+              icon="doc.text"
+              androidIcon="document-text-outline"
+              onPress={() => navigation.navigate('CsvImport')}
+            />
+            <LiquidHeaderIconButton
+              icon="magnifyingglass"
+              androidIcon="search-outline"
+              onPress={() => setSearchOpen(v => !v)}
+            />
+            <LiquidHeaderMenu
+              icon="line.3.horizontal.decrease.circle"
+              androidIcon="options-outline"
+              sections={[
+                {
+                  title: 'Sort by',
+                  options: [
+                    { label: 'Name', value: 'name', selected: sortBy === 'name' },
+                    { label: 'Stock', value: 'stock', selected: sortBy === 'stock' },
+                    { label: 'Price', value: 'price', selected: sortBy === 'price' },
+                  ],
+                  onSelect: (v) => setSortBy(v as 'name' | 'stock' | 'price'),
+                },
+                {
+                  title: t('category'),
+                  options: CATEGORIES.map(cat => ({ label: cat, value: cat, selected: categoryFilter === cat })),
+                  onSelect: setCategoryFilter,
+                },
+              ]}
+            />
+          </View>
+        ),
+      }),
     });
   }, [navigation, products.length, lowStockCount, colors, t, sortBy, categoryFilter, CATEGORIES]);
 
@@ -176,12 +243,18 @@ export default function InventoryScreen({ route, navigation }: any) {
   return (
     <View style={[{ backgroundColor: colors.bg, flex: 1 }]}>
       {searchOpen && (
-        <InlineSearchBar
-          value={search}
-          onChangeText={setSearch}
-          placeholder={t('searchProducts')}
-          onClose={() => setSearchOpen(false)}
-        />
+        // `headerTransparent` (iOS) means this row is no longer pushed below
+        // a solid header by normal flow — the header has no reserved height
+        // anymore, so this would render underneath the see-through nav bar
+        // without an explicit top offset.
+        <View style={Platform.OS === 'ios' ? { marginTop: insets.top + 44 } : undefined}>
+          <InlineSearchBar
+            value={search}
+            onChangeText={setSearch}
+            placeholder={t('searchProducts')}
+            onClose={() => setSearchOpen(false)}
+          />
+        </View>
       )}
       {/* Scrollable area */}
       <View style={{ flex: 1, overflow: 'hidden' }}>
@@ -195,7 +268,20 @@ export default function InventoryScreen({ route, navigation }: any) {
         maxToRenderPerBatch={10}
         windowSize={7}
         removeClippedSubviews
-        contentContainerStyle={{ paddingHorizontal: 8, paddingTop: 8, paddingBottom: 120, flexGrow: 1 }}
+        contentContainerStyle={{
+          paddingHorizontal: 8,
+          // `headerTransparent` (iOS) removes the header's reserved space —
+          // content would otherwise start underneath the (now see-through)
+          // nav bar instead of below it. 44 is UIKit's standard compact nav
+          // bar content height; `insets.top` covers the status bar/notch.
+          // Only applied when the search bar isn't shown — when it is, ITS
+          // `marginTop` already accounts for the header, and adding this on
+          // top too would double the gap between the search row and the
+          // first list item.
+          paddingTop: Platform.OS === 'ios' && !searchOpen ? insets.top + 44 + 8 : 8,
+          paddingBottom: 120,
+          flexGrow: 1,
+        }}
         renderItem={renderProductItem}
         ListEmptyComponent={
           <EmptyState icon="cube-outline" title={t('noProducts')} subtitle={t('tapPlusToAdd')}
