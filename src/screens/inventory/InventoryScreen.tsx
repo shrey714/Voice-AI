@@ -184,7 +184,7 @@ export default function InventoryScreen({ route, navigation }: any) {
   if (!dataReady) return <View style={{ flex: 1, backgroundColor: colors.bg }}><SkeletonList count={8} /></View>;
 
   return (
-    <View style={[{ backgroundColor: colors.bg, flex: 1 }]}>
+    <>
       {searchOpen && (
         <View style={{ marginTop: headerCompensation }}>
           <InlineSearchBar
@@ -195,19 +195,23 @@ export default function InventoryScreen({ route, navigation }: any) {
           />
         </View>
       )}
-      {/* DIAGNOSTIC SWAP: plain `ScrollView` + `.map()` instead of
-          `FlatList`, to isolate whether `FlatList`'s own internal
-          `VirtualizedList`/cell-management wrapper layers are what's
-          keeping `tabBarMinimizeBehavior` from detecting this screen's
-          scroll view — every screen confirmed to work (`DashboardScreen`,
-          Online dashboard) uses a plain `ScrollView`; every screen that
-          doesn't work uses `FlatList`. Loses row virtualization/recycling
-          while this is in place — fine for testing, not meant to be the
-          final state if this doesn't fix it. */}
-      <ScrollView
+      {/* Back to `FlatList` — the real fix turned out to be the wrapping
+          root `<View>` around this whole screen being replaced with a
+          Fragment (see below): that removed an unnecessary extra native
+          view between the Stack screen and this list, which is what was
+          actually blocking `tabBarMinimizeBehavior` from finding the
+          scroll view. The `ScrollView`+`.map()` swap was a useful
+          diagnostic but not the fix itself. */}
+      <FlatList
+        data={filtered}
+        keyExtractor={p => p.id}
         style={{ flex: 1, overflow: 'hidden' }}
         onScroll={onScroll}
         scrollEventThrottle={16}
+        initialNumToRender={12}
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        removeClippedSubviews
         contentContainerStyle={{
           paddingHorizontal: 8,
           // Only applied when the search bar isn't shown — when it is, ITS
@@ -217,24 +221,12 @@ export default function InventoryScreen({ route, navigation }: any) {
           paddingBottom: 120,
           flexGrow: 1,
         }}
-      >
-        {filtered.length === 0 ? (
+        renderItem={renderProductItem}
+        ListEmptyComponent={
           <EmptyState icon="cube-outline" title={t('noProducts')} subtitle={t('tapPlusToAdd')}
             actionLabel={t('addProduct')} onAction={() => navigation.navigate('ProductForm', {})} />
-        ) : (
-          filtered.map((item, index) => (
-            <ProductCard
-              key={item.id}
-              product={item}
-              currency={settings.currency}
-              colors={colors}
-              index={index}
-              onAddStock={openStockSheet}
-              onMenu={openMenuSheet}
-            />
-          ))
-        )}
-      </ScrollView>
+        }
+      />
 
       <CollapsibleFab bottom={24} icon="add" label="Add Product" extended={extended} onPress={() => {
         confirmActions({
@@ -304,7 +296,7 @@ export default function InventoryScreen({ route, navigation }: any) {
           </TouchableOpacity>
         </View>
       </LiquidBottomSheet>
-    </View>
+    </>
   );
 }
 
