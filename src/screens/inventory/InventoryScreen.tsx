@@ -195,12 +195,19 @@ export default function InventoryScreen({ route, navigation }: any) {
           />
         </View>
       )}
-      {/* Scrollable area*/}
-      <View style={{ flex: 1, overflow: 'hidden' }}>
-        <FlatList
+      {/* `FlatList` is a direct child here now, not wrapped in an extra
+          "scrollable area" `View` — one level shallower, closer to
+          `DashboardScreen`'s `SafeAreaView → ScrollView` pattern (the one
+          screen where `tabBarMinimizeBehavior` is confirmed to detect the
+          scroll view correctly), on the chance the extra wrapper level was
+          part of why this screen wasn't detected. `overflow: 'hidden'`
+          (previously on the wrapper, needed to clip `ProductCard` row
+          shadows/animations at the list's edges) moved onto `FlatList`'s
+          own `style` instead of being dropped. */}
+      <FlatList
         data={filtered}
         keyExtractor={p => p.id}
-        style={{ flex: 1 }}
+        style={{ flex: 1, overflow: 'hidden' }}
         onScroll={onScroll}
         scrollEventThrottle={16}
         initialNumToRender={12}
@@ -222,7 +229,6 @@ export default function InventoryScreen({ route, navigation }: any) {
             actionLabel={t('addProduct')} onAction={() => navigation.navigate('ProductForm', {})} />
         }
       />
-      </View>{/* end scrollable area */}
 
       <CollapsibleFab bottom={24} icon="add" label="Add Product" extended={extended} onPress={() => {
         confirmActions({
