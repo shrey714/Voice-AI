@@ -152,7 +152,15 @@ export default function LiquidButton({
   // using this same bold font, plus fixed padding/icon allowance — a
   // deterministic RN-side measurement, not a native-side guess.
   const iconAllowance = icon ? 30 : 0;
-  const compactWidth = labelWidth > 0 ? Math.ceil(labelWidth) + 56 + iconAllowance : 0;
+  // An empty `title` (icon-only compact button, e.g. `CollapsibleFab`'s
+  // collapsed state) has nothing for the invisible measurer `Text` below to
+  // ever report a non-zero width for — `labelWidth` would stay `0` forever,
+  // permanently stuck on the "not yet measured" placeholder branch below.
+  // Icon-only width doesn't need label measurement at all, so it's computed
+  // directly instead of waiting on a measurement that will never arrive.
+  const compactWidth = title.length === 0
+    ? 44 + iconAllowance
+    : (labelWidth > 0 ? Math.ceil(labelWidth) + 56 + iconAllowance : 0);
   const targetWidth = fullWidth ? contentWidth : compactWidth;
 
   // Reserve layout space at `height` immediately so nothing jumps once the
