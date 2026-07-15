@@ -23,6 +23,7 @@ import * as Haptics from 'expo-haptics';
 import VoiceButton from '../../components/billing/VoiceButton';
 import BarcodeScannerModal from '../../components/billing/BarcodeScannerModal';
 import BtStatusIcon from '../../components/billing/BtStatusIcon';
+import LiquidHeaderIconButton from '../../components/common/LiquidHeaderIconButton';
 import EmptyState from '../../components/common/EmptyState';
 import AppModal from '../../components/common/AppModal';
 import LiquidButton from '../../components/common/LiquidButton';
@@ -317,10 +318,9 @@ export default function BillingScreen({ navigation }: any) {
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
-              height: placement === 'inline' ? 32 : 48,
-              borderRadius: placement === 'inline' ? 16 : 24,
+              height: '100%',
+              width: '100%',
               paddingHorizontal: placement === 'inline' ? 14 : 18,
-              marginHorizontal: placement === 'inline' ? 0 : 16,
               backgroundColor: colors.primary,
             }}
             accessibilityLabel={t('checkout')}
@@ -345,11 +345,9 @@ export default function BillingScreen({ navigation }: any) {
       headerTransparent: true,
       headerStyle: { backgroundColor: 'transparent' },
       headerRight: () => (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <BtStatusIcon active={btActive} />
-          <TouchableOpacity onPress={() => setShowScanner(true)} accessibilityLabel="Scan barcode" accessibilityRole="button">
-            <Ionicons name="barcode-outline" size={24} color={colors.primary} />
-          </TouchableOpacity>
+          <LiquidHeaderIconButton icon="barcode.viewfinder" androidIcon="barcode-outline" onPress={() => setShowScanner(true)} />
           <VoiceButton
             style={{ width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center' }}
             color={colors.primary}
