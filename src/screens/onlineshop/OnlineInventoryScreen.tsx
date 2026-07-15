@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { View, FlatList, ScrollView, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, Alert } from 'react-native';
+import React, { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import { View, FlatList, ScrollView, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, Alert, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -117,9 +118,18 @@ export default function OnlineInventoryScreen({ navigation }: any) {
   const { extended, onScroll } = useFabScroll();
   const importSheetRef = useRef<LiquidBottomSheetRef>(null);
   const s = useMemo(() => makeStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
+  // Same as InventoryScreen: `headerTransparent` no longer reserves layout
+  // space for the native header on either platform, so content needs to
+  // compensate manually. 44 is UIKit's standard compact nav bar height on
+  // iOS; 56 is Material's standard app-bar height on Android. `insets.top`
+  // covers the status bar/notch on both.
+  const headerCompensation = insets.top + (Platform.OS === 'ios' ? 44 : 56);
 
   useEffect(() => {
     navigation.setOptions({
+      headerTransparent: true,
+      headerStyle: { backgroundColor: 'transparent' },
       headerRight: () => (
         <LiquidHeaderIconButton icon="magnifyingglass" androidIcon="search-outline" onPress={() => setSearchOpen(v => !v)} />
       ),
@@ -150,7 +160,7 @@ export default function OnlineInventoryScreen({ navigation }: any) {
     return onlineProducts.filter((p) => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
   }, [onlineProducts, search]);
 
-  const handleAdd = () => {
+  const handleAdd = useCallback(() => {
     confirmActions({
       title: 'Add online product',
       message: 'Start from a product you already sell in-store, or create a brand-new online-only listing.',
@@ -162,7 +172,40 @@ export default function OnlineInventoryScreen({ navigation }: any) {
       if (choice === 'import') importSheetRef.current?.expand();
       else if (choice === 'create') navigation.navigate('OnlineProductForm', {});
     });
-  };
+  }, [confirmActions, navigation]);
+
+  // `bottomAccessory` (iOS 26+ only) — same conversion as InventoryScreen.
+  // A **Tab**-level option, one navigator up from this screen's own Stack,
+  // hence `getParent()`. Android's classic tab navigator has no such
+  // option, so it keeps the existing `CollapsibleFab` below instead.
+  useLayoutEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    navigation.getParent()?.setOptions({
+      bottomAccessory: ({ placement }: { placement: 'regular' | 'inline' }) =>
+        placement === 'inline' ? (
+          <TouchableOpacity
+            onPress={handleAdd}
+            style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}
+            accessibilityLabel="Add Product"
+            accessibilityRole="button"
+          >
+            <Ionicons name="add" size={18} color="#fff" />
+          </TouchableOpacity>
+        ) : (
+          <View style={{ paddingHorizontal: 16, paddingVertical: 8, alignItems: 'flex-end' }}>
+            <TouchableOpacity
+              onPress={handleAdd}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 8, height: 48, borderRadius: 24, paddingHorizontal: 18, backgroundColor: colors.primary }}
+              accessibilityLabel="Add Product"
+              accessibilityRole="button"
+            >
+              <Ionicons name="add" size={20} color="#fff" />
+              <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 14 }}>Add Product</Text>
+            </TouchableOpacity>
+          </View>
+        ),
+    });
+  }, [navigation, handleAdd, colors]);
 
   const handleImportPick = (product: Product) => {
     importSheetRef.current?.close();
@@ -211,18 +254,23 @@ export default function OnlineInventoryScreen({ navigation }: any) {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <>
       {searchOpen && (
-        <InlineSearchBar
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Search online listings…"
-          onClose={() => setSearchOpen(false)}
-        />
+        // `headerTransparent` means this row is no longer pushed below a
+        // solid header by normal flow — see InventoryScreen's identical
+        // comment for the full explanation.
+        <View style={Platform.OS === 'ios' ? { marginTop: headerCompensation } : undefined}>
+          <InlineSearchBar
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search online listings…"
+            onClose={() => setSearchOpen(false)}
+          />
+        </View>
       )}
 
       {filtered.length === 0 ? (
-        <View style={s.emptyWrap}>
+        <View style={[s.emptyWrap, Platform.OS === 'ios' && !searchOpen ? { marginTop: headerCompensation - 60 } : null]}>
           <Ionicons name="storefront-outline" size={40} color={colors.textMuted} />
           <Text style={[s.emptyTitle, { color: colors.text }]}>
             {onlineProducts.length === 0 ? 'No listings yet' : 'No matches'}
@@ -235,6 +283,10 @@ export default function OnlineInventoryScreen({ navigation }: any) {
         <FlatList
           data={filtered}
           keyExtractor={(p) => p.id}
+          // No manual `headerCompensation` here — same as InventoryScreen:
+          // once a `FlatList` is a properly-detected first-descendant
+          // scroll view, iOS 26 insets it below the transparent header
+          // natively via `contentInsetAdjustmentBehavior: automatic`.
           contentContainerStyle={{ paddingHorizontal: 10, paddingTop: 10, paddingBottom: 120 }}
           onScroll={onScroll}
           scrollEventThrottle={16}
@@ -257,10 +309,15 @@ export default function OnlineInventoryScreen({ navigation }: any) {
         />
       )}
 
-      <CollapsibleFab icon="add" label="Add Product" extended={extended} onPress={handleAdd} bottom={24} />
+      {/* iOS gets the native `bottomAccessory` (set up above via
+          `navigation.getParent()?.setOptions`) instead — Android has no
+          such API, so it keeps this floating overlay. */}
+      {Platform.OS !== 'ios' && (
+        <CollapsibleFab icon="add" label="Add Product" extended={extended} onPress={handleAdd} bottom={24} />
+      )}
 
       <ImportPickerSheet sheetRef={importSheetRef} onPick={handleImportPick} />
-    </View>
+    </>
   );
 }
 
