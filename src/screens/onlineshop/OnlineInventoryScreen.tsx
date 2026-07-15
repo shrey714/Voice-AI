@@ -182,20 +182,10 @@ export default function OnlineInventoryScreen({ navigation }: any) {
     if (Platform.OS !== 'ios') return;
     navigation.getParent()?.setOptions({
       bottomAccessory: ({ placement }: { placement: 'regular' | 'inline' }) =>
-        placement === 'inline' ? (
-          <TouchableOpacity
-            onPress={handleAdd}
-            style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}
-            accessibilityLabel="Add Product"
-            accessibilityRole="button"
-          >
-            <Ionicons name="add" size={18} color="#fff" />
-          </TouchableOpacity>
-        ) : (
           <View style={{ paddingHorizontal: 16, paddingVertical: 8, alignItems: 'flex-end' }}>
             <TouchableOpacity
               onPress={handleAdd}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 8, height: 48, borderRadius: 24, paddingHorizontal: 18, backgroundColor: colors.primary }}
+              style={{ width: '100%', height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 24, paddingHorizontal: 18 }}
               accessibilityLabel="Add Product"
               accessibilityRole="button"
             >
@@ -203,7 +193,6 @@ export default function OnlineInventoryScreen({ navigation }: any) {
               <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 14 }}>Add Product</Text>
             </TouchableOpacity>
           </View>
-        ),
     });
   }, [navigation, handleAdd, colors]);
 
@@ -283,11 +272,21 @@ export default function OnlineInventoryScreen({ navigation }: any) {
         <FlatList
           data={filtered}
           keyExtractor={(p) => p.id}
-          // No manual `headerCompensation` here — same as InventoryScreen:
-          // once a `FlatList` is a properly-detected first-descendant
-          // scroll view, iOS 26 insets it below the transparent header
-          // natively via `contentInsetAdjustmentBehavior: automatic`.
-          contentContainerStyle={{ paddingHorizontal: 10, paddingTop: 10, paddingBottom: 120 }}
+          // Manual `headerCompensation` IS needed here, unlike
+          // InventoryScreen — `isLoadingOnlineProducts` is a network fetch
+          // (this screen's `OnlineInventorySkeleton` early-return has no
+          // `FlatList` in it at all, visible for a real stretch of time),
+          // so iOS's one-time "detect the first-descendant scroll view for
+          // automatic inset" pass likely runs while only the skeleton is
+          // mounted and finds nothing — the real `FlatList` that appears
+          // later never gets the automatic inset. InventoryScreen's
+          // equivalent gate is local SQLite data that resolves near-
+          // instantly, so that race essentially never loses there.
+          contentContainerStyle={{
+            paddingHorizontal: 10,
+            paddingTop: Platform.OS === 'ios' && !searchOpen ? headerCompensation : 10,
+            paddingBottom: 120,
+          }}
           onScroll={onScroll}
           scrollEventThrottle={16}
           initialNumToRender={10}
