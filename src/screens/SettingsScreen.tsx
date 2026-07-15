@@ -223,7 +223,7 @@ export default function SettingsScreen({ navigation }: any) {
 }
 
 const makeStyles = (c: any) => StyleSheet.create({
-  profileCard: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 16, marginHorizontal: 12, },
+  profileCard: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 16, marginHorizontal: 12, marginTop: 8 },
   avatar: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
   shopName: { fontFamily: fonts.extraBold, fontSize: 18 },
   shopSub: { fontFamily: fonts.medium, fontSize: 13, marginTop: 2 },

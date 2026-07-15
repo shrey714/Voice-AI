@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useLayoutEffect } from 'react';
 import { View, ScrollView, StyleSheet, TextInput, TouchableOpacity, Alert, Switch } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -82,7 +82,7 @@ function OptionGroup({
   );
 }
 
-export default function ManageOptionsScreen() {
+export default function ManageOptionsScreen({ navigation }: any) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
   const { settings, updateSettings } = useAppStore(
@@ -103,9 +103,24 @@ export default function ManageOptionsScreen() {
   const saveLowStock = (v: string) => updateSettings({ lowStockThreshold: parseInt(v) || 5 });
   const saveDailyGoal = (v: string) => updateSettings({ dailyGoal: parseInt(v) || 0 });
 
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerTransparent: true,
+      headerStyle: { backgroundColor: 'transparent' },
+    });
+  }, [navigation]);
+
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={{ padding: 8, paddingBottom: 140 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+    // `ScrollView` is the root here (no wrapping `View`) — same fix as
+    // InventoryScreen/SettingsScreen/ShopInfoScreen: react-native-screens
+    // needs the scroll view reachable as the screen's first native child
+    // for `headerTransparent`/`tabBarMinimizeBehavior` to detect it.
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.bg }}
+      contentContainerStyle={{ padding: 8, paddingBottom: 140 }}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
         <Text style={[s.lead, { color: colors.textMuted }]}>
           {t('customizeApp')}
         </Text>
@@ -174,7 +189,6 @@ export default function ManageOptionsScreen() {
           placeholder="e.g. Transport" colors={colors}
         />
       </ScrollView>
-    </View>
   );
 }
 
