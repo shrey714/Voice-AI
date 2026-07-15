@@ -586,7 +586,7 @@ export default function BillingScreen({ navigation }: any) {
   const payModeColors = { cash: colors.success, upi: colors.info, credit: colors.warning };
 
   return (
-    <View style={[s.container, { backgroundColor: colors.bg }]}>
+    <>
       {/* Single scrollable `FlatList` for the whole screen (Fragment-less
           single root here is fine — `View` wrapper only holds this FlatList
           plus the fixed Android checkout bar / sheets / hidden BT input as
@@ -604,12 +604,10 @@ export default function BillingScreen({ navigation }: any) {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
           paddingBottom: Platform.OS === 'ios' ? 32 : (cart.length > 0 ? 96 : 24),
+          flexGrow: 1,
         }}
         ListHeaderComponent={
-          <View style={[s.topBar, {
-            backgroundColor: colors.surface,
-            marginTop: Platform.OS === 'ios' ? headerCompensation : 0,
-          }]}>
+          <View style={[s.topBar]}>
             <View style={[s.searchBox, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
               <Ionicons name="search-outline" size={16} color={colors.textMuted} style={{ marginRight: 6 }} />
               <TextInput
@@ -1039,13 +1037,13 @@ export default function BillingScreen({ navigation }: any) {
 
       <BarcodeScannerModal visible={showScanner} onClose={() => { setShowScanner(false); refocusBtInput(); }} onScanned={handleBarcodeScanned} />
 
-    </View>
+    </>
   );
 }
 
 const makeStyles = (c: any) => StyleSheet.create({
   container: { flex: 1 },
-  topBar: { flexDirection: 'row', paddingTop: 8, paddingHorizontal: 12, paddingBottom: 4, gap: 10, alignItems: 'center' },
+  topBar: { flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 4, gap: 10, alignItems: 'center' },
   searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1 },
   searchInput: { flex: 1, fontSize: 14, padding: 0, fontFamily: fonts.regular },
   sectionLabel: { fontFamily: fonts.bold, fontSize: 13, paddingHorizontal: 8, marginBottom: 8 },
