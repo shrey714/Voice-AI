@@ -295,7 +295,12 @@ export default function BillingScreen({ navigation }: any) {
 
   useEffect(() => {
     navigation.setOptions({
-      headerRight: btEnabled ? () => <BtStatusIcon active={btActive} /> : undefined,
+      headerTransparent: true,
+      headerStyle: { backgroundColor: 'transparent' },
+      headerRight: 
+       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      {btEnabled ? <BtStatusIcon active={btActive} /> : undefined}
+      </View>
     });
   }, [btActive, navigation, btEnabled]);
 
