@@ -547,7 +547,7 @@ export default function UdhaarScreen({ navigation }: any) {
 
 const makeStyles = (c: any) => StyleSheet.create({
   container: { flex: 1 },
-  summaryCard: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 11, borderRadius: 16 },
+  summaryCard: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 11, borderRadius: 16, marginBottom: 8 },
   summaryLabel: { fontFamily: fonts.medium, fontSize: 12, marginTop: 6 },
   summaryAmount: { fontFamily: fonts.display, fontSize: 18 },
   remindAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12 },
