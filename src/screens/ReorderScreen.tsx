@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity, TextInput, Linking, Alert } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,6 +28,13 @@ export default function ReorderScreen({ navigation }: any) {
     }))
   );
   const s = makeStyles(colors);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerTransparent: true,
+      headerStyle: { backgroundColor: 'transparent' },
+    });
+  }, [navigation]);
 
   const lowStock = useMemo(() => products.filter(p => p.quantity <= p.lowStockThreshold), [products]);
 
@@ -69,17 +76,12 @@ export default function ReorderScreen({ navigation }: any) {
     });
   };
 
-  if (lowStock.length === 0) {
-    return (
-      <View style={{ flex: 1, backgroundColor: colors.bg }}>
-        <EmptyState icon="checkmark-circle-outline" title={t('stockLooksHealthy')} subtitle={t('noItemsBelowLevel')} />
-      </View>
-    );
-  }
-
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 12, paddingBottom: 130 }}>
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 12, paddingBottom: 130, flexGrow: 1 }}>
+      {lowStock.length === 0 ? (
+        <EmptyState icon="checkmark-circle-outline" title={t('stockLooksHealthy')} subtitle={t('noItemsBelowLevel')} />
+      ) : (
+        <>
         <Text style={[s.intro, { color: colors.textMuted }]}>
           {t('itemsLowOnStockIntro').replace('{count}', String(lowStock.length)).replace('{plural}', lowStock.length > 1 ? 's' : '')}
         </Text>
@@ -138,8 +140,9 @@ export default function ReorderScreen({ navigation }: any) {
             </MotiView>
           );
         })}
-      </ScrollView>
-    </View>
+        </>
+      )}
+    </ScrollView>
   );
 }
 
