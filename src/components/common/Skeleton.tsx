@@ -125,57 +125,58 @@ export function OnlineShopSettingsSkeleton() {
   );
 }
 
-/** Online Orders list placeholder — mirrors the order-card shape (name/phone/items + total/status). */
+/**
+ * Online Orders list placeholder — mirrors the order-card shape
+ * (name/phone/items + total/status). Rendered inside `FlatList`'s
+ * `ListEmptyComponent` (not as a full-screen early return) — the real
+ * period/status filter chip row already lives in `ListHeaderComponent`
+ * above this and stays mounted throughout loading, so this doesn't
+ * duplicate it with a second fake chip row anymore, and doesn't need its
+ * own `flex`/background fill either (the FlatList's own container already
+ * provides that).
+ */
 export function OnlineOrdersSkeleton() {
   const { colors } = useAppTheme();
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <View style={{ backgroundColor: colors.surface, flexDirection: 'row', gap: 8, padding: 10, borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} style={{ width: 60, height: 30, borderRadius: 20 }} />
-        ))}
-      </View>
-      <View style={{ padding: 10, gap: 8 }}>
-        {Array.from({ length: 5 }).map((_, i) => (
-          <View key={i} style={[styles.card, { borderColor: colors.border, alignItems: 'flex-start' }]}>
-            <View style={{ flex: 1, gap: 8 }}>
-              <Skeleton style={{ width: '45%', height: 14 }} />
-              <Skeleton style={{ width: '30%', height: 11 }} />
-              <Skeleton style={{ width: '70%', height: 11 }} />
-            </View>
-            <View style={{ alignItems: 'flex-end', gap: 6 }}>
-              <Skeleton style={{ width: 54, height: 15 }} />
-              <Skeleton style={{ width: 60, height: 18, borderRadius: 8 }} />
-            </View>
+    <View style={{ gap: 8 }}>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <View key={i} style={[styles.card, { borderColor: colors.border, alignItems: 'flex-start' }]}>
+          <View style={{ flex: 1, gap: 8 }}>
+            <Skeleton style={{ width: '45%', height: 14 }} />
+            <Skeleton style={{ width: '30%', height: 11 }} />
+            <Skeleton style={{ width: '70%', height: 11 }} />
           </View>
-        ))}
-      </View>
+          <View style={{ alignItems: 'flex-end', gap: 6 }}>
+            <Skeleton style={{ width: 54, height: 15 }} />
+            <Skeleton style={{ width: 60, height: 18, borderRadius: 8 }} />
+          </View>
+        </View>
+      ))}
     </View>
   );
 }
 
-/** Online Inventory placeholder — mirrors summary bar + search + product rows. */
+/**
+ * Online Inventory placeholder — mirrors product rows only. Rendered inside
+ * `FlatList`'s `ListEmptyComponent` — the real "X of Y listings visible"
+ * summary row already lives in `ListHeaderComponent` above this and stays
+ * mounted throughout loading, so this doesn't duplicate it with a second
+ * fake summary/search bar anymore, and doesn't need its own `flex`/
+ * background fill either.
+ */
 export function OnlineInventorySkeleton() {
   const { colors } = useAppTheme();
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <View style={[styles.summaryBar, { backgroundColor: colors.surface }]}>
-        <Skeleton style={{ width: 220, height: 14 }} />
-      </View>
-      <View style={{ paddingHorizontal: 12, paddingVertical: 10, backgroundColor: colors.surface }}>
-        <Skeleton style={{ width: '100%', height: 40, borderRadius: 10 }} />
-      </View>
-      <View style={{ padding: 10, gap: 8 }}>
-        {Array.from({ length: 6 }).map((_, i) => (
-          <View key={i} style={[styles.card, { borderColor: colors.border }]}>
-            <View style={{ flex: 1, gap: 8 }}>
-              <Skeleton style={{ width: '60%', height: 14 }} />
-              <Skeleton style={{ width: '40%', height: 11 }} />
-            </View>
-            <Skeleton style={{ width: 44, height: 26, borderRadius: 13 }} />
+    <View style={{ gap: 8 }}>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <View key={i} style={[styles.card, { borderColor: colors.border }]}>
+          <View style={{ flex: 1, gap: 8 }}>
+            <Skeleton style={{ width: '60%', height: 14 }} />
+            <Skeleton style={{ width: '40%', height: 11 }} />
           </View>
-        ))}
-      </View>
+          <Skeleton style={{ width: 44, height: 26, borderRadius: 13 }} />
+        </View>
+      ))}
     </View>
   );
 }
