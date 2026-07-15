@@ -22,7 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Text } from "react-native-paper";
 import { Ionicons } from "@expo/vector-icons";
-import { useIsFocused } from "@react-navigation/native";
+import { useIsFocused, useFocusEffect } from "@react-navigation/native";
 import LiquidBottomSheet, {
   LiquidBottomSheetRef,
 } from "../../components/common/LiquidBottomSheet";
@@ -271,43 +271,52 @@ export default function OnlineInventoryScreen({ navigation }: any) {
   // A **Tab**-level option, one navigator up from this screen's own Stack,
   // hence `getParent()`. Android's classic tab navigator has no such
   // option, so it keeps the existing `CollapsibleFab` below instead.
-  useLayoutEffect(() => {
-    if (Platform.OS !== "ios") return;
-    navigation.getParent()?.setOptions({
-      bottomAccessory: ({ placement }: { placement: "regular" | "inline" }) => (
-        <View
-          style={{
-            paddingHorizontal: 16,
-            paddingVertical: 8,
-            alignItems: "flex-end",
-          }}
-        >
-          <TouchableOpacity
-            onPress={handleAdd}
+  // Scoped with `useFocusEffect` (set on focus, cleared on blur), not a
+  // plain mount effect — this screen's tab stack also has OnlineProductForm,
+  // where this "Add Product" accessory shouldn't keep floating (a stale
+  // closure) after navigating there. See ShopInfoScreen/ExpensesScreen for
+  // the same fix.
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== "ios") return;
+      const parent = navigation.getParent();
+      parent?.setOptions({
+        bottomAccessory: ({ placement }: { placement: "regular" | "inline" }) => (
+          <View
             style={{
-              width: "100%",
-              height: "100%",
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-              borderRadius: 24,
-              paddingHorizontal: 18,
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              alignItems: "flex-end",
             }}
-            accessibilityLabel="Add Product"
-            accessibilityRole="button"
           >
-            <Ionicons name="add" size={20} color="#fff" />
-            <Text
-              style={{ color: "#fff", fontFamily: fonts.bold, fontSize: 14 }}
+            <TouchableOpacity
+              onPress={handleAdd}
+              style={{
+                width: "100%",
+                height: "100%",
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                borderRadius: 24,
+                paddingHorizontal: 18,
+              }}
+              accessibilityLabel="Add Product"
+              accessibilityRole="button"
             >
-              Add Product
-            </Text>
-          </TouchableOpacity>
-        </View>
-      ),
-    });
-  }, [navigation, handleAdd, colors]);
+              <Ionicons name="add" size={20} color="#fff" />
+              <Text
+                style={{ color: "#fff", fontFamily: fonts.bold, fontSize: 14 }}
+              >
+                Add Product
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ),
+      });
+      return () => { parent?.setOptions({ bottomAccessory: undefined }); };
+    }, [navigation, handleAdd, colors])
+  );
 
   const handleImportPick = (product: Product) => {
     importSheetRef.current?.close();

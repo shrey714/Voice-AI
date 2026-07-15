@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useMemo, useLayoutEffect } from 'react';
 import { View, FlatList, StyleSheet, TouchableOpacity, Alert, ScrollView, Platform } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -52,10 +53,17 @@ export default function ExpensesScreen({ navigation }: any) {
   const closeForm = useCallback(() => formSheetRef.current?.close(), []);
 
   // `bottomAccessory` (iOS 26+ only) — same conversion as InventoryScreen.
-  useLayoutEffect(() => {
-    if (Platform.OS !== 'ios') return;
-    navigation.getParent()?.setOptions({
-      bottomAccessory: ({ placement }: { placement: 'regular' | 'inline' }) =>
+  // Scoped with `useFocusEffect` (set on focus, cleared on blur), not a
+  // plain mount effect — this screen sits inside the "More" tab's stack
+  // alongside many unrelated screens (MenuScreen, Settings, …); without
+  // clearing on blur this button keeps floating there after navigating
+  // away, backed by a stale closure (see ShopInfoScreen for the same fix).
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'ios') return;
+      const parent = navigation.getParent();
+      parent?.setOptions({
+        bottomAccessory: ({ placement }: { placement: 'regular' | 'inline' }) =>
             <TouchableOpacity
               onPress={openForm}
               style={{ width: '100%', height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 24, paddingHorizontal: 18 }}
@@ -65,8 +73,10 @@ export default function ExpensesScreen({ navigation }: any) {
               <Ionicons name="add" size={20} color="#fff" />
               <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 14 }}>{t('saveExpense')}</Text>
             </TouchableOpacity>
-    });
-  }, [navigation, openForm, colors, t]);
+      });
+      return () => { parent?.setOptions({ bottomAccessory: undefined }); };
+    }, [navigation, openForm, colors, t])
+  );
 
   useLayoutEffect(() => {
     navigation.setOptions({

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { View, FlatList, StyleSheet, TouchableOpacity, Alert, ScrollView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import LiquidBottomSheet, { LiquidBottomSheetRef } from '../../components/common/LiquidBottomSheet';
@@ -146,28 +147,37 @@ export default function InventoryScreen({ route, navigation }: any) {
   // tab navigator has no such option (silently ignores unknown
   // `screenOptions` keys, same as `tabBarMinimizeBehavior`), so it keeps the
   // existing `CollapsibleFab` below instead.
-  useLayoutEffect(() => {
-    if (Platform.OS !== 'ios') return;
-    navigation.getParent()?.setOptions({
-      // No manual `margin`/`alignSelf` positioning here — the native
-      // accessory container already provides and sizes its own region
-      // (above the tab bar for `'regular'`, merged into the minimized bar
-      // for `'inline'`); fighting that with our own offsets is what made
-      // the pill overlap list content instead of sitting in its own slot,
-      // and the icon show a ghosted double-render artifact. Content just
-      // fills the space it's given, same as the docs' own bare example.
-          bottomAccessory: ({ placement }: { placement: 'regular' | 'inline' }) =>
-            <TouchableOpacity
-              onPress={openAddMenu}
-              style={{ width: '100%', height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 24, paddingHorizontal: 18 }}
-              accessibilityLabel="Add Product"
-              accessibilityRole="button"
-            >
-              <Ionicons name="add" size={20} color="#fff" />
-              <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 14 }}>Add Product</Text>
-            </TouchableOpacity>
-    });
-  }, [navigation, openAddMenu, colors]);
+  // Scoped with `useFocusEffect` (set on focus, cleared on blur), not a
+  // plain mount effect — this screen's tab stack also has ProductForm/
+  // CsvImport, where this "Add Product" accessory shouldn't keep floating
+  // (a stale closure) after navigating there. See ShopInfoScreen/
+  // ExpensesScreen for the same fix.
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'ios') return;
+      const parent = navigation.getParent();
+      parent?.setOptions({
+        // No manual `margin`/`alignSelf` positioning here — the native
+        // accessory container already provides and sizes its own region
+        // (above the tab bar for `'regular'`, merged into the minimized bar
+        // for `'inline'`); fighting that with our own offsets is what made
+        // the pill overlap list content instead of sitting in its own slot,
+        // and the icon show a ghosted double-render artifact. Content just
+        // fills the space it's given, same as the docs' own bare example.
+        bottomAccessory: ({ placement }: { placement: 'regular' | 'inline' }) =>
+          <TouchableOpacity
+            onPress={openAddMenu}
+            style={{ width: '100%', height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 24, paddingHorizontal: 18 }}
+            accessibilityLabel="Add Product"
+            accessibilityRole="button"
+          >
+            <Ionicons name="add" size={20} color="#fff" />
+            <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 14 }}>Add Product</Text>
+          </TouchableOpacity>
+      });
+      return () => { parent?.setOptions({ bottomAccessory: undefined }); };
+    }, [navigation, openAddMenu, colors])
+  );
 
   // Show the item count beside the header title, and the CSV import at the header's right end.
   useLayoutEffect(() => {

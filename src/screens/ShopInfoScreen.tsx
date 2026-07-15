@@ -298,7 +298,7 @@ function ShopInfoForm({ isOnline, loading, navigation }: { isOnline: boolean; lo
         bottomAccessory: ({ placement }: { placement: 'regular' | 'inline' }) =>
               <TouchableOpacity
                 onPress={saveDisabled ? undefined : handleSave}
-                style={{ width: '100%', height: '100%', flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 24, paddingHorizontal: 18, opacity: saveDisabled ? 0.4 : 1 }}
+                style={{ width: '100%', height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 24, paddingHorizontal: 18, opacity: saveDisabled ? 0.4 : 1 }}
                 accessibilityLabel={saveLabel}
                 accessibilityRole="button"
               >
