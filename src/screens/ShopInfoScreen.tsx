@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, TextInput, Switch, Alert, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useState, useEffect, useLayoutEffect, useCallback } from 'react';
+import { View, ScrollView, StyleSheet, TouchableOpacity, TextInput, Switch, Alert, ActivityIndicator, RefreshControl, Platform } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -66,8 +67,19 @@ export default function ShopInfoScreen(props: any) {
   return <ShopInfoForm {...props} isOnline={isOnline} />;
 }
 
-function ShopInfoForm({ isOnline }: { isOnline: boolean }) {
+function ShopInfoForm({ isOnline, navigation }: { isOnline: boolean; navigation: any }) {
   const { colors } = useAppTheme();
+  // No manual header-compensation constant needed here (unlike
+  // InventoryScreen/OnlineOrdersScreen's search bars) — this screen has no
+  // plain-`View` content sitting above its `ScrollView` that would need it;
+  // the `ScrollView` itself gets the automatic native inset once detected.
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerTransparent: true,
+      headerStyle: { backgroundColor: 'transparent' },
+    });
+  }, [navigation]);
   const { t } = useTranslation();
   const appSettings = useAppStore((s) => s.settings);
   const { config, updateConfig, saveConfigToSupabase, fetchShopConfig, isSavingConfig, lastError } = useOnlineShopStore(
@@ -199,7 +211,7 @@ function ShopInfoForm({ isOnline }: { isOnline: boolean }) {
     );
   };
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!isOnline) return;
     if (!shopName.trim()) { toast.error('Enter a shop name.'); return; }
     const slug = slugify(shopSlug || shopName);
@@ -242,13 +254,70 @@ function ShopInfoForm({ isOnline }: { isOnline: boolean }) {
     } catch (e: any) {
       toast.error('Could not save', { description: e?.message ?? 'Check your connection and try again.' });
     }
-  };
+  }, [
+    isOnline, shopName, shopSlug, orderTimeout, ownerName, phone, upiId, gstRegistered, gstin,
+    onlineShopEnabled, isOnlineEnabled, description, schedule, minOrder, deliveryEnabled,
+    deliveryFee, deliveryRadius, latitude, longitude, addressText, updateConfig, saveConfigToSupabase,
+  ]);
+
+  const saveLabel = !isOnline ? 'Offline — connect to save' : isSavingConfig ? 'Saving…' : saved ? t('savedExcl') : t('save');
+  const saveIcon = !isOnline ? 'icloud.slash' : saved ? 'checkmark.circle.fill' : 'square.and.arrow.down';
+  const saveTint = saved ? colors.success : colors.primary;
+  const saveDisabled = !isOnline;
+
+  // `bottomAccessory` (iOS 26+ only) — same conversion as InventoryScreen's
+  // FAB, but scoped with `useFocusEffect` (set on focus, cleared on blur)
+  // rather than a plain mount effect: unlike Inventory's tab (whose stack
+  // only has 2-3 screens that all reasonably want the same "Add Product"
+  // accessory), this screen sits deep inside the "More" tab's stack
+  // alongside many unrelated screens (Settings, Exports, Backup, …) — if
+  // left set, this Save button would keep floating there after navigating
+  // away, backed by a stale closure.
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'ios') return;
+      const parent = navigation.getParent();
+      parent?.setOptions({
+        bottomAccessory: ({ placement }: { placement: 'regular' | 'inline' }) =>
+          placement === 'inline' ? (
+            <TouchableOpacity
+              onPress={saveDisabled ? undefined : handleSave}
+              style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: saveTint, alignItems: 'center', justifyContent: 'center', opacity: saveDisabled ? 0.4 : 1 }}
+              accessibilityLabel={saveLabel}
+              accessibilityRole="button"
+            >
+              {isSavingConfig ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name={saved ? 'checkmark' : 'save-outline'} size={16} color="#fff" />}
+            </TouchableOpacity>
+          ) : (
+            <View style={{ paddingHorizontal: 16, paddingVertical: 8, alignItems: 'flex-end' }}>
+              <TouchableOpacity
+                onPress={saveDisabled ? undefined : handleSave}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 8, height: 48, borderRadius: 24, paddingHorizontal: 18, backgroundColor: saveTint, opacity: saveDisabled ? 0.4 : 1 }}
+                accessibilityLabel={saveLabel}
+                accessibilityRole="button"
+              >
+                {isSavingConfig ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name={saved ? 'checkmark' : 'save-outline'} size={18} color="#fff" />}
+                <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 14 }}>{saveLabel}</Text>
+              </TouchableOpacity>
+            </View>
+          ),
+      });
+      return () => { parent?.setOptions({ bottomAccessory: undefined }); };
+    }, [navigation, handleSave, saveLabel, saveTint, saveDisabled, isSavingConfig, saved])
+  );
 
   const s = makeStyles(colors);
 
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.bg }}
+      // No manual `headerCompensation` here — you already confirmed
+      // minimize-on-scroll works on this screen, which means this
+      // `ScrollView` is already correctly detected as the first-descendant
+      // scroll view, so iOS applies `contentInsetAdjustmentBehavior:
+      // automatic` to it natively. Adding manual padding on top of that
+      // would double the gap below the header (the same bug fixed on
+      // Inventory/Orders/OnlineInventory).
       contentContainerStyle={{ padding: 14, paddingBottom: 120 }}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
@@ -594,16 +663,21 @@ function ShopInfoForm({ isOnline }: { isOnline: boolean }) {
         </>
       )}
 
-      <LiquidButton
-        title={!isOnline ? 'Offline — connect to save' : isSavingConfig ? 'Saving…' : saved ? t('savedExcl') : t('save')}
-        icon={!isOnline ? 'icloud.slash' : saved ? 'checkmark.circle.fill' : 'square.and.arrow.down'}
-        onPress={handleSave}
-        loading={isSavingConfig}
-        disabled={!isOnline}
-        tintColor={saved ? colors.success : undefined}
-        variant={!isOnline ? 'glass' : 'glassProminent'}
-        height={52}
-      />
+      {/* iOS gets the native `bottomAccessory` (set up above via
+          `useFocusEffect` + `navigation.getParent()?.setOptions`) instead —
+          Android has no such API, so it keeps this in-form Save button. */}
+      {Platform.OS !== 'ios' && (
+        <LiquidButton
+          title={saveLabel}
+          icon={!isOnline ? 'icloud.slash' : saved ? 'checkmark.circle.fill' : 'square.and.arrow.down'}
+          onPress={handleSave}
+          loading={isSavingConfig}
+          disabled={!isOnline}
+          tintColor={saved ? colors.success : undefined}
+          variant={!isOnline ? 'glass' : 'glassProminent'}
+          height={52}
+        />
+      )}
     </ScrollView>
   );
 }
