@@ -286,7 +286,7 @@ export default function BillingScreen({ navigation }: any) {
       return searchQuery.length === 0 ? (
         <View>
           <Text style={[s.sectionLabel, { color: colors.textMuted }]}>{t('quickAdd')}</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', paddingBottom: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             {/* Fixed Templates access button — NOT in scroll */}
             <TouchableOpacity
               style={[s.templateAccessBtn, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
@@ -368,7 +368,7 @@ export default function BillingScreen({ navigation }: any) {
 
     if (row.key === 'cartEmpty') {
       return (
-        <View style={{ backgroundColor: colors.surface, marginHorizontal: 8, borderBottomLeftRadius: 10, borderBottomRightRadius: 10 }}>
+        <View>
           <EmptyState icon="cart-outline" title={t('cartIsEmpty')} subtitle={t('scanBarcodeOrSearchForItems')} />
         </View>
       );
@@ -597,6 +597,7 @@ export default function BillingScreen({ navigation }: any) {
           search results are a normal (non-sticky) row; cart header + items
           follow below that, all in one scroll. */}
       <FlatList
+        showsVerticalScrollIndicator={false}
         data={listRows}
         keyExtractor={row => row.key}
         renderItem={renderRow}
@@ -1043,10 +1044,10 @@ export default function BillingScreen({ navigation }: any) {
 
 const makeStyles = (c: any) => StyleSheet.create({
   container: { flex: 1 },
-  topBar: { flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 4, gap: 10, alignItems: 'center' },
+  topBar: { flexDirection: 'row', paddingHorizontal: 8, paddingBottom: 4, gap: 10, alignItems: 'center' },
   searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1 },
   searchInput: { flex: 1, fontSize: 14, padding: 0, fontFamily: fonts.regular },
-  sectionLabel: { fontFamily: fonts.bold, fontSize: 13, paddingHorizontal: 8, marginBottom: 8 },
+  sectionLabel: { fontFamily: fonts.bold, fontSize: 12, paddingHorizontal: 8, marginBottom: 4, marginTop: 2 },
   quickChip: { borderRadius: 10, padding: 12, alignItems: 'center', minWidth: 90, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border },
   quickChipName: { fontFamily: fonts.bold, fontSize: 13, marginBottom: 4 },
   quickChipPrice: { fontFamily: fonts.semiBold, fontSize: 12 },
