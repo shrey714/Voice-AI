@@ -74,6 +74,7 @@ export default function BillingScreen({ navigation }: any) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
+  const headerCompensation = insets.top + (Platform.OS === 'ios' ? 44 : 56);
   const s = useMemo(() => makeStyles(colors), [colors]);
   const { confirm, confirmActions } = useConfirm();
   const { products, cart, addToCart, removeFromCart, updateCartQuantity, clearCart, checkout, settings, templates, saveTemplate, renameTemplate, deleteTemplate } = useAppStore(
@@ -293,16 +294,69 @@ export default function BillingScreen({ navigation }: any) {
     };
   }, [refocusBtInput]));
 
+  // Checkout button as `bottomAccessory` (iOS 26+ only) — same conversion as
+  // other screens' primary actions. Android keeps the in-cart button inline
+  // (gated with `Platform.OS !== 'ios'` below) since it has no native
+  // bottomAccessory equivalent.
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'ios') return;
+      const parent = navigation.getParent();
+      if (cart.length === 0) {
+        parent?.setOptions({ bottomAccessory: undefined });
+        return;
+      }
+      parent?.setOptions({
+        bottomAccessory: ({ placement }: { placement: 'regular' | 'inline' }) =>
+          placement === 'inline' ? (
+            <TouchableOpacity
+              onPress={openCheckout}
+              style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}
+              accessibilityLabel={t('checkout')}
+              accessibilityRole="button"
+            >
+              <Ionicons name="cart" size={16} color="#fff" />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              onPress={openCheckout}
+              style={[s.checkoutBtn, { backgroundColor: colors.primary, marginHorizontal: 16 }]}
+              accessibilityLabel={t('checkout')}
+              accessibilityRole="button"
+            >
+              <Text style={s.checkoutTotal}>{formatCurrency(cartTotal, settings.currency)}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Text style={s.checkoutLabel}>{t('checkout')}</Text>
+                <Ionicons name="arrow-forward" size={18} color="#fff" />
+              </View>
+            </TouchableOpacity>
+          ),
+      });
+      return () => { parent?.setOptions({ bottomAccessory: undefined }); };
+    }, [navigation, cart.length, cartTotal, settings.currency, openCheckout, colors, s, t])
+  );
+
   useEffect(() => {
     navigation.setOptions({
       headerTransparent: true,
       headerStyle: { backgroundColor: 'transparent' },
-      headerRight: ()=>(
-       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-      <BtStatusIcon active={btActive} /> 
-      </View>)
+      headerRight: () => (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <BtStatusIcon active={btActive} />
+          <TouchableOpacity onPress={() => setShowScanner(true)} accessibilityLabel="Scan barcode" accessibilityRole="button">
+            <Ionicons name="barcode-outline" size={24} color={colors.primary} />
+          </TouchableOpacity>
+          <VoiceButton
+            style={{ width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center' }}
+            color={colors.primary}
+            onResult={(items) => {
+              items.forEach(({ product, quantity }) => addToCart(product, quantity));
+            }}
+          />
+        </View>
+      ),
     });
-  }, [btActive, navigation, btEnabled]);
+  }, [btActive, navigation, btEnabled, colors.primary, addToCart]);
 
   useEffect(() => {
     const sub = Keyboard.addListener('keyboardDidHide', refocusBtInput);
@@ -380,8 +434,13 @@ export default function BillingScreen({ navigation }: any) {
 
   return (
     <View style={[s.container, { backgroundColor: colors.bg, paddingBottom: iosTabBarPad }]}>
-      {/* Top bar */}
-      <View style={[s.topBar, { backgroundColor: colors.surface }]}>
+      {/* Top bar — `headerTransparent` means this row is no longer pushed
+          below a solid header by normal flow, so it needs the same manual
+          `headerCompensation` margin used on other screens' non-scroll-view
+          content (search bars etc.) — see InventoryScreen/BillHistoryScreen's
+          identical comment. Scan + mic moved into `headerRight` alongside the
+          Bluetooth status icon. */}
+      <View style={[s.topBar, { backgroundColor: colors.surface, marginTop: Platform.OS === 'ios' ? headerCompensation : 0 }]}>
         <View style={[s.searchBox, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
           <Ionicons name="search-outline" size={16} color={colors.textMuted} style={{ marginRight: 6 }} />
           <TextInput
@@ -397,16 +456,6 @@ export default function BillingScreen({ navigation }: any) {
             </TouchableOpacity>
           )}
         </View>
-         <TouchableOpacity style={[s.iconBtn, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]} onPress={() => setShowScanner(true)} accessibilityLabel="Scan barcode" accessibilityRole="button">
-          <Ionicons name="barcode-outline" size={22} color={colors.primary} />
-        </TouchableOpacity>
-       <VoiceButton
-          style={[s.iconBtn, { backgroundColor: colors.primaryLight, borderColor: colors.primary, paddingHorizontal: 12, paddingVertical: 6 }]}
-          color={colors.primary}
-          onResult={(items) => {
-            items.forEach(({ product, quantity }) => addToCart(product, quantity));
-          }}
-        />
       </View>
 
       {/* Quick chips or search results */}
@@ -533,7 +582,7 @@ export default function BillingScreen({ navigation }: any) {
           </ScrollView>
         )}
 
-        {cart.length > 0 && (
+        {cart.length > 0 && Platform.OS !== 'ios' && (
           <TouchableOpacity style={[s.checkoutBtn, { backgroundColor: colors.primary }]} onPress={openCheckout}>
             <Text style={s.checkoutTotal}>{formatCurrency(cartTotal, settings.currency)}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -904,13 +953,16 @@ export default function BillingScreen({ navigation }: any) {
         onChangeText={(t) => {
           btBufferRef.current = t;
           setBtBuffer(t);
-          if (t)          // Restart the completion timer on every keystroke.
-          // If no new char arrives in 120ms → barcode is complete (handles scanners that don't send Enter).
+          // Restart the completion timer on every keystroke — if no new char
+          // arrives in 120ms, the barcode is complete (handles scanners that
+          // don't send Enter). Always clear the pending timer first, even
+          // when `t` is empty, so a stale timer can't fire against a buffer
+          // that was already reset.
           if (scanTimer.current) clearTimeout(scanTimer.current);
           if (t.length >= 4) scanTimer.current = setTimeout(handleBtScan, 120);
         }}
         onSubmitEditing={handleBtScan}
-        onFocus={() => { setBtActive(true);; }}
+        onFocus={() => setBtActive(true)}
         onBlur={() => {
           setBtActive(false);
           // Self-heal: if Billing is still the active tab the blur was unexpected
@@ -947,7 +999,6 @@ const makeStyles = (c: any) => StyleSheet.create({
   topBar: { flexDirection: 'row', padding: 12, gap: 10, alignItems: 'center', borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
   searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1 },
   searchInput: { flex: 1, fontSize: 14, padding: 0, fontFamily: fonts.regular },
-  iconBtn: { alignItems: 'center', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, justifyContent: 'center', borderWidth: 0.5 },
   sectionLabel: { fontFamily: fonts.bold, fontSize: 13, paddingHorizontal: 8, marginTop:8, marginBottom: 8 },
   quickChip: { borderRadius: 10, padding: 12, alignItems: 'center', minWidth: 90, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border },
   quickChipName: { fontFamily: fonts.bold, fontSize: 13, marginBottom: 4 },
