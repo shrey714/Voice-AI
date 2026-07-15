@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useLayoutEffect } from "react";
 import { View, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
 import { Text } from "react-native-paper";
 import { Ionicons } from "@expo/vector-icons";
@@ -57,6 +57,13 @@ export default function MenuScreen({ navigation }: any) {
   ];
   const s = makeStyles(colors);
 
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerTransparent: true,
+      headerStyle: { backgroundColor: 'transparent' },
+    });
+  }, [navigation]);
+
   const todayRevenue = computeSalesStats({
     bills, returns, from: startOfDay(), to: endOfDay(), costOf: makeCostOf(products),
   }).revenue;
@@ -80,8 +87,16 @@ export default function MenuScreen({ navigation }: any) {
   );
 
   return (
-    <View style={{ backgroundColor: colors.bg, flex: 1 }}>
-
+    // `ScrollView` is the root here (no wrapping `View`, and the stats card
+    // moved to be its first child instead of a sibling before it) — same
+    // fix as InventoryScreen/SettingsScreen: react-native-screens needs the
+    // scroll view reachable as the screen's first native child for
+    // `headerTransparent`/`tabBarMinimizeBehavior` to detect it.
+    <ScrollView
+      style={{ backgroundColor: colors.bg, flex: 1 }}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: 120 }}
+    >
         {/* Stats card */}
         <View
           style={[s.statsCard, { backgroundColor: colors.surface }]}
@@ -102,8 +117,6 @@ export default function MenuScreen({ navigation }: any) {
           </View>
         </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
-
         {/* Grouped feature sections */}
         {SECTIONS.map((section, si) => (
           <MotiView
@@ -121,7 +134,6 @@ export default function MenuScreen({ navigation }: any) {
           </MotiView>
         ))}
       </ScrollView>
-    </View>
   );
 }
 
@@ -131,8 +143,8 @@ const makeStyles = (c: any) =>
       flexDirection: "row",
       paddingHorizontal: 18,
       paddingVertical: 11,
-      borderBottomLeftRadius: 18,
-      borderBottomRightRadius: 18
+      borderRadius: 16,
+      marginHorizontal: 12
     },
     statItem: { flex: 1, alignItems: "center" },
     statVal: { fontFamily: fonts.display, fontSize: 18 },
