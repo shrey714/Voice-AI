@@ -297,10 +297,10 @@ export default function BillingScreen({ navigation }: any) {
     navigation.setOptions({
       headerTransparent: true,
       headerStyle: { backgroundColor: 'transparent' },
-      headerRight: 
+      headerRight: ()=>(
        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
       <BtStatusIcon active={btActive} /> 
-      </View>
+      </View>)
     });
   }, [btActive, navigation, btEnabled]);
 
