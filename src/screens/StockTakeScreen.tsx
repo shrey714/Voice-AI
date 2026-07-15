@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
 import { useTranslation } from '../hooks/useTranslation';
 import LiquidButton from '../components/common/LiquidButton';
+import LiquidHeaderIconButton from '../components/common/LiquidHeaderIconButton';
 import { useConfirm } from '../components/common/ConfirmDialogProvider';
 
 function formatDate(ts: number) {
@@ -69,19 +70,18 @@ export default function StockTakeScreen({ navigation }: any) {
 
   const s = makeStyles(colors);
 
+  useEffect(() => {
+    navigation.setOptions({
+      headerTransparent: true,
+      headerStyle: { backgroundColor: 'transparent' },
+      headerRight: () => (
+        <LiquidHeaderIconButton icon="clock" androidIcon="time-outline" onPress={() => navigation.navigate('StockTakeHistory')} />
+      ),
+    });
+  }, [navigation]);
+
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
-
-      {/* History link */}
-      <TouchableOpacity
-        style={[s.historyBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-        onPress={() => navigation.navigate('StockTakeHistory')}
-        activeOpacity={0.75}
-      >
-        <Ionicons name="time-outline" size={17} color={colors.primary} />
-        <Text style={[s.historyBtnText, { color: colors.primary }]}>{t('viewPastStockTakes')}</Text>
-        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} style={{ marginLeft: 'auto' }} />
-      </TouchableOpacity>
 
       {/* Resume banner — shown when a session is in progress */}
       {activeStockTake && (
@@ -213,13 +213,6 @@ const makeStyles = (c: any) => StyleSheet.create({
   scopeChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5 },
   scopeChipText: { fontFamily: fonts.bold, fontSize: 13 },
   scopeChipCount: { fontFamily: fonts.semiBold, fontSize: 11 },
-
-  historyBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    borderRadius: 10, borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 14, paddingVertical: 11, marginBottom: 16,
-  },
-  historyBtnText: { fontFamily: fonts.semiBold, fontSize: 13 },
 
   startBtn: { marginBottom: 20 },
 
