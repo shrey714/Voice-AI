@@ -81,7 +81,7 @@ export default function StockTakeScreen({ navigation }: any) {
   }, [navigation]);
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
+    <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
 
       {/* Resume banner — shown when a session is in progress */}
       {activeStockTake && (
