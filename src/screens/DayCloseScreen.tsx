@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import React, { useEffect, useLayoutEffect, useCallback, useMemo, useState } from 'react';
+import { View, ScrollView, StyleSheet, TouchableOpacity, TextInput, Platform } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useShallow } from 'zustand/react/shallow';
@@ -17,7 +18,7 @@ import { fonts } from '../theme/typography';
 const DENOMS = [500, 200, 100, 50, 20, 10, 5, 2, 1];
 const localeMap: Record<string, string> = { en: 'en-IN', hi: 'hi-IN', kn: 'kn-IN', gu: 'gu-IN', hinglish: 'en-IN' };
 
-export default function DayCloseScreen() {
+export default function DayCloseScreen({ navigation }: any) {
   const { colors } = useAppTheme();
   const { t, language } = useTranslation();
   const { bills, returns, expenses, products, settings } = useAppStore(
@@ -87,6 +88,41 @@ export default function DayCloseScreen() {
     setHistory(await db.getAllDayCloses());
   };
 
+  const closeLabel = history.some(c => c.id === todayId) ? t('updateDayClose') : t('closeTheDay');
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerTransparent: true,
+      headerStyle: { backgroundColor: 'transparent' },
+    });
+  }, [navigation]);
+
+  // `bottomAccessory` (iOS 26+ only) — same conversion as ShopInfoScreen's
+  // Save button. Scoped with `useFocusEffect` (set on focus, cleared on
+  // blur), not a plain mount effect — this screen sits inside the "More"
+  // tab's stack alongside many unrelated screens, so this shouldn't keep
+  // floating there after navigating away (see ShopInfoScreen/
+  // ExpensesScreen for the same fix, and why it matters).
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'ios') return;
+      const parent = navigation.getParent();
+      parent?.setOptions({
+        bottomAccessory: ({ placement }: { placement: 'regular' | 'inline' }) =>
+              <TouchableOpacity
+                onPress={onSave}
+                style={{ width: '100%', height: '100%', flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 24, paddingHorizontal: 18, justifyContent: 'center' }}
+                accessibilityLabel={closeLabel}
+                accessibilityRole="button"
+              >
+                <Ionicons name="lock-closed" size={18} color="#fff" />
+                <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 14 }}>{closeLabel}</Text>
+              </TouchableOpacity>
+      });
+      return () => { parent?.setOptions({ bottomAccessory: undefined }); };
+    }, [navigation, onSave, closeLabel, colors])
+  );
+
   const Row = ({ label, value, color }: { label: string; value: string; color?: string }) => (
     <View style={s.refRow}>
       <Text style={[s.refLabel, { color: colors.textMuted }]}>{label}</Text>
@@ -95,15 +131,28 @@ export default function DayCloseScreen() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    // `ScrollView` is the root here (no wrapping `View`, and the hero card
+    // moved to be its first child instead of a sibling before it) — same
+    // fix as InventoryScreen/SettingsScreen: react-native-screens needs the
+    // scroll view reachable as the screen's first native child.
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.bg }}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ padding: 14, paddingBottom: 130 }}
+      keyboardShouldPersistTaps="handled"
+    >
         {/* Expected drawer hero */}
+        {/* `marginHorizontal: -14` only (not `marginTop`) — cancels the
+            `ScrollView`'s own horizontal padding so this card bleeds edge-
+            to-edge like it did as a separate pre-`ScrollView` sibling, but
+            keeps the vertical padding that the automatic header inset
+            relies on (removing that would push this back under the
+            transparent header). */}
         <View style={[s.hero, { backgroundColor: colors.surface }]}>
           <Text style={[s.heroLbl, { color: colors.textMuted }]}>{t('expectedInDrawer').toUpperCase()}</Text>
           <Text style={[s.heroAmt, { color: colors.primary }]}>{formatCurrency(expected, settings.currency)}</Text>
           <Text style={[s.heroSub, { color: colors.textMuted }]}>{t('openingPlusCashFormula')}</Text>
         </View>
-      
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 14, paddingBottom: 130 }} keyboardShouldPersistTaps="handled">
 
         {/* Inputs */}
         <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -190,13 +239,18 @@ export default function DayCloseScreen() {
           <Row label={t('bills')} value={String(today.stats.billCount)} />
         </View>
 
-        <LiquidButton
-          title={history.some(c => c.id === todayId) ? t('updateDayClose') : t('closeTheDay')}
-          icon="lock.fill"
-          onPress={onSave}
-          variant="glassProminent"
-          height={50}
-        />
+        {/* iOS gets the native `bottomAccessory` (set up above via
+            `useFocusEffect` + `navigation.getParent()?.setOptions`) instead
+            — Android has no such API, so it keeps this in-form button. */}
+        {Platform.OS !== 'ios' && (
+          <LiquidButton
+            title={closeLabel}
+            icon="lock.fill"
+            onPress={onSave}
+            variant="glassProminent"
+            height={50}
+          />
+        )}
 
         {/* History */}
         {history.length > 0 && (
@@ -217,12 +271,11 @@ export default function DayCloseScreen() {
           </View>
         )}
       </ScrollView>
-    </View>
   );
 }
 
 const makeStyles = (c: any) => StyleSheet.create({
-  hero: { padding: 18, alignItems: 'center', borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
+  hero: { padding: 18, alignItems: 'center', borderRadius: 16 },
   heroLbl: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 1 },
   heroAmt: { fontFamily: fonts.display, fontSize: 34, marginTop: 6 },
   heroSub: { fontFamily: fonts.medium, fontSize: 11.5, marginTop: 4 },
