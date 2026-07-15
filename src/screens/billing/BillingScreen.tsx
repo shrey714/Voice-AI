@@ -306,31 +306,35 @@ export default function BillingScreen({ navigation }: any) {
         parent?.setOptions({ bottomAccessory: undefined });
         return;
       }
+      // Same layout in both placements — icon+amount on the left, arrow
+      // pushed to the right edge with `space-between` — just narrower in
+      // `inline` since that slot has less width available.
       parent?.setOptions({
-        bottomAccessory: ({ placement }: { placement: 'regular' | 'inline' }) =>
-          placement === 'inline' ? (
-            <TouchableOpacity
-              onPress={openCheckout}
-              style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}
-              accessibilityLabel={t('checkout')}
-              accessibilityRole="button"
-            >
-              <Ionicons name="cart" size={16} color="#fff" />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              onPress={openCheckout}
-              style={[s.checkoutBtn, { backgroundColor: colors.primary, marginHorizontal: 16 }]}
-              accessibilityLabel={t('checkout')}
-              accessibilityRole="button"
-            >
-              <Text style={s.checkoutTotal}>{formatCurrency(cartTotal, settings.currency)}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Text style={s.checkoutLabel}>{t('checkout')}</Text>
-                <Ionicons name="arrow-forward" size={18} color="#fff" />
-              </View>
-            </TouchableOpacity>
-          ),
+        bottomAccessory: ({ placement }: { placement: 'regular' | 'inline' }) => (
+          <TouchableOpacity
+            onPress={openCheckout}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              height: placement === 'inline' ? 32 : 48,
+              borderRadius: placement === 'inline' ? 16 : 24,
+              paddingHorizontal: placement === 'inline' ? 14 : 18,
+              marginHorizontal: placement === 'inline' ? 0 : 16,
+              backgroundColor: colors.primary,
+            }}
+            accessibilityLabel={t('checkout')}
+            accessibilityRole="button"
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="cart" size={placement === 'inline' ? 15 : 18} color="#fff" />
+              <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: placement === 'inline' ? 13 : 15 }}>
+                {formatCurrency(cartTotal, settings.currency)}
+              </Text>
+            </View>
+            <Ionicons name="arrow-forward" size={placement === 'inline' ? 14 : 18} color="#fff" style={{ marginLeft: 12 }} />
+          </TouchableOpacity>
+        ),
       });
       return () => { parent?.setOptions({ bottomAccessory: undefined }); };
     }, [navigation, cart.length, cartTotal, settings.currency, openCheckout, colors, s, t])
