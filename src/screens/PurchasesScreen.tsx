@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
-import { useScrollHideBar } from '../hooks/useScrollHideBar';
-import ScrollHideBar from '../components/common/ScrollHideBar';
+import { View, FlatList, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -100,7 +100,8 @@ export default function PurchasesScreen({ navigation }: any) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [filterSupplierId, setFilterSupplierId] = useState<string | null>(null);
   const { extended, onScroll } = useFabScroll();
-  const { translateY: chipTranslate, onListScroll, onBarLayout, listPaddingTop } = useScrollHideBar({ onScroll });
+  const insets = useSafeAreaInsets();
+  const headerCompensation = insets.top + (Platform.OS === 'ios' ? 44 : 56);
 
   const filtered = useMemo(() => {
     return purchases.filter(p => {
@@ -121,11 +122,36 @@ export default function PurchasesScreen({ navigation }: any) {
 
   useEffect(() => {
     navigation.setOptions({
+      headerTransparent: true,
+      headerStyle: { backgroundColor: 'transparent' },
       headerRight: () => (
         <LiquidHeaderIconButton icon="magnifyingglass" androidIcon="search-outline" onPress={() => setSearchOpen(v => !v)} />
       ),
     });
   }, [navigation]);
+
+  const handleNewPurchase = useCallback(() => navigation.navigate('PurchaseForm', {}), [navigation]);
+
+  // `bottomAccessory` (iOS 26+ only) — same conversion as InventoryScreen/SupplierScreen.
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'ios') return;
+      const parent = navigation.getParent();
+      parent?.setOptions({
+        bottomAccessory: ({ placement }: { placement: 'regular' | 'inline' }) =>
+              <TouchableOpacity
+                onPress={handleNewPurchase}
+                style={{ width: '100%', height: '100%', flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 24, paddingHorizontal: 18, justifyContent: 'center' }}
+                accessibilityLabel={t('newPurchase')}
+                accessibilityRole="button"
+              >
+                <Ionicons name="add" size={20} color="#fff" />
+                <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 14 }}>{t('newPurchase')}</Text>
+              </TouchableOpacity>
+      });
+      return () => { parent?.setOptions({ bottomAccessory: undefined }); };
+    }, [navigation, handleNewPurchase, colors, t])
+  );
 
   const noSupplierLabel = t('noSupplier');
   const paidLabel = t('paid');
@@ -144,83 +170,87 @@ export default function PurchasesScreen({ navigation }: any) {
   ), [colors, s, settings.currency, noSupplierLabel, paidLabel, unpaidLabel]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <>
       {searchOpen && (
-        <InlineSearchBar
-          value={search}
-          onChangeText={setSearch}
-          placeholder={t('searchPurchases')}
-          onClose={() => setSearchOpen(false)}
+        <View style={Platform.OS === 'ios' ? { marginTop: headerCompensation } : undefined}>
+          <InlineSearchBar
+            value={search}
+            onChangeText={setSearch}
+            placeholder={t('searchPurchases')}
+            onClose={() => setSearchOpen(false)}
+          />
+        </View>
+      )}
+
+      {/* `FlatList` is a direct child here (Fragment root) so react-native-screens
+          can detect it — same fix as InventoryScreen. Supplier filter chips +
+          summary banner moved into `ListHeaderComponent` (dropped `ScrollHideBar`,
+          same trade-off as PurchasesScreen's peers: chips now scroll away with
+          the list instead of auto-hiding). */}
+      <FlatList
+        data={filtered}
+        keyExtractor={item => item.id}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        initialNumToRender={12}
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        removeClippedSubviews
+        contentContainerStyle={{ paddingHorizontal: 8, paddingTop: searchOpen ? 8 : 0, paddingBottom: 120, flexGrow: 1 }}
+        renderItem={renderItem}
+        ListHeaderComponent={
+          <>
+            {suppliers.length > 0 && (
+              <FlatList
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                data={[{ id: null, name: t('all') } as any, ...suppliers]}
+                keyExtractor={item => item.id ?? 'all'}
+                contentContainerStyle={{ paddingHorizontal: 10, paddingVertical: 8, gap: 8 }}
+                renderItem={({ item }) => {
+                  const active = filterSupplierId === item.id;
+                  return (
+                    <TouchableOpacity
+                      style={[s.chip, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary : colors.surface }]}
+                      onPress={() => setFilterSupplierId(item.id)}
+                    >
+                      <Text style={[s.chipText, { color: active ? '#fff' : colors.textSub }]}>{item.name}</Text>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            )}
+            {filtered.length > 0 && totalOutstanding > 0 && (
+              <View style={s.summaryBanner}>
+                <Ionicons name="alert-circle-outline" size={15} color={colors.warning} />
+                <Text style={[s.summaryText, { color: colors.warning }]}>
+                  {t('totalOutstandingLabel')}: {formatCurrency(totalOutstanding, settings.currency)}
+                </Text>
+              </View>
+            )}
+          </>
+        }
+        ListEmptyComponent={
+          <EmptyState
+            icon="receipt-outline"
+            title={t('noPurchasesYet')}
+            subtitle={t('noPurchasesDesc')}
+            actionLabel={t('newPurchase')}
+            onAction={handleNewPurchase}
+          />
+        }
+      />
+
+      {Platform.OS !== 'ios' && (
+        <CollapsibleFab
+          bottom={24}
+          icon="add"
+          label={t('newPurchase')}
+          extended={extended}
+          onPress={handleNewPurchase}
         />
       )}
-      <View style={{ flex: 1, overflow: 'hidden' }}>
-        {suppliers.length > 0 && (
-          <ScrollHideBar translateY={chipTranslate} bgColor={colors.bg} onLayout={onBarLayout}>
-            <FlatList
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              data={[{ id: null, name: t('all') } as any, ...suppliers]}
-              keyExtractor={item => item.id ?? 'all'}
-              contentContainerStyle={{ paddingHorizontal: 10, paddingVertical: 8, gap: 8 }}
-              renderItem={({ item }) => {
-                const active = filterSupplierId === item.id;
-                return (
-                  <TouchableOpacity
-                    style={[s.chip, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary : colors.surface }]}
-                    onPress={() => setFilterSupplierId(item.id)}
-                  >
-                    <Text style={[s.chipText, { color: active ? '#fff' : colors.textSub }]}>{item.name}</Text>
-                  </TouchableOpacity>
-                );
-              }}
-            />
-          </ScrollHideBar>
-        )}
-
-        {/* Summary banner */}
-        
-
-        <FlatList
-          data={filtered}
-          keyExtractor={item => item.id}
-          onScroll={onListScroll}
-          scrollEventThrottle={16}
-          initialNumToRender={12}
-          maxToRenderPerBatch={10}
-          windowSize={7}
-          removeClippedSubviews
-          contentContainerStyle={{ paddingHorizontal: 8, paddingTop: suppliers.length > 0 ? listPaddingTop : 8, paddingBottom: 120, flexGrow: 1 }}
-          renderItem={renderItem}
-          ListHeaderComponent={()=>{
-          if(filtered.length > 0 && totalOutstanding > 0) {
-            return <View style={[s.summaryBanner]}>
-            <Ionicons name="alert-circle-outline" size={15} color={colors.warning} />
-            <Text style={[s.summaryText, { color: colors.warning }]}>
-              {t('totalOutstandingLabel')}: {formatCurrency(totalOutstanding, settings.currency)}
-            </Text>
-          </View>
-          }else return <></>
-          }}
-          ListEmptyComponent={
-            <EmptyState
-              icon="receipt-outline"
-              title={t('noPurchasesYet')}
-              subtitle={t('noPurchasesDesc')}
-              actionLabel={t('newPurchase')}
-              onAction={() => navigation.navigate('PurchaseForm', {})}
-            />
-          }
-        />
-      </View>
-
-      <CollapsibleFab
-        bottom={24}
-        icon="add"
-        label={t('newPurchase')}
-        extended={extended}
-        onPress={() => navigation.navigate('PurchaseForm', {})}
-      />
-    </View>
+    </>
   );
 }
 
