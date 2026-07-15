@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,6 +47,13 @@ export default function SettingsScreen({ navigation }: any) {
   const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => { setupNotifications(); }, []);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerTransparent: true,
+      headerStyle: { backgroundColor: 'transparent' },
+    });
+  }, [navigation]);
 
   // Erase data only clears business records — products, bills, expenses,
   // customers, suppliers. Shop profile (name, phone, UPI, GST) is kept, and
@@ -97,8 +104,17 @@ export default function SettingsScreen({ navigation }: any) {
   );
 
   return (
-    <View style={{ backgroundColor: colors.bg, flex: 1 }}>
-        
+    // `ScrollView` is the root here (no wrapping `View`, and the profile
+    // card moved to be its first child instead of a sibling before it) —
+    // same fix as InventoryScreen/ShopInfoScreen: react-native-screens
+    // needs the scroll view reachable as the screen's first native child
+    // for `headerTransparent`/`tabBarMinimizeBehavior` to detect it, and a
+    // non-scrollable sibling in front of it blocks that.
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.bg }}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: 130 }}
+    >
         {/* Shop profile card → Shop Information */}
         <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 280 }}>
           <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.navigate('ShopInfo')}
@@ -115,9 +131,6 @@ export default function SettingsScreen({ navigation }: any) {
             <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
           </TouchableOpacity>
         </MotiView>
-
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
-
 
         {/* Navigation group */}
         <Text style={[s.groupLabel, { color: colors.textMuted }]}>{t('manage').toUpperCase()}</Text>
@@ -206,7 +219,6 @@ export default function SettingsScreen({ navigation }: any) {
            </TouchableOpacity>
          </View>
       </ScrollView>
-    </View>
   );
 }
 
