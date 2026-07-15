@@ -299,7 +299,7 @@ export default function BillingScreen({ navigation }: any) {
       headerStyle: { backgroundColor: 'transparent' },
       headerRight: 
        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-      {btEnabled ? <BtStatusIcon active={btActive} /> : undefined}
+      <BtStatusIcon active={btActive} /> 
       </View>
     });
   }, [btActive, navigation, btEnabled]);
