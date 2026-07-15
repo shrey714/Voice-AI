@@ -143,8 +143,12 @@ export default function BillingScreen({ navigation }: any) {
   const discountNum = Math.min(Math.max(parseFloat(discount) || 0, 0), cartTotal);
   const finalTotal = cartTotal - discountNum;
 
+  // Capped even when searching (previously unbounded) — this block now
+  // renders as a plain `.map()` inside one row of the outer FlatList (not
+  // its own virtualized list), so it needs to stay reasonably small. See the
+  // 'suggestions' row in `renderRow` below.
   const filteredProducts = searchQuery.length > 0
-    ? products.filter(p => fuzzyMatch(searchQuery, p.name) || fuzzyMatch(searchQuery, p.category))
+    ? products.filter(p => fuzzyMatch(searchQuery, p.name) || fuzzyMatch(searchQuery, p.category)).slice(0, 30)
     : products.filter(p => p.quantity > 0).slice(0, 20);
 
   const quickItems = products.filter(p => p.quantity > 0).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 10);
@@ -253,9 +257,164 @@ export default function BillingScreen({ navigation }: any) {
     refocusBtInput();
   }, [addToCart, refocusBtInput]);
 
-  const renderCatalogItem = useCallback(({ item, index }: { item: Product; index: number }) => (
-    <CatalogRow product={item} index={index} colors={colors} s={s} currency={settings.currency} onAdd={addProductToCart} />
-  ), [colors, s, settings.currency, addProductToCart]);
+  // Single outer `FlatList` for the whole screen — a sticky search header
+  // (`stickyHeaderIndices={[0]}`) plus a normal (non-sticky) row for
+  // templates/quick-add or catalog search results, then the cart rows. This
+  // is what lets `react-native-screens` detect a scroll view for the iOS 26
+  // tab bar's `tabBarMinimizeBehavior` — the old layout was a fixed flex
+  // column with nested `ScrollView`s, never a single scrollable screen.
+  type Row =
+    | { key: 'suggestions' }
+    | { key: 'cartHeader' }
+    | { key: 'cartEmpty' }
+    | { key: string; kind: 'cartItem'; item: (typeof cart)[number]; isLast: boolean };
+
+  const listRows: Row[] = useMemo(() => {
+    const rows: Row[] = [{ key: 'suggestions' }, { key: 'cartHeader' }];
+    if (cart.length === 0) {
+      rows.push({ key: 'cartEmpty' });
+    } else {
+      cart.forEach((item, i) => {
+        rows.push({ key: `cart-${item.product.id}`, kind: 'cartItem', item, isLast: i === cart.length - 1 });
+      });
+    }
+    return rows;
+  }, [cart]);
+
+  const renderRow = useCallback(({ item: row }: { item: Row }) => {
+    if (row.key === 'suggestions') {
+      return searchQuery.length === 0 ? (
+        <View>
+          <Text style={[s.sectionLabel, { color: colors.textMuted }]}>{t('quickAdd')}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingBottom: 8 }}>
+            {/* Fixed Templates access button — NOT in scroll */}
+            <TouchableOpacity
+              style={[s.templateAccessBtn, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
+              onPress={openTemplatesSheet}
+            >
+              <Ionicons name="bookmark" size={15} color={colors.primary} />
+              <Text style={[s.templateAccessText, { color: colors.primary }]}>Templates</Text>
+              {templates.length > 0 && (
+                <View style={[s.templateCountBadge, { backgroundColor: colors.primary, position: 'absolute', top: -7, right: -7 }]}>
+                  <Text style={s.templateCountText}>{templates.length}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            <View style={[s.quickAddDivider, { backgroundColor: colors.border }]} />
+
+            {/* Scrollable quick-add chips */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}
+              contentContainerStyle={{ paddingRight: 8, gap: 8 }}>
+              {quickItems.map((p, i) => (
+                <MotiView key={p.id} from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+                  transition={{ type: 'spring', delay: i * 30 }}>
+                  <TouchableOpacity style={[s.quickChip, { backgroundColor: colors.surface }]} onPress={() => addToCart(p)}>
+                    <Text style={[s.quickChipName, { color: colors.text }]} numberOfLines={1}>{p.name}</Text>
+                    <Text style={[s.quickChipPrice, { color: colors.primary }]}>{formatCurrency(p.sellingPrice, settings.currency)}</Text>
+                  </TouchableOpacity>
+                </MotiView>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      ) : (
+        <View style={{ marginHorizontal: 8, marginTop: 8, borderRadius: 10, overflow: 'hidden' }}>
+          {filteredProducts.length === 0 ? (
+            <EmptyState icon="search-outline" title={t('noProductsFound')} subtitle={t('tryDifferentNameOrBarcode')} />
+          ) : (
+            filteredProducts.map((p, i) => (
+              <CatalogRow key={p.id} product={p} index={i} colors={colors} s={s} currency={settings.currency} onAdd={addProductToCart} />
+            ))
+          )}
+        </View>
+      );
+    }
+
+    if (row.key === 'cartHeader') {
+      return (
+        <View style={[s.cartHeader, {
+          backgroundColor: colors.surface, borderBottomColor: colors.border,
+          marginHorizontal: 8, marginTop: 8,
+          borderTopLeftRadius: 10, borderTopRightRadius: 10,
+          borderBottomLeftRadius: cart.length === 0 ? 10 : 0,
+          borderBottomRightRadius: cart.length === 0 ? 10 : 0,
+        }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Ionicons name="cart" size={18} color={colors.primary} />
+            <Text style={[s.cartTitle, { color: colors.text }]}>{t('cart')}</Text>
+            {cart.length > 0 && (
+              <MotiView key={cart.length} from={{ scale: 1.25, opacity: 0.5 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'timing', duration: 200 }}
+                style={[s.cartBadge, { backgroundColor: colors.primary }]}>
+                <Text style={s.cartBadgeText}>{cart.length}</Text>
+              </MotiView>
+            )}
+          </View>
+          {cart.length > 0 && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+              <TouchableOpacity onPress={openSaveSheet} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="bookmark-outline" size={14} color={colors.primary} />
+                <Text style={{ color: colors.primary, fontFamily: fonts.semiBold, fontSize: 12 }}>Save</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={clearCart} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="trash-outline" size={14} color={colors.danger} />
+                <Text style={{ color: colors.danger, fontFamily: fonts.semiBold, fontSize: 12 }}>{t('clear')}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      );
+    }
+
+    if (row.key === 'cartEmpty') {
+      return (
+        <View style={{ backgroundColor: colors.surface, marginHorizontal: 8, borderBottomLeftRadius: 10, borderBottomRightRadius: 10 }}>
+          <EmptyState icon="cart-outline" title={t('cartIsEmpty')} subtitle={t('scanBarcodeOrSearchForItems')} />
+        </View>
+      );
+    }
+
+    // cartItem — narrow via `kind` (the union's `key` field is a wide
+    // `string` for this branch, so TS can't narrow on `row.key` alone).
+    if (!('kind' in row)) return null;
+    const { item, isLast } = row;
+    return (
+      <MotiView from={{ opacity: 0, translateY: 6 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 200 }}>
+        <View style={[s.cartItem, {
+          backgroundColor: colors.surface, borderBottomColor: colors.border,
+          marginHorizontal: 8, borderBottomWidth: isLast ? 0 : 0.5,
+          borderBottomLeftRadius: isLast ? 10 : 0, borderBottomRightRadius: isLast ? 10 : 0,
+        }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={[s.cartItemName, { color: colors.text }]} numberOfLines={1}>{item.product.name}</Text>
+            <Text style={[s.cartItemPrice, { color: colors.textMuted }]}>{formatCurrency(item.product.sellingPrice, settings.currency)} {t('each')}</Text>
+          </View>
+          <View style={s.qtyRow}>
+            <TouchableOpacity style={[s.qtyBtn, { backgroundColor: colors.surfaceHigh }]} onPress={() => updateCartQuantity(item.product.id, item.quantity - 1)} accessibilityLabel="Decrement quantity" accessibilityRole="button">
+              <Text style={[s.qtyBtnText, { color: colors.primary }]}>−</Text>
+            </TouchableOpacity>
+            <Text style={[s.qtyText, { color: colors.text }]}>{item.quantity}</Text>
+            <TouchableOpacity
+              style={[s.qtyBtn, { backgroundColor: colors.surfaceHigh, opacity: item.quantity >= item.product.quantity ? 0.4 : 1 }]}
+              disabled={item.quantity >= item.product.quantity}
+              onPress={() => updateCartQuantity(item.product.id, item.quantity + 1)}
+              accessibilityLabel="Increment quantity"
+              accessibilityRole="button">
+              <Text style={[s.qtyBtnText, { color: colors.primary }]}>+</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={[s.cartItemTotal, { color: colors.primary }]}>{formatCurrency(item.product.sellingPrice * item.quantity, settings.currency)}</Text>
+          <TouchableOpacity onPress={() => removeFromCart(item.product.id)} style={{ marginLeft: 4 }} accessibilityLabel="Remove from cart" accessibilityRole="button">
+            <Ionicons name="close-circle-outline" size={18} color={colors.danger} />
+          </TouchableOpacity>
+        </View>
+      </MotiView>
+    );
+  }, [
+    searchQuery, filteredProducts, colors, s, t, settings.currency, addProductToCart,
+    templates, openTemplatesSheet, quickItems, addToCart, cart.length,
+    openSaveSheet, clearCart, updateCartQuantity, removeFromCart,
+  ]);
 
   const handleBtScan = useCallback(() => {
     if (scanTimer.current) { clearTimeout(scanTimer.current); scanTimer.current = null; }
@@ -426,174 +585,62 @@ export default function BillingScreen({ navigation }: any) {
 
   const payModeColors = { cash: colors.success, upi: colors.info, credit: colors.warning };
 
-  // iOS sits under `createNativeBottomTabNavigator` (a real
-  // UITabBarController) whose content area extends full-height *behind* the
-  // tab bar, unlike Android's classic JS bottom-tabs — same root cause as
-  // `CollapsibleFab`'s `IOS_TAB_BAR_HEIGHT` fix. Without this, the cart's
-  // checkout button (flowing normally at the bottom of this screen, not
-  // absolutely positioned) renders underneath the tab bar on iOS.
-  const iosTabBarPad = Platform.OS === 'ios' ? 49 + insets.bottom : 0;
-
   return (
-    <View style={[s.container, { backgroundColor: colors.bg, paddingBottom: iosTabBarPad }]}>
-      {/* Top bar — `headerTransparent` means this row is no longer pushed
-          below a solid header by normal flow, so it needs the same manual
-          `headerCompensation` margin used on other screens' non-scroll-view
-          content (search bars etc.) — see InventoryScreen/BillHistoryScreen's
-          identical comment. Scan + mic moved into `headerRight` alongside the
-          Bluetooth status icon. */}
-      <View style={[s.topBar, { marginTop: Platform.OS === 'ios' ? headerCompensation : 0 }]}>
-        <View style={[s.searchBox, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
-          <Ionicons name="search-outline" size={16} color={colors.textMuted} style={{ marginRight: 6 }} />
-          <TextInput
-            style={[s.searchInput, { color: colors.text }]}
-            placeholder={t('searchProducts')}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholderTextColor={colors.textMuted}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => { setSearchQuery(''); refocusBtInput(); }} accessibilityLabel="Clear search" accessibilityRole="button">
-              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
-      {/* Quick chips or search results */}
-      {searchQuery.length === 0 ? (
-        <View>
-          <Text style={[s.sectionLabel, { color: colors.textMuted }]}>{t('quickAdd')}</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', paddingBottom: 8 }}>
-            {/* Fixed Templates access button — NOT in scroll */}
-            <TouchableOpacity
-              style={[s.templateAccessBtn, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
-              onPress={openTemplatesSheet}
-            >
-              <Ionicons name="bookmark" size={15} color={colors.primary} />
-              <Text style={[s.templateAccessText, { color: colors.primary }]}>Templates</Text>
-              {templates.length > 0 && (
-                <View style={[s.templateCountBadge, { backgroundColor: colors.primary, position: 'absolute', top: -7, right: -7 }]}>
-                  <Text style={s.templateCountText}>{templates.length}</Text>
-                </View>
+    <View style={[s.container, { backgroundColor: colors.bg }]}>
+      {/* Single scrollable `FlatList` for the whole screen (Fragment-less
+          single root here is fine — `View` wrapper only holds this FlatList
+          plus the fixed Android checkout bar / sheets / hidden BT input as
+          siblings, none of which sit ABOVE the FlatList in the tree, so
+          react-native-screens still finds it as the first scroll view). The
+          search bar is `ListHeaderComponent` + `stickyHeaderIndices={[0]}`
+          (stays pinned while scrolling); templates/quick-add or catalog
+          search results are a normal (non-sticky) row; cart header + items
+          follow below that, all in one scroll. */}
+      <FlatList
+        data={listRows}
+        keyExtractor={row => row.key}
+        renderItem={renderRow}
+        stickyHeaderIndices={[0]}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{
+          paddingBottom: Platform.OS === 'ios' ? 32 : (cart.length > 0 ? 96 : 24),
+        }}
+        ListHeaderComponent={
+          <View style={[s.topBar, {
+            backgroundColor: colors.surface,
+            marginTop: Platform.OS === 'ios' ? headerCompensation : 0,
+          }]}>
+            <View style={[s.searchBox, { backgroundColor: colors.surfaceHigh, borderColor: colors.border }]}>
+              <Ionicons name="search-outline" size={16} color={colors.textMuted} style={{ marginRight: 6 }} />
+              <TextInput
+                style={[s.searchInput, { color: colors.text }]}
+                placeholder={t('searchProducts')}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholderTextColor={colors.textMuted}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => { setSearchQuery(''); refocusBtInput(); }} accessibilityLabel="Clear search" accessibilityRole="button">
+                  <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
-
-            <View style={[s.quickAddDivider, { backgroundColor: colors.border }]} />
-
-            {/* Scrollable quick-add chips */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}
-              contentContainerStyle={{ paddingRight: 8, gap: 8 }}>
-              {quickItems.map((p, i) => (
-                <MotiView key={p.id} from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-                  transition={{ type: 'spring', delay: i * 30 }}>
-                  <TouchableOpacity style={[s.quickChip, { backgroundColor: colors.surface }]} onPress={() => addToCart(p)}>
-                    <Text style={[s.quickChipName, { color: colors.text }]} numberOfLines={1}>{p.name}</Text>
-                    <Text style={[s.quickChipPrice, { color: colors.primary }]}>{formatCurrency(p.sellingPrice, settings.currency)}</Text>
-                  </TouchableOpacity>
-                </MotiView>
-              ))}
-            </ScrollView>
+            </View>
           </View>
-        </View>
-      ) : (
-        <FlatList
-          data={filteredProducts}
-          keyExtractor={p => p.id}
-          style={{ flex: 1, backgroundColor: colors.bg, marginHorizontal: 8, marginVertical: 8, borderRadius: 10 }}
-          contentContainerStyle={{ flexGrow: 1 }}
-          initialNumToRender={10}
-          maxToRenderPerBatch={10}
-          windowSize={7}
-          removeClippedSubviews
-          renderItem={renderCatalogItem}
-          ListEmptyComponent={
-            <EmptyState
-              icon="search-outline"
-              title={t('noProductsFound')}
-              subtitle={t('tryDifferentNameOrBarcode')}
-            />
-          }
-        />
+        }
+      />
+
+      {/* Android checkout — fixed below the FlatList (not part of its
+          scroll), since Android has no `bottomAccessory` equivalent. iOS
+          uses `bottomAccessory` instead (see the `useFocusEffect` above). */}
+      {cart.length > 0 && Platform.OS !== 'ios' && (
+        <TouchableOpacity style={[s.checkoutBtn, { backgroundColor: colors.primary, marginHorizontal: 8 }]} onPress={openCheckout}>
+          <Text style={s.checkoutTotal}>{formatCurrency(cartTotal, settings.currency)}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={s.checkoutLabel}>{t('checkout')}</Text>
+            <Ionicons name="arrow-forward" size={18} color="#fff" />
+          </View>
+        </TouchableOpacity>
       )}
-
-      {/* Cart */}
-      <View style={[s.cartContainer, { backgroundColor: colors.surface }]}>
-        <View style={[s.cartHeader, { borderBottomColor: colors.border }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Ionicons name="cart" size={18} color={colors.primary} />
-            <Text style={[s.cartTitle, { color: colors.text }]}>{t('cart')}</Text>
-            {cart.length > 0 && (
-              <MotiView key={cart.length} from={{ scale: 1.25, opacity: 0.5 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'timing', duration: 200 }}
-                style={[s.cartBadge, { backgroundColor: colors.primary }]}>
-                <Text style={s.cartBadgeText}>{cart.length}</Text>
-              </MotiView>
-            )}
-          </View>
-          {cart.length > 0 && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-              <TouchableOpacity onPress={openSaveSheet} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Ionicons name="bookmark-outline" size={14} color={colors.primary} />
-                <Text style={{ color: colors.primary, fontFamily: fonts.semiBold, fontSize: 12 }}>Save</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={clearCart} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Ionicons name="trash-outline" size={14} color={colors.danger} />
-                <Text style={{ color: colors.danger, fontFamily: fonts.semiBold, fontSize: 12 }}>{t('clear')}</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-
-        {cart.length === 0 ? (
-          <EmptyState
-            icon="cart-outline"
-            title={t('cartIsEmpty')}
-            subtitle={t('scanBarcodeOrSearchForItems')}
-          />
-        ) : (
-          <ScrollView style={s.cartItems} nestedScrollEnabled>
-            {cart.map((item, index) => (
-              <MotiView key={item.product.id} from={{ opacity: 0, translateY: 6 }} animate={{ opacity: 1, translateY: 0 }}
-                transition={{ type: 'timing', duration: 200, delay: index * 20 }}>
-                <View style={[s.cartItem, { borderBottomColor: colors.border }]}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[s.cartItemName, { color: colors.text }]} numberOfLines={1}>{item.product.name}</Text>
-                    <Text style={[s.cartItemPrice, { color: colors.textMuted }]}>{formatCurrency(item.product.sellingPrice, settings.currency)} {t('each')}</Text>
-                  </View>
-                  <View style={s.qtyRow}>
-                    <TouchableOpacity style={[s.qtyBtn, { backgroundColor: colors.surfaceHigh }]} onPress={() => updateCartQuantity(item.product.id, item.quantity - 1)} accessibilityLabel="Decrement quantity" accessibilityRole="button">
-                      <Text style={[s.qtyBtnText, { color: colors.primary }]}>−</Text>
-                    </TouchableOpacity>
-                    <Text style={[s.qtyText, { color: colors.text }]}>{item.quantity}</Text>
-                    <TouchableOpacity
-                      style={[s.qtyBtn, { backgroundColor: colors.surfaceHigh, opacity: item.quantity >= item.product.quantity ? 0.4 : 1 }]}
-                      disabled={item.quantity >= item.product.quantity}
-                      onPress={() => updateCartQuantity(item.product.id, item.quantity + 1)}
-                      accessibilityLabel="Increment quantity"
-                      accessibilityRole="button">
-                      <Text style={[s.qtyBtnText, { color: colors.primary }]}>+</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <Text style={[s.cartItemTotal, { color: colors.primary }]}>{formatCurrency(item.product.sellingPrice * item.quantity, settings.currency)}</Text>
-                  <TouchableOpacity onPress={() => removeFromCart(item.product.id)} style={{ marginLeft: 4 }} accessibilityLabel="Remove from cart" accessibilityRole="button">
-                    <Ionicons name="close-circle-outline" size={18} color={colors.danger} />
-                  </TouchableOpacity>
-                </View>
-              </MotiView>
-            ))}
-          </ScrollView>
-        )}
-
-        {cart.length > 0 && Platform.OS !== 'ios' && (
-          <TouchableOpacity style={[s.checkoutBtn, { backgroundColor: colors.primary }]} onPress={openCheckout}>
-            <Text style={s.checkoutTotal}>{formatCurrency(cartTotal, settings.currency)}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Text style={s.checkoutLabel}>{t('checkout')}</Text>
-              <Ionicons name="arrow-forward" size={18} color="#fff" />
-            </View>
-          </TouchableOpacity>
-        )}
-      </View>
 
       {/* Checkout Bottom Sheet */}
       <LiquidBottomSheet
