@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { View, FlatList, ScrollView, StyleSheet, TouchableOpacity, Alert, Linking } from 'react-native';
+import { View, FlatList, ScrollView, StyleSheet, TouchableOpacity, Alert, Linking, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -7,7 +8,7 @@ import LiquidBottomSheet, { LiquidBottomSheetRef } from '../components/common/Li
 import LiquidTextField from '../components/common/LiquidTextField';
 import LiquidButton from '../components/common/LiquidButton';
 import SheetHeader from '../components/common/SheetHeader';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/useAppStore';
 import { useTranslation } from '../hooks/useTranslation';
@@ -106,6 +107,8 @@ export default function SupplierScreen() {
     }))
   );
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
+  const headerCompensation = insets.top + (Platform.OS === 'ios' ? 44 : 56);
 
   const [editing, setEditing] = useState<Supplier | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
@@ -165,6 +168,8 @@ export default function SupplierScreen() {
 
   useEffect(() => {
     navigation.setOptions({
+      headerTransparent: true,
+      headerStyle: { backgroundColor: 'transparent' },
       headerRight: () => (
         <LiquidHeaderIconButton icon="magnifyingglass" androidIcon="search-outline" onPress={() => setSearchOpen(v => !v)} />
       ),
@@ -176,6 +181,30 @@ export default function SupplierScreen() {
 
   const openFormSheet = useCallback(() => formSheetRef.current?.expand(), []);
   const closeFormSheet = useCallback(() => formSheetRef.current?.close(), []);
+
+  const handleAddSupplier = useCallback(() => { setEditing(null); setForm({ ...emptyForm }); openFormSheet(); }, [openFormSheet]);
+
+  // `bottomAccessory` (iOS 26+ only) — same conversion as InventoryScreen/UdhaarScreen.
+  // Scoped with `useFocusEffect` so the button clears when navigating away.
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'ios') return;
+      const parent = navigation.getParent();
+      parent?.setOptions({
+        bottomAccessory: ({ placement }: { placement: 'regular' | 'inline' }) =>
+              <TouchableOpacity
+                onPress={handleAddSupplier}
+                style={{ width: '100%', height: '100%', flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 24, paddingHorizontal: 18, justifyContent: 'center' }}
+                accessibilityLabel={t('addSupplier')}
+                accessibilityRole="button"
+              >
+                <Ionicons name="add" size={20} color="#fff" />
+                <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 14 }}>{t('addSupplier')}</Text>
+              </TouchableOpacity>
+      });
+      return () => { parent?.setOptions({ bottomAccessory: undefined }); };
+    }, [navigation, handleAddSupplier, c, t])
+  );
   const closeDetailSheet = useCallback(() => {
     detailSheetRef.current?.close();
     setSelectedSupplier(null);
@@ -310,16 +339,24 @@ export default function SupplierScreen() {
   };
 
   return (
-    <View style={[s.container, { backgroundColor: c.bg }]}>
+    <>
       {searchOpen && (
-        <InlineSearchBar
-          value={search}
-          onChangeText={setSearch}
-          placeholder={t('searchSuppliers')}
-          onClose={() => setSearchOpen(false)}
-        />
+        // `headerTransparent` means this row is no longer pushed below a
+        // solid header by normal flow — see InventoryScreen/BillHistoryScreen's
+        // identical comment for the full explanation.
+        <View style={Platform.OS === 'ios' ? { marginTop: headerCompensation } : undefined}>
+          <InlineSearchBar
+            value={search}
+            onChangeText={setSearch}
+            placeholder={t('searchSuppliers')}
+            onClose={() => setSearchOpen(false)}
+          />
+        </View>
       )}
 
+      {/* `FlatList` is a direct child here (Fragment root) so react-native-screens
+          can detect it as the screen's scroll view for header inset + tab-bar
+          minimize — same fix as InventoryScreen. */}
       <FlatList
         data={filtered}
         keyExtractor={item => item.id}
@@ -329,7 +366,7 @@ export default function SupplierScreen() {
         maxToRenderPerBatch={10}
         windowSize={7}
         removeClippedSubviews
-        contentContainerStyle={{ paddingHorizontal: 8, paddingVertical: 8, paddingBottom: 120, flexGrow: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 8, paddingTop: searchOpen ? 8 : 0, paddingBottom: 120, flexGrow: 1 }}
         renderItem={renderSupplierItem}
         ListEmptyComponent={
           search.trim()
@@ -338,7 +375,9 @@ export default function SupplierScreen() {
         }
       />
 
-      <CollapsibleFab bottom={24} icon="add" label={t('addSupplier')} extended={extended} onPress={openAdd} />
+      {Platform.OS !== 'ios' && (
+        <CollapsibleFab bottom={24} icon="add" label={t('addSupplier')} extended={extended} onPress={handleAddSupplier} />
+      )}
 
       {/* Add/Edit Supplier Form Sheet */}
       <LiquidBottomSheet ref={formSheetRef}>
@@ -705,7 +744,7 @@ export default function SupplierScreen() {
           })()}
         </ScrollView>
       </LiquidBottomSheet>
-    </View>
+    </>
   );
 }
 
