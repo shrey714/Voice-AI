@@ -1,8 +1,7 @@
-import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, Linking, Alert, ScrollView } from 'react-native';
+import React, { useState, useMemo, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
+import { View, FlatList, StyleSheet, TouchableOpacity, Linking, Alert, ScrollView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { useScrollHideBar } from '../../hooks/useScrollHideBar';
-import ScrollHideBar from '../../components/common/ScrollHideBar';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -109,6 +108,12 @@ const BillRow = React.memo(function BillRow({
 export default function BillHistoryScreen() {
   const { colors } = useAppTheme();
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+  // Same as InventoryScreen: `headerTransparent` no longer reserves layout
+  // space for the native header on either platform, so content needs to
+  // compensate manually. 44 is UIKit's standard compact nav bar height on
+  // iOS; 56 is Material's standard app-bar height on Android.
+  const headerCompensation = insets.top + (Platform.OS === 'ios' ? 44 : 56);
   const { t } = useTranslation();
   const { confirm } = useConfirm();
   const { bills, returns, products, settings, processReturn } = useAppStore(
@@ -180,6 +185,8 @@ export default function BillHistoryScreen() {
   // AppNavigator's useHeaderOpts comment for why.
   useEffect(() => {
     navigation.setOptions({
+      headerTransparent: true,
+      headerStyle: { backgroundColor: 'transparent' },
       headerRight: () => (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <LiquidHeaderIconButton
@@ -457,91 +464,110 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
     }
   };
 
-  const { translateY: stripTranslate, onListScroll, onBarLayout, listPaddingTop } = useScrollHideBar({});
-
-  if (!dataReady) return <View style={{ flex: 1, backgroundColor: colors.bg }}><SkeletonList count={7} /></View>;
-
   return (
-    <View style={[s.container, { backgroundColor: colors.bg }]}>
+    <>
       {searchOpen && (
-        <InlineSearchBar
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder={t('customerPhoneProduct')}
-          onClose={() => setSearchOpen(false)}
-        />
+        // `headerTransparent` means this row is no longer pushed below a
+        // solid header by normal flow — see InventoryScreen's identical
+        // comment for the full explanation.
+        <View style={Platform.OS === 'ios' ? { marginTop: headerCompensation } : undefined}>
+          <InlineSearchBar
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder={t('customerPhoneProduct')}
+            onClose={() => setSearchOpen(false)}
+          />
+        </View>
       )}
 
-      {/* Summary bar */}
-    <View style={[s.header, { backgroundColor: colors.surface }]}>  
-      <View
-        style={s.summaryBar}>
-        {[
-          { label: 'Bills', value: String(filtered.length), color: colors.text },
-          { label: 'Revenue', value: formatCurrency(totalRevenue, settings.currency), color: colors.primary },
-          { label: 'Profit', value: formatCurrency(totalProfit, settings.currency), color: colors.success },
-        ].map((item, i) => (
-          <React.Fragment key={item.label}>
-            {i > 0 && <View style={[s.summaryDivider, { backgroundColor: colors.border }]} />}
-            <View style={s.summaryItem}>
-              <Text style={[s.summaryVal, { color: item.color }]}>{item.value}</Text>
-              <Text style={[s.summaryLbl, { color: colors.textMuted }]}>{item.label}</Text>
-            </View>
-          </React.Fragment>
-        ))}
-      </View>
-    </View>
-
-      <View style={{ flex: 1, overflow: 'hidden' }}>
-        {/* Active filter strip — slides up/down with scroll */}
-        {(filter !== 'today' || payFilter !== 'all' || returnedOnly) && (
-          <ScrollHideBar translateY={stripTranslate} bgColor={colors.bg} onLayout={onBarLayout}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, gap: 8 }}>
-              {filter !== 'today' && (
-                <TouchableOpacity style={[s.activeChip, { backgroundColor: colors.primary + '18', borderColor: colors.primary + '40' }]} onPress={openFilterSheet}>
-                  <Ionicons name="time-outline" size={12} color={colors.primary} />
-                  <Text style={[s.activeChipText, { color: colors.primary }]}>
-                    {filter === 'week' ? t('thisWeek') : filter === 'month' ? t('thisMonth') : filter === 'all' ? t('allTime') : customFrom || customTo
-                      ? [customFrom?.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }), customTo?.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })].filter(Boolean).join(' – ')
-                      : t('customRange')}
-                  </Text>
-                  <Ionicons name="close" size={11} color={colors.primary} onPress={() => { setFilter('today'); setCustomFrom(null); setCustomTo(null); }} />
-                </TouchableOpacity>
-              )}
-              {payFilter !== 'all' && (
-                <TouchableOpacity style={[s.activeChip, { backgroundColor: colors.info + '18', borderColor: colors.info + '40' }]} onPress={openFilterSheet}>
-                  <Ionicons name={PAY_ICON[payFilter]} size={12} color={colors.info} />
-                  <Text style={[s.activeChipText, { color: colors.info }]}>{payFilter.charAt(0).toUpperCase() + payFilter.slice(1)}</Text>
-                  <Ionicons name="close" size={11} color={colors.info} onPress={() => setPayFilter('all')} />
-                </TouchableOpacity>
-              )}
-              {returnedOnly && (
-                <TouchableOpacity style={[s.activeChip, { backgroundColor: colors.danger + '18', borderColor: colors.danger + '40' }]} onPress={openFilterSheet}>
-                  <Ionicons name="arrow-undo-outline" size={12} color={colors.danger} />
-                  <Text style={[s.activeChipText, { color: colors.danger }]}>{t('returns')}</Text>
-                  <Ionicons name="close" size={11} color={colors.danger} onPress={() => setReturnedOnly(false)} />
-                </TouchableOpacity>
-              )}
-            </ScrollView>
-          </ScrollHideBar>
-        )}
-
-        {/* Bill list */}
-        <FlatList
-          data={filtered}
-          keyExtractor={b => b.id}
-          style={{ flex: 1 }}
-          onScroll={onListScroll}
-          scrollEventThrottle={16}
-          initialNumToRender={12}
-          maxToRenderPerBatch={10}
-          windowSize={7}
-          removeClippedSubviews
-          contentContainerStyle={{ paddingHorizontal: 8, paddingTop: filter !== 'today' || payFilter !== 'all' || returnedOnly ? listPaddingTop : 8, paddingBottom: 120, flexGrow: 1 }}
+      {/* `FlatList` is a direct child here, not wrapped in an extra `View` —
+          same fix as InventoryScreen/OnlineOrdersScreen: react-native-screens
+          needs the scroll view reachable as the screen's first native child.
+          The summary bar and filter strip (previously a `ScrollHideBar`
+          sibling, which needed that wrapper to clip its slide animation)
+          both moved into `ListHeaderComponent` — the filter strip no longer
+          auto-hides on scroll-down, it scrolls away with the list now, same
+          trade-off as OnlineOrdersScreen. The loading skeleton moved into
+          `ListEmptyComponent` instead of an early return, so this `FlatList`
+          stays mounted from the very first render (see ShopInfoScreen for
+          why that matters for the header's automatic inset). */}
+      <FlatList
+        data={filtered}
+        keyExtractor={b => b.id}
+        style={{ flex: 1 }}
+        scrollEventThrottle={16}
+        initialNumToRender={12}
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        removeClippedSubviews
+        contentContainerStyle={{
+          paddingHorizontal: 8,
+          paddingTop: searchOpen ? 8 : 0,
+          paddingBottom: 120,
+          flexGrow: 1,
+        }}
         renderItem={renderBillItem}
-          ListEmptyComponent={<EmptyState icon="receipt-outline" title={t('noBillsFound')} subtitle={t('tryDifferentFilter')} />}
-        />
-      </View>
+        ListHeaderComponent={
+          !dataReady ? null : (
+            <>
+              {/* Summary bar */}
+              <View style={[s.header, { backgroundColor: colors.surface, marginHorizontal: -8 }]}>
+                <View style={s.summaryBar}>
+                  {[
+                    { label: 'Bills', value: String(filtered.length), color: colors.text },
+                    { label: 'Revenue', value: formatCurrency(totalRevenue, settings.currency), color: colors.primary },
+                    { label: 'Profit', value: formatCurrency(totalProfit, settings.currency), color: colors.success },
+                  ].map((item, i) => (
+                    <React.Fragment key={item.label}>
+                      {i > 0 && <View style={[s.summaryDivider, { backgroundColor: colors.border }]} />}
+                      <View style={s.summaryItem}>
+                        <Text style={[s.summaryVal, { color: item.color }]}>{item.value}</Text>
+                        <Text style={[s.summaryLbl, { color: colors.textMuted }]}>{item.label}</Text>
+                      </View>
+                    </React.Fragment>
+                  ))}
+                </View>
+              </View>
+
+              {/* Active filter strip */}
+              {(filter !== 'today' || payFilter !== 'all' || returnedOnly) && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 8, gap: 8 }}>
+                  {filter !== 'today' && (
+                    <TouchableOpacity style={[s.activeChip, { backgroundColor: colors.primary + '18', borderColor: colors.primary + '40' }]} onPress={openFilterSheet}>
+                      <Ionicons name="time-outline" size={12} color={colors.primary} />
+                      <Text style={[s.activeChipText, { color: colors.primary }]}>
+                        {filter === 'week' ? t('thisWeek') : filter === 'month' ? t('thisMonth') : filter === 'all' ? t('allTime') : customFrom || customTo
+                          ? [customFrom?.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }), customTo?.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })].filter(Boolean).join(' – ')
+                          : t('customRange')}
+                      </Text>
+                      <Ionicons name="close" size={11} color={colors.primary} onPress={() => { setFilter('today'); setCustomFrom(null); setCustomTo(null); }} />
+                    </TouchableOpacity>
+                  )}
+                  {payFilter !== 'all' && (
+                    <TouchableOpacity style={[s.activeChip, { backgroundColor: colors.info + '18', borderColor: colors.info + '40' }]} onPress={openFilterSheet}>
+                      <Ionicons name={PAY_ICON[payFilter]} size={12} color={colors.info} />
+                      <Text style={[s.activeChipText, { color: colors.info }]}>{payFilter.charAt(0).toUpperCase() + payFilter.slice(1)}</Text>
+                      <Ionicons name="close" size={11} color={colors.info} onPress={() => setPayFilter('all')} />
+                    </TouchableOpacity>
+                  )}
+                  {returnedOnly && (
+                    <TouchableOpacity style={[s.activeChip, { backgroundColor: colors.danger + '18', borderColor: colors.danger + '40' }]} onPress={openFilterSheet}>
+                      <Ionicons name="arrow-undo-outline" size={12} color={colors.danger} />
+                      <Text style={[s.activeChipText, { color: colors.danger }]}>{t('returns')}</Text>
+                      <Ionicons name="close" size={11} color={colors.danger} onPress={() => setReturnedOnly(false)} />
+                    </TouchableOpacity>
+                  )}
+                </ScrollView>
+              )}
+            </>
+          )
+        }
+        ListEmptyComponent={
+          !dataReady
+            ? <SkeletonList count={7} />
+            : <EmptyState icon="receipt-outline" title={t('noBillsFound')} subtitle={t('tryDifferentFilter')} />
+        }
+      />
 
       {/* ── Filter Sheet ── */}
       <LiquidBottomSheet ref={filterSheetRef}>
@@ -871,7 +897,7 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
         enableSwipeMonths: true
         }}
       />
-    </View>
+    </>
   );
 }
 
