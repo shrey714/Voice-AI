@@ -233,7 +233,7 @@ export default function InventoryScreen({ route, navigation }: any) {
   return (
     <>
       {searchOpen && (
-        <View style={{ marginTop: headerCompensation }}>
+       <View style={Platform.OS === 'ios' ? { marginTop: headerCompensation } : undefined}>
           <InlineSearchBar
             value={search}
             onChangeText={setSearch}

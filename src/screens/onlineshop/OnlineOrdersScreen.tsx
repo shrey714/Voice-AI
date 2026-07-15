@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, RefreshControl, ScrollView } from 'react-native';
+import { View, FlatList, StyleSheet, TouchableOpacity, RefreshControl, ScrollView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -144,6 +145,13 @@ export default function OnlineOrdersScreen({ navigation, route }: any) {
 
   const activeFilterCount = (activeTab !== 'all' ? 1 : 0) + (periodFilter !== 'today' ? 1 : 0);
   const s = useMemo(() => makeStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
+  // Same as InventoryScreen: `headerTransparent` no longer reserves layout
+  // space for the native header on either platform, so content needs to
+  // compensate manually. 44 is UIKit's standard compact nav bar height on
+  // iOS; 56 is Material's standard app-bar height on Android. `insets.top`
+  // covers the status bar/notch on both.
+  const headerCompensation = insets.top + (Platform.OS === 'ios' ? 44 : 56);
   const openOrderDetail = useCallback((order: OnlineOrder) => {
     navigation.navigate('OnlineOrderDetail', { orderId: order.id });
   }, [navigation]);
@@ -152,6 +160,8 @@ export default function OnlineOrdersScreen({ navigation, route }: any) {
   // AppNavigator's useHeaderOpts comment for why.
   useEffect(() => {
     navigation.setOptions({
+      headerTransparent: true,
+      headerStyle: { backgroundColor: 'transparent' },
       headerRight: () => (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <LiquidHeaderIconButton
@@ -244,16 +254,29 @@ export default function OnlineOrdersScreen({ navigation, route }: any) {
   const activeStatusTab = STATUS_TABS.find((t) => t.key === activeTab)!;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <>
       {searchOpen && (
-        <InlineSearchBar
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder="Search customer, phone, product…"
-          onClose={() => setSearchOpen(false)}
-        />
+        // `headerTransparent` (iOS) means this row is no longer pushed below
+        // a solid header by normal flow — see InventoryScreen's identical
+        // comment for the full explanation.
+        <View style={Platform.OS === 'ios' ? { marginTop: headerCompensation } : undefined}>
+          <InlineSearchBar
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search customer, phone, product…"
+            onClose={() => setSearchOpen(false)}
+          />
+        </View>
       )}
-      <View style={{ flex: 1, overflow: 'hidden' }}>
+      <View
+        style={{
+          flex: 1,
+          overflow: 'hidden',
+          // Only applied when the search bar isn't shown — when it is, ITS
+          // `marginTop` above already accounts for the header.
+          marginTop: Platform.OS === 'ios' && !searchOpen ? headerCompensation : 0,
+        }}
+      >
         {/* Active filter strip — always visible so the current period + status
             selection reads as "selected", not just when non-default; slides
             up/down with scroll, same as Bill History */}
@@ -379,7 +402,7 @@ export default function OnlineOrdersScreen({ navigation, route }: any) {
         onSelectRange={({ from, to }) => { setCustomFrom(from); setCustomTo(to); }}
         calendarProps={{ enableSwipeMonths: true }}
       />
-    </View>
+    </>
   );
 }
 
