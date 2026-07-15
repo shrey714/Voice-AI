@@ -361,9 +361,9 @@ export default function VoiceButton({ onResult, style, color }: Props) {
           style={[
             style ?? s.defaultBtn,
             {
-              backgroundColor: colors.primaryLight,
+              backgroundColor: active ? colors.primaryLight : 'transparent',
               borderColor: colors.primary,
-              borderWidth: active ? 1.5 : 0.5,
+              borderWidth: active ? 1.5 : 0,
             },
           ]}
           onPress={toggleListening}
