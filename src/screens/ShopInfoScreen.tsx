@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity, TextInput, Switch, Alert, ActivityIndicator, RefreshControl, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -69,10 +70,16 @@ export default function ShopInfoScreen(props: any) {
 
 function ShopInfoForm({ isOnline, navigation }: { isOnline: boolean; navigation: any }) {
   const { colors } = useAppTheme();
-  // No manual header-compensation constant needed here (unlike
-  // InventoryScreen/OnlineOrdersScreen's search bars) — this screen has no
-  // plain-`View` content sitting above its `ScrollView` that would need it;
-  // the `ScrollView` itself gets the automatic native inset once detected.
+  const insets = useSafeAreaInsets();
+  // Manual compensation IS needed here, same reasoning as
+  // OnlineInventoryScreen — `ShopInfoScreen`'s outer wrapper early-returns
+  // to `OnlineShopSettingsSkeleton` (a plain `View`, no `ScrollView` at all)
+  // while `!hasFetchedThisVisit`, so on a real network fetch iOS's one-time
+  // "detect the first-descendant scroll view" pass can easily run before
+  // this screen's real `ScrollView` ever mounts, meaning the automatic
+  // inset never gets applied to it. 44 is UIKit's standard compact nav bar
+  // height on iOS; 56 is Material's standard app-bar height on Android.
+  const headerCompensation = insets.top + (Platform.OS === 'ios' ? 44 : 56);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -279,20 +286,10 @@ function ShopInfoForm({ isOnline, navigation }: { isOnline: boolean; navigation:
       const parent = navigation.getParent();
       parent?.setOptions({
         bottomAccessory: ({ placement }: { placement: 'regular' | 'inline' }) =>
-          placement === 'inline' ? (
-            <TouchableOpacity
-              onPress={saveDisabled ? undefined : handleSave}
-              style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: saveTint, alignItems: 'center', justifyContent: 'center', opacity: saveDisabled ? 0.4 : 1 }}
-              accessibilityLabel={saveLabel}
-              accessibilityRole="button"
-            >
-              {isSavingConfig ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name={saved ? 'checkmark' : 'save-outline'} size={16} color="#fff" />}
-            </TouchableOpacity>
-          ) : (
             <View style={{ paddingHorizontal: 16, paddingVertical: 8, alignItems: 'flex-end' }}>
               <TouchableOpacity
                 onPress={saveDisabled ? undefined : handleSave}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 8, height: 48, borderRadius: 24, paddingHorizontal: 18, backgroundColor: saveTint, opacity: saveDisabled ? 0.4 : 1 }}
+                style={{ width: '100%', height: '100%', flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 24, paddingHorizontal: 18, backgroundColor: saveTint, opacity: saveDisabled ? 0.4 : 1 }}
                 accessibilityLabel={saveLabel}
                 accessibilityRole="button"
               >
@@ -300,7 +297,6 @@ function ShopInfoForm({ isOnline, navigation }: { isOnline: boolean; navigation:
                 <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 14 }}>{saveLabel}</Text>
               </TouchableOpacity>
             </View>
-          ),
       });
       return () => { parent?.setOptions({ bottomAccessory: undefined }); };
     }, [navigation, handleSave, saveLabel, saveTint, saveDisabled, isSavingConfig, saved])
@@ -311,14 +307,11 @@ function ShopInfoForm({ isOnline, navigation }: { isOnline: boolean; navigation:
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.bg }}
-      // No manual `headerCompensation` here — you already confirmed
-      // minimize-on-scroll works on this screen, which means this
-      // `ScrollView` is already correctly detected as the first-descendant
-      // scroll view, so iOS applies `contentInsetAdjustmentBehavior:
-      // automatic` to it natively. Adding manual padding on top of that
-      // would double the gap below the header (the same bug fixed on
-      // Inventory/Orders/OnlineInventory).
-      contentContainerStyle={{ padding: 14, paddingBottom: 120 }}
+      contentContainerStyle={{
+        padding: 14,
+        paddingTop: Platform.OS === 'ios' ? headerCompensation + 14 : 14,
+        paddingBottom: 120,
+      }}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
