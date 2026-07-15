@@ -1,5 +1,6 @@
-import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, Alert, ScrollView, Linking } from 'react-native';
+import React, { useState, useCallback, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
+import { View, FlatList, StyleSheet, TouchableOpacity, Alert, ScrollView, Linking, Platform } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -87,7 +88,7 @@ const CustomerRow = React.memo(function CustomerRow({
   );
 });
 
-export default function UdhaarScreen() {
+export default function UdhaarScreen({ navigation }: any) {
   const { colors } = useAppTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useTranslation();
@@ -134,6 +135,42 @@ export default function UdhaarScreen() {
   const closeCustomerDetail = useCallback(() => { customerDetailSheetRef.current?.close(); setSelectedCustomer(null); }, []);
   const openAddTx = useCallback(() => addTxSheetRef.current?.expand(), []);
   const closeAddTx = useCallback(() => addTxSheetRef.current?.close(), []);
+
+  const handleAddCustomer = useCallback(() => {
+    setEditingCustomer(null); setNewName(''); setNewPhone(''); openAddCustomer();
+  }, [openAddCustomer]);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerTransparent: true,
+      headerStyle: { backgroundColor: 'transparent' },
+    });
+  }, [navigation]);
+
+  // `bottomAccessory` (iOS 26+ only) — same conversion as InventoryScreen.
+  // Scoped with `useFocusEffect` (set on focus, cleared on blur), not a
+  // plain mount effect — see ExpensesScreen for why that matters (this
+  // screen's tab stack has other screens too, e.g. reached via the
+  // customer-detail sheet's navigation elsewhere in the app).
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'ios') return;
+      const parent = navigation.getParent();
+      parent?.setOptions({
+        bottomAccessory: ({ placement }: { placement: 'regular' | 'inline' }) =>
+              <TouchableOpacity
+                onPress={handleAddCustomer}
+                style={{ width: '100%', height: '100%', flexDirection: 'row', alignItems: 'center', gap: 8,  borderRadius: 24, paddingHorizontal: 18, justifyContent: 'center' }}
+                accessibilityLabel={t('addCustomer')}
+                accessibilityRole="button"
+              >
+                <Ionicons name="add" size={20} color="#fff" />
+                <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 14 }}>{t('addCustomer')}</Text>
+              </TouchableOpacity>
+      });
+      return () => { parent?.setOptions({ bottomAccessory: undefined }); };
+    }, [navigation, handleAddCustomer, colors, t])
+  );
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -279,38 +316,38 @@ export default function UdhaarScreen() {
   const sorted = [...customers].sort((a, b) => (balances[b.id] || 0) - (balances[a.id] || 0));
 
   return (
-    <View style={[s.container, { backgroundColor: colors.bg }]}>
-      {/* Summary Banner */}
-      <View style={[s.summaryCard, { backgroundColor: colors.surface }]}>
-        <View style={{ flex: 1 }}>
-          <Text style={[s.summaryAmount, {color: colors.danger}]}>{formatCurrency(totalOutstanding, settings.currency)}</Text>
-          <Text style={[s.summaryLabel, { color: colors.textMuted }]}>{t('totalOutstandingUdhaar')}</Text>
-        </View>
-        {debtors.length > 0 && (
-          <TouchableOpacity style={[s.remindAllBtn, { backgroundColor: '#25D366' }]} onPress={startRemindAll} activeOpacity={0.85}>
-            <Ionicons name="logo-whatsapp" size={16} color="#fff" />
-            <Text style={s.remindAllText}>{t('remindAll')} ({debtors.length})</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+    <>
+      <FlatList
+        data={sorted}
+        keyExtractor={c => c.id}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        initialNumToRender={12}
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        removeClippedSubviews
+        contentContainerStyle={{ paddingHorizontal: 8, paddingVertical: 8, paddingBottom: 120, flexGrow: 1 }}
+        renderItem={renderCustomerItem}
+        ListHeaderComponent={
+          <View style={[s.summaryCard, { backgroundColor: colors.surface }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.summaryAmount, {color: colors.danger}]}>{formatCurrency(totalOutstanding, settings.currency)}</Text>
+              <Text style={[s.summaryLabel, { color: colors.textMuted }]}>{t('totalOutstandingUdhaar')}</Text>
+            </View>
+            {debtors.length > 0 && (
+              <TouchableOpacity style={[s.remindAllBtn, { backgroundColor: '#25D366' }]} onPress={startRemindAll} activeOpacity={0.85}>
+                <Ionicons name="logo-whatsapp" size={16} color="#fff" />
+                <Text style={s.remindAllText}>{t('remindAll')} ({debtors.length})</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        }
+        ListEmptyComponent={loading ? <SkeletonList /> : <EmptyState icon="book-outline" title={t('noCustomersYet')} subtitle={t('tapToAddCustomer')} />}
+      />
 
-      {loading ? <SkeletonList /> : (
-        <FlatList
-          data={sorted}
-          keyExtractor={c => c.id}
-          onScroll={onScroll}
-          scrollEventThrottle={16}
-          initialNumToRender={12}
-          maxToRenderPerBatch={10}
-          windowSize={7}
-          removeClippedSubviews
-          contentContainerStyle={{ paddingHorizontal: 8, paddingVertical: 8, paddingBottom: 120, flexGrow: 1 }}
-          renderItem={renderCustomerItem}
-          ListEmptyComponent={<EmptyState icon="book-outline" title={t('noCustomersYet')} subtitle={t('tapToAddCustomer')} />}
-        />
+      {Platform.OS !== 'ios' && (
+        <CollapsibleFab bottom={24} icon="add" label={t('addCustomer')} extended={extended} onPress={handleAddCustomer} />
       )}
-
-      <CollapsibleFab bottom={24} icon="add" label={t('addCustomer')} extended={extended} onPress={() => { setEditingCustomer(null); setNewName(''); setNewPhone(''); openAddCustomer(); }} />
 
       {/* Add/Edit Customer Sheet */}
       <LiquidBottomSheet ref={addCustomerSheetRef}>
@@ -504,13 +541,13 @@ export default function UdhaarScreen() {
           )}
         </ScrollView>
       </LiquidBottomSheet>
-    </View>
+    </>
   );
 }
 
 const makeStyles = (c: any) => StyleSheet.create({
   container: { flex: 1 },
-  summaryCard: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 11, borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
+  summaryCard: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 11, borderRadius: 16 },
   summaryLabel: { fontFamily: fonts.medium, fontSize: 12, marginTop: 6 },
   summaryAmount: { fontFamily: fonts.display, fontSize: 18 },
   remindAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12 },
