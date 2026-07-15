@@ -6,8 +6,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { useIsFocused } from '@react-navigation/native';
 import LiquidBottomSheet, { LiquidBottomSheetRef } from '../../components/common/LiquidBottomSheet';
-import { useScrollHideBar } from '../../hooks/useScrollHideBar';
-import ScrollHideBar from '../../components/common/ScrollHideBar';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
 import { useOnlineShopStore } from '../../stores/useOnlineShopStore';
@@ -137,7 +135,6 @@ export default function OnlineOrdersScreen({ navigation, route }: any) {
   const [customTo, setCustomTo] = useState<Date | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
-  const { translateY: stripTranslate, onListScroll, onBarLayout, listPaddingTop } = useScrollHideBar();
 
   const filterSheetRef = useRef<LiquidBottomSheetRef>(null);
   const rangePickerRef = useRef<DatePickerSheetRef>(null);
@@ -268,20 +265,42 @@ export default function OnlineOrdersScreen({ navigation, route }: any) {
           />
         </View>
       )}
-      <View
-        style={{
-          flex: 1,
-          overflow: 'hidden',
-          // Only applied when the search bar isn't shown — when it is, ITS
-          // `marginTop` above already accounts for the header.
-          marginTop: Platform.OS === 'ios' && !searchOpen ? headerCompensation : 0,
+      {/* `FlatList` is a direct child here, not wrapped in an extra `View` —
+          same fix as InventoryScreen: react-native-screens needs the scroll
+          view reachable as (close to) the screen's first native child for
+          `headerTransparent`/`tabBarMinimizeBehavior` to detect it, and that
+          wrapper (needed only to `overflow: 'hidden'`-clip `ScrollHideBar`'s
+          slide animation) was blocking it. The filter strip moved from a
+          `ScrollHideBar` sibling into `ListHeaderComponent` below — it no
+          longer auto-hides on scroll-down (that behavior depended entirely
+          on the wrapper), it now just scrolls away with the list. */}
+      <FlatList
+        data={filtered}
+        style={{ flex: 1 }}
+        keyExtractor={(o) => o.id}
+        renderItem={renderOrder}
+        scrollEventThrottle={16}
+        initialNumToRender={12}
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        removeClippedSubviews
+        contentContainerStyle={{
+          paddingHorizontal: 10,
+          // No manual `headerCompensation` here (unlike the search bar
+          // below) — same as InventoryScreen: once a `FlatList`/`ScrollView`
+          // is properly detected as the screen's first-descendant scroll
+          // view, iOS 26 applies `contentInsetAdjustmentBehavior: automatic`
+          // to it natively, insetting it below the transparent header on its
+          // own. Adding manual padding on top of that doubles the gap.
+          paddingTop: 8,
+          paddingBottom: 120,
+          flexGrow: 1,
         }}
-      >
-        {/* Active filter strip — always visible so the current period + status
-            selection reads as "selected", not just when non-default; slides
-            up/down with scroll, same as Bill History */}
-        <ScrollHideBar translateY={stripTranslate} bgColor={colors.bg} onLayout={onBarLayout}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, gap: 8 }}>
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
+        ListHeaderComponent={
+          // Active filter strip — always visible so the current period +
+          // status selection reads as "selected", not just when non-default.
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8, gap: 8 }}>
             <TouchableOpacity style={[s.activeChip, { backgroundColor: colors.info + '18', borderColor: colors.info + '40' }]} onPress={openFilterSheet}>
               <Ionicons name="calendar-outline" size={12} color={colors.info} />
               <Text style={[s.activeChipText, { color: colors.info }]}>
@@ -301,30 +320,15 @@ export default function OnlineOrdersScreen({ navigation, route }: any) {
               )}
             </TouchableOpacity>
           </ScrollView>
-        </ScrollHideBar>
-
-        <FlatList
-          data={filtered}
-          style={{ flex: 1 }}
-          keyExtractor={(o) => o.id}
-          renderItem={renderOrder}
-          onScroll={onListScroll}
-          scrollEventThrottle={16}
-          initialNumToRender={12}
-          maxToRenderPerBatch={10}
-          windowSize={7}
-          removeClippedSubviews
-          contentContainerStyle={{ paddingHorizontal: 10, paddingTop: listPaddingTop, paddingBottom: 120, flexGrow: 1 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
-          ListEmptyComponent={
-            <EmptyState
-              icon="bag-outline"
-              title={isLoadingOrders ? 'Loading orders…' : 'No orders found'}
-              subtitle={isLoadingOrders ? '' : (searchQuery || activeFilterCount > 0) ? 'Try a different search or filter.' : 'Orders from your online customers will appear here.'}
-            />
-          }
-        />
-      </View>
+        }
+        ListEmptyComponent={
+          <EmptyState
+            icon="bag-outline"
+            title={isLoadingOrders ? 'Loading orders…' : 'No orders found'}
+            subtitle={isLoadingOrders ? '' : (searchQuery || activeFilterCount > 0) ? 'Try a different search or filter.' : 'Orders from your online customers will appear here.'}
+          />
+        }
+      />
 
       {/* Filter Sheet */}
       <LiquidBottomSheet ref={filterSheetRef}>
