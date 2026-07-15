@@ -275,7 +275,7 @@ export default function DayCloseScreen({ navigation }: any) {
 }
 
 const makeStyles = (c: any) => StyleSheet.create({
-  hero: { padding: 18, alignItems: 'center', borderRadius: 16 },
+  hero: { padding: 18, alignItems: 'center', borderRadius: 16, marginBottom: 12 },
   heroLbl: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 1 },
   heroAmt: { fontFamily: fonts.display, fontSize: 34, marginTop: 6 },
   heroSub: { fontFamily: fonts.medium, fontSize: 11.5, marginTop: 4 },
