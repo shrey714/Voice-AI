@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity, TextInput, Switch, Alert, ActivityIndicator, RefreshControl, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -61,25 +60,27 @@ export default function ShopInfoScreen(props: any) {
     return () => { cancelled = true; };
   }, [isOnline]);
 
-  if (isOnline && !hasFetchedThisVisit) {
-    return <OnlineShopSettingsSkeleton />;
-  }
-
-  return <ShopInfoForm {...props} isOnline={isOnline} />;
+  // `ShopInfoForm` is always mounted now (not swapped in only once fetched)
+  // — that keeps its `ScrollView` present from the very first render, which
+  // is what lets iOS correctly detect it for the automatic header inset
+  // (`headerCompensation` further down is a manual belt-and-suspenders
+  // fallback for the same thing, in case that detection still races on a
+  // slow connection). The loading state is a `loading` prop this component
+  // renders content for INSIDE that same `ScrollView`, not a separate
+  // early-returned skeleton screen — that separate tree (a plain `View`,
+  // no `ScrollView` of its own) was going out from under the transparent
+  // header instead of being properly inset below it.
+  return <ShopInfoForm {...props} isOnline={isOnline} loading={isOnline && !hasFetchedThisVisit} />;
 }
 
-function ShopInfoForm({ isOnline, navigation }: { isOnline: boolean; navigation: any }) {
+function ShopInfoForm({ isOnline, loading, navigation }: { isOnline: boolean; loading: boolean; navigation: any }) {
   const { colors } = useAppTheme();
-  const insets = useSafeAreaInsets();
-  // Manual compensation IS needed here, same reasoning as
-  // OnlineInventoryScreen — `ShopInfoScreen`'s outer wrapper early-returns
-  // to `OnlineShopSettingsSkeleton` (a plain `View`, no `ScrollView` at all)
-  // while `!hasFetchedThisVisit`, so on a real network fetch iOS's one-time
-  // "detect the first-descendant scroll view" pass can easily run before
-  // this screen's real `ScrollView` ever mounts, meaning the automatic
-  // inset never gets applied to it. 44 is UIKit's standard compact nav bar
-  // height on iOS; 56 is Material's standard app-bar height on Android.
-  const headerCompensation = insets.top + (Platform.OS === 'ios' ? 44 : 56);
+  // No manual header-compensation needed — this `ScrollView` is mounted
+  // from the very first render now (only the loading vs. loaded content
+  // INSIDE it swaps, see `loading` below), so iOS's one-time scroll-view
+  // detection pass always finds it, same as OnlineInventoryScreen/
+  // OnlineOrdersScreen once their `FlatList` became always-mounted for the
+  // same reason. It gets the automatic native inset on its own.
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -168,6 +169,15 @@ function ShopInfoForm({ isOnline, navigation }: { isOnline: boolean; navigation:
     setLatitude(c.latitude);
     setLongitude(c.longitude);
   }, []);
+
+  // Fields above are seeded via `useState` at mount, from whatever `config`
+  // holds at that instant — now that this component mounts immediately
+  // (not delayed until the fetch resolves, see `ShopInfoScreen`'s comment),
+  // that initial seed can be a stale/default value. Once `loading` flips to
+  // `false`, re-populate from the store's freshest fetched config.
+  useEffect(() => {
+    if (!loading && isOnline) resetFieldsFrom(useOnlineShopStore.getState().config);
+  }, [loading, isOnline, resetFieldsFrom]);
 
   const onRefresh = useCallback(async () => {
     if (!isOnline) return;
@@ -286,7 +296,6 @@ function ShopInfoForm({ isOnline, navigation }: { isOnline: boolean; navigation:
       const parent = navigation.getParent();
       parent?.setOptions({
         bottomAccessory: ({ placement }: { placement: 'regular' | 'inline' }) =>
-            <View style={{ paddingHorizontal: 16, paddingVertical: 8, alignItems: 'flex-end' }}>
               <TouchableOpacity
                 onPress={saveDisabled ? undefined : handleSave}
                 style={{ width: '100%', height: '100%', flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 24, paddingHorizontal: 18, backgroundColor: saveTint, opacity: saveDisabled ? 0.4 : 1 }}
@@ -296,7 +305,6 @@ function ShopInfoForm({ isOnline, navigation }: { isOnline: boolean; navigation:
                 {isSavingConfig ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name={saved ? 'checkmark' : 'save-outline'} size={18} color="#fff" />}
                 <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 14 }}>{saveLabel}</Text>
               </TouchableOpacity>
-            </View>
       });
       return () => { parent?.setOptions({ bottomAccessory: undefined }); };
     }, [navigation, handleSave, saveLabel, saveTint, saveDisabled, isSavingConfig, saved])
@@ -307,15 +315,15 @@ function ShopInfoForm({ isOnline, navigation }: { isOnline: boolean; navigation:
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.bg }}
-      contentContainerStyle={{
-        padding: 14,
-        paddingTop: Platform.OS === 'ios' ? headerCompensation + 14 : 14,
-        paddingBottom: 120,
-      }}
+      contentContainerStyle={{ padding: 14, paddingBottom: 120 }}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
     >
+      {loading ? (
+        <OnlineShopSettingsSkeleton />
+      ) : (
+      <>
       {!isOnline && (
         <View style={[s.errorBanner, { backgroundColor: colors.warning + '15', borderColor: colors.warning + '40' }]}>
           <Ionicons name="cloud-offline-outline" size={16} color={colors.warning} />
@@ -670,6 +678,8 @@ function ShopInfoForm({ isOnline, navigation }: { isOnline: boolean; navigation:
           variant={!isOnline ? 'glass' : 'glassProminent'}
           height={52}
         />
+      )}
+      </>
       )}
     </ScrollView>
   );

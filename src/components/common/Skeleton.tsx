@@ -102,11 +102,16 @@ export function OnlineShopDashboardSkeleton() {
   );
 }
 
-/** Online Shop settings placeholder — mirrors the repeated "section" card shape. */
+/**
+ * Online Shop settings placeholder — mirrors the repeated "section" card
+ * shape. Rendered inside `ShopInfoScreen`'s `ScrollView` (not as a separate
+ * early-returned screen) — that `ScrollView` already provides padding/
+ * background, so this doesn't need its own `flex`/padding/background fill.
+ */
 export function OnlineShopSettingsSkeleton() {
   const { colors } = useAppTheme();
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg, padding: 14 }}>
+    <>
       {[
         { fields: 1 },   // master switch
         { fields: 3 },   // basic info
@@ -121,7 +126,7 @@ export function OnlineShopSettingsSkeleton() {
           ))}
         </View>
       ))}
-    </View>
+    </>
   );
 }
 
