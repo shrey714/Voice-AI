@@ -1,7 +1,5 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
-import { useScrollHideBar } from '../hooks/useScrollHideBar';
-import ScrollHideBar from '../components/common/ScrollHideBar';
+import React, { useState, useRef, useCallback, useMemo, useLayoutEffect } from 'react';
+import { View, FlatList, StyleSheet, TouchableOpacity, Alert, ScrollView, Platform } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -24,7 +22,7 @@ import { useConfirm } from '../components/common/ConfirmDialogProvider';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
-export default function ExpensesScreen() {
+export default function ExpensesScreen({ navigation }: any) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { confirm } = useConfirm();
@@ -48,11 +46,34 @@ export default function ExpensesScreen() {
   const [note, setNote] = useState('');
   const [supplierId, setSupplierId] = useState('');
   const { extended, onScroll } = useFabScroll();
-  const { translateY: catTranslate, onListScroll, onBarLayout, listPaddingTop } = useScrollHideBar({ onScroll });
 
   const formSheetRef = useRef<LiquidBottomSheetRef>(null);
   const openForm = useCallback(() => formSheetRef.current?.expand(), []);
   const closeForm = useCallback(() => formSheetRef.current?.close(), []);
+
+  // `bottomAccessory` (iOS 26+ only) — same conversion as InventoryScreen.
+  useLayoutEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    navigation.getParent()?.setOptions({
+      bottomAccessory: ({ placement }: { placement: 'regular' | 'inline' }) =>
+            <TouchableOpacity
+              onPress={openForm}
+              style={{ width: '100%', height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 24, paddingHorizontal: 18 }}
+              accessibilityLabel={t('saveExpense')}
+              accessibilityRole="button"
+            >
+              <Ionicons name="add" size={20} color="#fff" />
+              <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 14 }}>{t('saveExpense')}</Text>
+            </TouchableOpacity>
+    });
+  }, [navigation, openForm, colors, t]);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerTransparent: true,
+      headerStyle: { backgroundColor: 'transparent' },
+    });
+  }, [navigation]);
 
   const todayTotal = expenses.filter(e => e.createdAt >= startOfDay() && e.createdAt <= endOfDay()).reduce((s, e) => s + e.amount, 0);
   const totalAll = expenses.reduce((s, e) => s + e.amount, 0);
@@ -94,28 +115,46 @@ export default function ExpensesScreen() {
   const s = makeStyles(colors);
 
   return (
-   <View style={[{ backgroundColor: colors.bg, flex: 1 }]}>
-      {/* Summary bar */}
-      <MotiView
-        style={[s.summaryBar, { backgroundColor: colors.surface }]}>
-        {[
-          { label: t('today'), value: formatCurrency(todayTotal, settings.currency), color: colors.warning },
-          { label: t('allTime'), value: formatCurrency(totalAll, settings.currency), color: colors.danger },
-          { label: t('entries'), value: String(expenses.length), color: colors.primary },
-        ].map((item, i) => (
-          <React.Fragment key={item.label}>
-            {i > 0 && <View style={[s.divider, { backgroundColor: colors.border }]} />}
-            <View style={s.summaryItem}>
-              <Text style={[s.summaryValue, { color: item.color }]}>{item.value}</Text>
-              <Text style={[s.summaryLabel, { color: colors.textMuted }]}>{item.label}</Text>
-            </View>
-          </React.Fragment>
-        ))}
-      </MotiView>
+    <>
+    {/* `FlatList` is a direct child here, not wrapped in an extra `View` —
+        same fix as InventoryScreen/BillHistoryScreen: react-native-screens
+        needs the scroll view reachable as the screen's first native child.
+        Summary bar + category strip (previously a `ScrollHideBar` sibling,
+        needing that wrapper to clip its slide animation) both moved into
+        `ListHeaderComponent` — the category strip no longer auto-hides on
+        scroll-down, it scrolls away with the list now, same trade-off as
+        BillHistoryScreen/OnlineOrdersScreen. */}
+    <FlatList
+      data={expenses}
+      keyExtractor={e => e.id}
+      style={{ flex: 1, backgroundColor: colors.bg }}
+      scrollEventThrottle={16}
+      initialNumToRender={12}
+      maxToRenderPerBatch={10}
+      windowSize={7}
+      removeClippedSubviews
+      contentContainerStyle={{ paddingHorizontal: 8, paddingTop: 8, paddingBottom: 120, flexGrow: 1 }}
+      ListHeaderComponent={
+        <>
+          {/* Summary bar */}
+          <MotiView style={[s.summaryBar, { backgroundColor: colors.surface }]}>
+            {[
+              { label: t('today'), value: formatCurrency(todayTotal, settings.currency), color: colors.warning },
+              { label: t('allTime'), value: formatCurrency(totalAll, settings.currency), color: colors.danger },
+              { label: t('entries'), value: String(expenses.length), color: colors.primary },
+            ].map((item, i) => (
+              <React.Fragment key={item.label}>
+                {i > 0 && <View style={[s.divider, { backgroundColor: colors.border }]} />}
+                <View style={s.summaryItem}>
+                  <Text style={[s.summaryValue, { color: item.color }]}>{item.value}</Text>
+                  <Text style={[s.summaryLabel, { color: colors.textMuted }]}>{item.label}</Text>
+                </View>
+              </React.Fragment>
+            ))}
+          </MotiView>
 
-      <View style={{ flex: 1, overflow: 'hidden' }}>
-        <ScrollHideBar translateY={catTranslate} bgColor={colors.bg} onLayout={onBarLayout}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catScroll} contentContainerStyle={{ paddingHorizontal: 8, gap: 8, paddingVertical: 8, alignItems: 'center' }}>
+          {/* Category strip */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catScroll} contentContainerStyle={{ gap: 8, paddingVertical: 8, alignItems: 'center' }}>
             {CATEGORIES.map(cat => {
               const total = expenses.filter(e => e.category === cat.key).reduce((s, e) => s + e.amount, 0);
               return (
@@ -129,20 +168,9 @@ export default function ExpensesScreen() {
               );
             })}
           </ScrollView>
-        </ScrollHideBar>
-
-        <FlatList
-          data={expenses}
-          keyExtractor={e => e.id}
-          style={{ flex: 1 }}
-          onScroll={onListScroll}
-          scrollEventThrottle={16}
-          initialNumToRender={12}
-          maxToRenderPerBatch={10}
-          windowSize={7}
-          removeClippedSubviews
-        contentContainerStyle={{ paddingHorizontal: 8, paddingTop: listPaddingTop, paddingBottom: 120, flexGrow: 1 }}
-        renderItem={({ item, index }) => {
+        </>
+      }
+      renderItem={({ item, index }) => {
           const cat = getCatInfo(item.category);
           return (
             <FadeSlideIn index={index} style={[s.expenseCard, { backgroundColor: colors.surface }]}>
@@ -175,13 +203,17 @@ export default function ExpensesScreen() {
             </FadeSlideIn>
           );
         }}
-        ListEmptyComponent={<EmptyState icon="wallet-outline" title={t('noExpensesYet')} subtitle={t('trackExpensesHere')} />}
-        />
-      </View>{/* end scrollable area */}
+      ListEmptyComponent={<EmptyState icon="wallet-outline" title={t('noExpensesYet')} subtitle={t('trackExpensesHere')} />}
+    />
 
+    {/* iOS gets the native `bottomAccessory` (set up above via
+        `navigation.getParent()?.setOptions`) instead — Android has no such
+        API, so it keeps this floating overlay. */}
+    {Platform.OS !== 'ios' && (
       <CollapsibleFab bottom={24} icon="add" label={t('saveExpense')} extended={extended} onPress={openForm} />
+    )}
 
-      <LiquidBottomSheet ref={formSheetRef}>
+    <LiquidBottomSheet ref={formSheetRef}>
         <SheetHeader title={t('addExpense')} onClose={closeForm} />
         <ScrollView contentContainerStyle={s.sheetContent}>
           <LiquidTextField
@@ -233,13 +265,13 @@ export default function ExpensesScreen() {
           <LiquidButton title={t('save')} onPress={handleSave} variant="glassProminent" style={s.btnRow} />
         </ScrollView>
       </LiquidBottomSheet>
-    </View>
+    </>
   );
 }
 
 const makeStyles = (c: any) => StyleSheet.create({
   // Summary bar — bigger values, better spacing
-  summaryBar: { flexDirection: 'row',paddingHorizontal: 18, paddingVertical: 11, borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
+  summaryBar: { flexDirection: 'row',paddingHorizontal: 18, paddingVertical: 11, borderRadius: 16 },
   summaryItem: { flex: 1, alignItems: 'center' },
   summaryValue: { fontFamily: fonts.display, fontSize: 18 },
   summaryLabel: { fontFamily: fonts.medium, fontSize: 12, marginTop: 6 },
