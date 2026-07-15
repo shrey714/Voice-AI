@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useLayoutEffect } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { Text } from 'react-native-paper';
 import { LineChart } from 'react-native-chart-kit';
@@ -16,7 +16,7 @@ import LiquidTabs from '../components/common/LiquidTabs';
 const { width } = Dimensions.get('window');
 type Period = 'daily' | 'weekly' | 'monthly';
 
-export default function AnalyticsScreen() {
+export default function AnalyticsScreen({ navigation }: any) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { bills, expenses, products, settings, returns, suppliers, purchases } = useAppStore(
@@ -121,25 +121,33 @@ export default function AnalyticsScreen() {
 
   const s = makeStyles(colors);
 
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerTransparent: true,
+      headerStyle: { backgroundColor: 'transparent' },
+    });
+  }, [navigation]);
+
   return (
-    <View style={[{ backgroundColor: colors.bg, flex: 1 }]}>
-
-
-      {/* Period filter */}
-    <View style={[s.searchRow, {backgroundColor: colors.surface }]}>
-      <LiquidTabs
-        tabs={(['daily', 'weekly', 'monthly'] as Period[]).map(f => ({ key: f, label: t(f) }))}
-        selected={period}
-        onSelect={(key) => setPeriod(key as Period)}
-      />
-    </View>
-
-      
+    // `ScrollView` is the root here (no wrapping `View`, and the period
+    // filter tabs moved to be its first child instead of a sibling before
+    // it) — same fix as InventoryScreen/SettingsScreen/ExportsScreen:
+    // react-native-screens needs the scroll view reachable as the screen's
+    // first native child.
     <ScrollView
-      style={{ flex: 1, backgroundColor: colors.bg, paddingTop: 12 }}
+      style={{ flex: 1, backgroundColor: colors.bg }}
+      contentContainerStyle={{ paddingTop: 12 }}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
+      {/* Period filter */}
+      <View style={[s.searchRow, { marginBottom: 12 }]}>
+        <LiquidTabs
+          tabs={(['daily', 'weekly', 'monthly'] as Period[]).map(f => ({ key: f, label: t(f) }))}
+          selected={period}
+          onSelect={(key) => setPeriod(key as Period)}
+        />
+      </View>
 
       {/* Stat cards */}
       <View style={s.cardsGrid}>
@@ -364,13 +372,12 @@ export default function AnalyticsScreen() {
         <View style={{ height: 120 }} />
 
   </ScrollView>
-    </View>
   );
 }
 
 const makeStyles = (c: any) => StyleSheet.create({
   // period filter
-  searchRow: { flexDirection: 'row', gap: 10, padding: 8.5, alignItems: 'center', borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
+  searchRow: { marginHorizontal: 16, flexDirection: 'row', gap: 10, alignItems: 'center', borderRadius: 16 },
 
   // Stat cards grid — 2x2 with better spacing
   cardsGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 14, gap: 12, marginBottom: 12 },

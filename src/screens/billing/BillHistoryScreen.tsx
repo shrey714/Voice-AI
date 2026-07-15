@@ -511,7 +511,7 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
           !dataReady ? null : (
             <>
               {/* Summary bar */}
-              <View style={[s.header, { backgroundColor: colors.surface, marginHorizontal: -8 }]}>
+              <View style={[s.header, { backgroundColor: colors.surface }]}>
                 <View style={s.summaryBar}>
                   {[
                     { label: 'Bills', value: String(filtered.length), color: colors.text },
@@ -924,7 +924,7 @@ const makeStyles = (c: any) => StyleSheet.create({
   fsDateRowValue: { fontFamily: fonts.semiBold, fontSize: 15, marginTop: 2 },
   fsClearDates: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 12, justifyContent: 'center' },
   fsClearDatesText: { fontFamily: fonts.semiBold, fontSize: 13 },
-  header: { flexDirection: 'column', padding: 12, borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
+  header: { flexDirection: 'column', padding: 12, borderRadius: 16 },
   summaryBar: { flexDirection: 'row'},
   summaryItem: { flex: 1, alignItems: 'center' },
   summaryVal: { fontFamily: fonts.display, fontSize: 18 },
