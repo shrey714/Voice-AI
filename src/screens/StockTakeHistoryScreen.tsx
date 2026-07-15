@@ -124,6 +124,8 @@ export default function StockTakeHistoryScreen({ navigation }: any) {
 
   useLayoutEffect(() => {
     navigation.setOptions({
+      headerTransparent: true,
+      headerStyle: { backgroundColor: 'transparent' },
       headerRight: sessions.length > 0 && !loading
         ? () => (
             <TouchableOpacity onPress={handleDeleteAll} hitSlop={12} accessibilityLabel="Delete all history" accessibilityRole="button">
@@ -163,20 +165,25 @@ export default function StockTakeHistoryScreen({ navigation }: any) {
   ), [colors, s, handleSelect]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      {loading ? (
-        <SkeletonList count={5} />
-      ) : (
-        <FlatList
-          data={sessions}
-          keyExtractor={item => item.id}
-          renderItem={renderSession}
-          initialNumToRender={12}
-          maxToRenderPerBatch={10}
-          windowSize={7}
-          removeClippedSubviews
-          contentContainerStyle={{ padding: 14, paddingBottom: 40, flexGrow: 1 }}
-          ListEmptyComponent={
+    <>
+      {/* `FlatList` is a direct child here (Fragment root) so react-native-screens
+          can detect it — same fix as InventoryScreen. The loading skeleton moved
+          into `ListEmptyComponent` instead of an early return, so this stays
+          mounted from the very first render (see ShopInfoScreen for why that
+          matters for the header's automatic inset). */}
+      <FlatList
+        data={sessions}
+        keyExtractor={item => item.id}
+        renderItem={renderSession}
+        initialNumToRender={12}
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        removeClippedSubviews
+        contentContainerStyle={{ padding: 14, paddingBottom: 40, flexGrow: 1 }}
+        ListEmptyComponent={
+          loading ? (
+            <SkeletonList count={5} />
+          ) : (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
               <Ionicons name="clipboard-outline" size={52} color={colors.textMuted} />
               <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.text }}>{t('noHistoryYet')}</Text>
@@ -184,9 +191,9 @@ export default function StockTakeHistoryScreen({ navigation }: any) {
                 {t('completedStockTakesHere')}
               </Text>
             </View>
-          }
-        />
-      )}
+          )
+        }
+      />
 
       {/* Session detail bottom sheet */}
       <LiquidBottomSheet ref={sheetRef} onDismiss={handleSheetClose}>
@@ -289,7 +296,7 @@ export default function StockTakeHistoryScreen({ navigation }: any) {
           )}
         </ScrollView>
       </LiquidBottomSheet>
-    </View>
+    </>
   );
 }
 
