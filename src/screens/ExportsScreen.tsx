@@ -339,7 +339,7 @@ export default function ExportsScreen({ navigation }: any) {
       contentContainerStyle={{ paddingBottom: 120, flexGrow: 1, paddingHorizontal: 12 }}
     >
       {/* Report type tabs */}
-      <View style={[s.searchRow, { backgroundColor: colors.surface, marginHorizontal: -12, marginBottom: 12 }]}>
+      <View style={[s.searchRow, { marginBottom: 12 }]}>
         <LiquidTabs
           tabs={REPORT_TYPES.map(rt => ({ key: rt.key, label: rt.label, icon: rt.icon }))}
           selected={report}
@@ -498,8 +498,8 @@ const previewCard = StyleSheet.create({
 
 const makeStyles = (c: any) => StyleSheet.create({
   sectionLabel: { fontFamily: fonts.extraBold, fontSize: 11, letterSpacing: 0.7 },
-  section: { marginTop: 8, paddingHorizontal: 8, borderBottomWidth: StyleSheet.hairlineWidth },
-  searchRow: { flexDirection: 'row', gap: 10, padding: 8.5, alignItems: 'center', borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
+  section: { paddingHorizontal: 8, borderBottomWidth: StyleSheet.hairlineWidth },
+  searchRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
   chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5 },
   chipText: { fontFamily: fonts.bold, fontSize: 13 },
