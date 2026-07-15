@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useLayoutEffect } from 'react';
 import { View, ScrollView, StyleSheet, Alert } from 'react-native';
 import { Text } from 'react-native-paper';
 import LiquidButton from '../components/common/LiquidButton';
@@ -9,16 +9,31 @@ import { fonts } from '../theme/typography';
 import { useTranslation } from '../hooks/useTranslation';
 import { useConfirm } from '../components/common/ConfirmDialogProvider';
 
-export default function BackupRestoreScreen() {
+export default function BackupRestoreScreen({ navigation }: any) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
   const { confirm } = useConfirm();
   const [backupWorking, setBackupWorking] = useState(false);
   const s = makeStyles(colors);
 
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerTransparent: true,
+      headerStyle: { backgroundColor: 'transparent' },
+    });
+  }, [navigation]);
+
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>
+    // `ScrollView` is the root here (no wrapping `View`) — same fix as
+    // InventoryScreen/SettingsScreen/ManageOptionsScreen: react-native-screens
+    // needs the scroll view reachable as the screen's first native child
+    // for `headerTransparent`/`tabBarMinimizeBehavior` to detect it.
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.bg }}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: 140 }}
+    >
         <Text style={[s.lead, { color: colors.textMuted }]}>
           {t('keepDataSafe')}
         </Text>
@@ -68,7 +83,6 @@ export default function BackupRestoreScreen() {
           />
         </View>
       </ScrollView>
-    </View>
   );
 }
 

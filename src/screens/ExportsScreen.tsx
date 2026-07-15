@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useLayoutEffect } from 'react';
 import {
   View, ScrollView, StyleSheet, TouchableOpacity, Alert,
 } from 'react-native';
@@ -232,7 +232,7 @@ const REPORT_TYPES: { key: ReportType; label: string; icon: any }[] = [
   { key: 'inventory', label: 'Inventory',   icon: 'cube-outline' },
 ];
 
-export default function ExportsScreen() {
+export default function ExportsScreen({ navigation }: any) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
   const { bills, expenses, products, settings } = useAppStore(
@@ -319,11 +319,27 @@ export default function ExportsScreen() {
 
   const s = makeStyles(colors);
 
-  return (
-    <View style={[{ backgroundColor: colors.bg, flex: 1 }]}>
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerTransparent: true,
+      headerStyle: { backgroundColor: 'transparent' },
+    });
+  }, [navigation]);
 
+  return (
+    // `ScrollView` is the root here (no wrapping `View`), with the report-
+    // type tabs and period chips moved to be its first children instead of
+    // non-scrollable siblings in front of it — same fix as InventoryScreen/
+    // OnlineOrdersScreen's filter strip: react-native-screens needs the
+    // scroll view reachable as the screen's first native child. Trade-off:
+    // these controls now scroll away with the content instead of staying
+    // pinned, same as OnlineOrdersScreen's filter chips.
+    <ScrollView
+      style={{ backgroundColor: colors.bg, flex: 1 }}
+      contentContainerStyle={{ paddingBottom: 120, flexGrow: 1, paddingHorizontal: 12 }}
+    >
       {/* Report type tabs */}
-      <View style={[s.searchRow, {backgroundColor: colors.surface}]}>
+      <View style={[s.searchRow, { backgroundColor: colors.surface, marginHorizontal: -12, marginBottom: 12 }]}>
         <LiquidTabs
           tabs={REPORT_TYPES.map(rt => ({ key: rt.key, label: rt.label, icon: rt.icon }))}
           selected={report}
@@ -333,9 +349,9 @@ export default function ExportsScreen() {
 
       {/* Period chips */}
       {report !== 'inventory' && (
-        <View style={s.section}>
-          <Text style={[s.sectionLabel, { color: colors.textSub }]}>{t('period').toUpperCase()}</Text>
-          <View style={s.chipRow}>
+        <View style={[s.section, { marginHorizontal: -12, paddingBottom: 12 }]}>
+          <Text style={[s.sectionLabel, { color: colors.textSub, marginLeft: 8 }]}>{t('period').toUpperCase()}</Text>
+          <View style={[s.chipRow, { marginLeft: 8 }]}>
             {PERIODS.map(p => (
               <TouchableOpacity
                 key={p.key}
@@ -348,8 +364,6 @@ export default function ExportsScreen() {
           </View>
         </View>
       )}
-
-    <ScrollView contentContainerStyle={{ paddingBottom: 120, flexGrow: 1, marginTop: 12, paddingHorizontal: 12 }}>
 
       {/* Preview */}
       {report === 'pl' && <PLPreview data={plData} cur={cur} colors={colors} t={t} />}
@@ -376,7 +390,6 @@ export default function ExportsScreen() {
         />
       </View>
     </ScrollView>
-    </View>
   );
 }
 

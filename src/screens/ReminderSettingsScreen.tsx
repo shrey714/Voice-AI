@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useLayoutEffect } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity, Switch, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,7 +16,7 @@ const LANGS: { key: ReminderLang; label: string }[] = [
   { key: 'en', label: 'English' },
 ];
 
-export default function ReminderSettingsScreen() {
+export default function ReminderSettingsScreen({ navigation }: any) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
   const { settings, updateSettings } = useAppStore(
@@ -50,9 +50,24 @@ export default function ReminderSettingsScreen() {
     items: [{ name: 'Parle-G', qty: 24, unit: 'pcs' }, { name: 'Amul Milk', qty: 12, unit: 'pcs' }],
   });
 
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerTransparent: true,
+      headerStyle: { backgroundColor: 'transparent' },
+    });
+  }, [navigation]);
+
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }} keyboardShouldPersistTaps="handled">
+    // `ScrollView` is the root here (no wrapping `View`) — same fix as
+    // InventoryScreen/SettingsScreen/ManageOptionsScreen: react-native-screens
+    // needs the scroll view reachable as the screen's first native child
+    // for `headerTransparent`/`tabBarMinimizeBehavior` to detect it.
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.bg }}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: 130 }}
+      keyboardShouldPersistTaps="handled"
+    >
 
         <View style={s.sectionHead}>
           <Ionicons name="cash-outline" size={18} color={colors.primary} />
@@ -198,7 +213,6 @@ export default function ReminderSettingsScreen() {
            <Text style={[s.rowSub, { color: colors.textMuted, marginTop: 10 }]}>{t('sampleItemsForSupplier')}</Text>
          </View>
       </ScrollView>
-    </View>
   );
 }
 
