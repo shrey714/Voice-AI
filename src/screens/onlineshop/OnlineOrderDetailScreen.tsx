@@ -300,7 +300,7 @@ export default function OnlineOrderDetailScreen({ route, navigation }: any) {
             the last scrollable item. */}
         {Platform.OS !== 'ios' && (
           loading ? (
-            <View style={s.actionBar}>
+            <View style={[s.actionBar, s.actionBarLoading]}>
               <ActivityIndicator color={colors.primary} />
             </View>
           ) : order.status === 'pending' ? (
@@ -355,6 +355,10 @@ const makeStyles = (c: any) =>
     // is just the last item inside the scroll content, not a fixed overlay
     // anymore, so no more `marginBottom` clearance for a floating tab bar.
     actionBar: { flexDirection: 'row', gap: 12, marginTop: 4, paddingTop: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
+    // `actionBar` alone left the spinner stuck top-left — it's a `flexDirection:
+    // 'row'` with no centering, fine for a row of flex:1 buttons (they fill
+    // the row themselves) but not for a single bare `ActivityIndicator`.
+    actionBarLoading: { justifyContent: 'center', alignItems: 'center', paddingVertical: 4 },
     actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 14 },
     actionBtnText: { fontFamily: fonts.bold, fontSize: 16 },
   });
