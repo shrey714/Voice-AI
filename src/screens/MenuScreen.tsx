@@ -1,15 +1,17 @@
-import React, { useLayoutEffect } from "react";
-import { View, StyleSheet, TouchableOpacity, ScrollView, Platform } from "react-native";
+import React, { useLayoutEffect, useState, useEffect } from "react";
+import { View, StyleSheet, TouchableOpacity, ScrollView, Platform, Dimensions } from "react-native";
 import { Text } from "react-native-paper";
 import { Ionicons } from "@expo/vector-icons";
 import { MotiView } from "moti";
-import { useShallow } from 'zustand/react/shallow';
-import { useAppStore } from "../stores/useAppStore";
+import { LinearGradient } from "expo-linear-gradient";
 import { useAppTheme } from "../theme";
 import { fonts } from "../theme/typography";
-import { formatCurrency, startOfDay, endOfDay } from "../utils/helpers";
-import { computeSalesStats, makeCostOf } from "../utils/stats";
 import { useTranslation } from "../hooks/useTranslation";
+import PressableScale from "../components/common/PressableScale";
+import LiquidHeaderIconButton from "../components/common/LiquidHeaderIconButton";
+import * as db from "../db/database";
+
+type LayoutMode = 'list' | 'box';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -18,14 +20,6 @@ type Item = { label: string; sub: string; icon: IoniconsName; screen: string };
 export default function MenuScreen({ navigation }: any) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
-  const { bills, products, returns, settings } = useAppStore(
-    useShallow(state => ({
-      bills: state.bills,
-      products: state.products,
-      returns: state.returns,
-      settings: state.settings,
-    }))
-  );
 
   const SECTIONS: { title: string; items: Item[] }[] = [
     {
@@ -57,33 +51,90 @@ export default function MenuScreen({ navigation }: any) {
   ];
   const s = makeStyles(colors);
 
+  // Persisted display-style preference — same pattern as ThemeProvider's
+  // `theme_mode` (db.getSetting/setSetting), loaded once on mount and
+  // written back whenever the shopkeeper switches it.
+  const [layoutMode, setLayoutModeState] = useState<LayoutMode>('list');
+  useEffect(() => {
+    db.getSetting('menuLayoutMode').then(val => {
+      if (val === 'list' || val === 'box') setLayoutModeState(val);
+    });
+  }, []);
+  const setLayoutMode = (mode: LayoutMode) => {
+    setLayoutModeState(mode);
+    db.setSetting('menuLayoutMode', mode);
+  };
+  const toggleLayoutMode = () => setLayoutMode(layoutMode === 'list' ? 'box' : 'list');
+
+  // Header-right: display-style toggle (icon reflects the CURRENT mode; tap
+  // switches to the other) + a Settings shortcut — same
+  // `headerTransparent` + `headerRight` combined-effect pattern as
+  // BillingScreen/BillHistoryScreen's two-icon headers.
   useLayoutEffect(() => {
     navigation.setOptions({
       // iOS-only — see InventoryScreen's header comment for why.
       ...(Platform.OS === 'ios' ? { headerTransparent: true, headerStyle: { backgroundColor: 'transparent' } } : null),
+      headerRight: () => (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <LiquidHeaderIconButton
+            icon={layoutMode === 'list' ? 'list.bullet' : 'square.grid.2x2'}
+            androidIcon={layoutMode === 'list' ? 'list-outline' : 'grid-outline'}
+            onPress={toggleLayoutMode}
+          />
+          <LiquidHeaderIconButton
+            icon="gearshape"
+            androidIcon="settings-outline"
+            onPress={() => navigation.navigate('Settings')}
+          />
+        </View>
+      ),
     });
-  }, [navigation]);
+  }, [navigation, layoutMode]);
 
-  const todayRevenue = computeSalesStats({
-    bills, returns, from: startOfDay(), to: endOfDay(), costOf: makeCostOf(products),
-  }).revenue;
-  const lowStock = products.filter((p) => p.quantity <= p.lowStockThreshold).length;
-
-  const Row = ({ item, last }: { item: Item; last?: boolean }) => (
-    <TouchableOpacity
-      style={[s.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}
-      onPress={() => navigation.navigate(item.screen)}
-      activeOpacity={0.7}
+  const Row = ({ item, last, index }: { item: Item; last?: boolean; index: number }) => (
+    <MotiView
+      from={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: "timing", duration: 260, delay: index * 40 }}
     >
-      <View style={[s.iconTile, { backgroundColor: colors.primaryLight }]}>
-        <Ionicons name={item.icon} size={20} color={colors.primary} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={[s.rowLabel, { color: colors.text }]}>{item.label}</Text>
-        <Text style={[s.rowSub, { color: colors.textMuted }]}>{item.sub}</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-    </TouchableOpacity>
+      <TouchableOpacity
+        style={[s.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}
+        onPress={() => navigation.navigate(item.screen)}
+        activeOpacity={0.7}
+      >
+        <View style={[s.iconTile, { backgroundColor: colors.primaryLight }]}>
+          <Ionicons name={item.icon} size={20} color={colors.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[s.rowLabel, { color: colors.text }]}>{item.label}</Text>
+          <Text style={[s.rowSub, { color: colors.textMuted }]}>{item.sub}</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+      </TouchableOpacity>
+    </MotiView>
+  );
+
+  const BoxItem = ({ item, index }: { item: Item; index: number }) => (
+    <MotiView
+      from={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: "timing", duration: 260, delay: index * 40 }}
+    >
+      <PressableScale
+        style={[s.box, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        onPress={() => navigation.navigate(item.screen)}
+      >
+        <LinearGradient
+          colors={[colors.primary, colors.primaryDark]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={s.boxIconTile}
+        >
+          <Ionicons name={item.icon} size={22} color="#fff" />
+        </LinearGradient>
+        <Text style={[s.boxLabel, { color: colors.text }]} numberOfLines={2}>{item.label}</Text>
+      </PressableScale>
+    </MotiView>
   );
 
   return (
@@ -95,29 +146,11 @@ export default function MenuScreen({ navigation }: any) {
     <ScrollView
       style={{ backgroundColor: colors.bg, flex: 1 }}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingBottom: 120, paddingTop: 16 }}
+      contentContainerStyle={{ paddingBottom: 120 }}
     >
-        {/* Stats card */}
-        <View
-          style={[s.statsCard, { backgroundColor: colors.surface }]}
-        >
-          <View style={s.statItem}>
-            <Text style={[s.statVal, { color: colors.primary }]}>{products.length}</Text>
-            <Text style={[s.statLbl, { color: colors.textMuted }]}>{t('products')}</Text>
-          </View>
-          <View style={[s.statDivider, { backgroundColor: colors.border }]} />
-          <View style={s.statItem}>
-            <Text style={[s.statVal, { color: colors.success }]}>{formatCurrency(todayRevenue, settings.currency)}</Text>
-            <Text style={[s.statLbl, { color: colors.textMuted }]}>{t('today')}</Text>
-          </View>
-          <View style={[s.statDivider, { backgroundColor: colors.border }]} />
-          <View style={s.statItem}>
-            <Text style={[s.statVal, { color: lowStock > 0 ? colors.warning : colors.success }]}>{lowStock}</Text>
-            <Text style={[s.statLbl, { color: colors.textMuted }]}>{t('lowStock')}</Text>
-          </View>
-        </View>
 
-        {/* Grouped feature sections */}
+        {/* Grouped feature sections — list rows or a box grid, per the
+            persisted `layoutMode` toggle in the header. */}
         {SECTIONS.map((section, si) => (
           <MotiView
             key={section.title}
@@ -126,16 +159,30 @@ export default function MenuScreen({ navigation }: any) {
             transition={{ type: "timing", duration: 300, delay: 80 + si * 70 }}
           >
             <Text style={[s.groupLabel, { color: colors.textMuted }]}>{section.title}</Text>
-            <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              {section.items.map((item, i) => (
-                <Row key={item.label} item={item} last={i === section.items.length - 1} />
-              ))}
-            </View>
+            {layoutMode === 'list' ? (
+              <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                {section.items.map((item, i) => (
+                  <Row key={item.label} item={item} last={i === section.items.length - 1} index={i} />
+                ))}
+              </View>
+            ) : (
+              <View style={s.boxGrid}>
+                {section.items.map((item, i) => (
+                  <BoxItem key={item.label} item={item} index={i} />
+                ))}
+              </View>
+            )}
           </MotiView>
         ))}
       </ScrollView>
   );
 }
+
+// 3-column grid: screen width minus the grid's own 12px side margins (×2),
+// minus 2 gaps between the 3 columns, split evenly.
+const BOX_COLUMNS = 3;
+const BOX_GAP = 12;
+const BOX_WIDTH = (Dimensions.get("window").width - 12 * 2 - BOX_GAP * (BOX_COLUMNS - 1)) / BOX_COLUMNS;
 
 const makeStyles = (c: any) =>
   StyleSheet.create({
@@ -158,4 +205,23 @@ const makeStyles = (c: any) =>
     iconTile: { width: 40, height: 40, borderRadius: 12, justifyContent: "center", alignItems: "center" },
     rowLabel: { fontFamily: fonts.bold, fontSize: 15 },
     rowSub: { fontFamily: fonts.medium, fontSize: 12, marginTop: 1 },
+
+    // Box (grid) layout — same section grouping, 3-column app-icon-style grid
+    // instead of stacked rows.
+    // `justifyContent: 'space-between'` stretched an incomplete last row
+    // apart (e.g. 5 boxes → row of 3, then 2 pushed to opposite edges
+    // instead of sitting together) — `gap` + `flex-start` with an exact
+    // computed box width fixes that, since gap only adds space *between*
+    // items instead of distributing leftover space across the row.
+    boxGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-start", gap: BOX_GAP, marginHorizontal: 12 },
+    box: {
+      width: BOX_WIDTH, alignItems: "center", borderRadius: 20, borderWidth: StyleSheet.hairlineWidth,
+      paddingVertical: 18, paddingHorizontal: 8,
+      elevation: 3, shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
+    },
+    // Gradient circle (same primary→primaryDark treatment as the dashboard's
+    // bento cards) instead of a flat tinted square — reads as a real "app
+    // icon" tile rather than a plain list icon plucked into a grid.
+    boxIconTile: { width: 50, height: 50, borderRadius: 25, justifyContent: "center", alignItems: "center", marginBottom: 10 },
+    boxLabel: { fontFamily: fonts.bold, fontSize: 12.5, textAlign: "center", lineHeight: 16 },
   });
