@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useEffect, useLayoutEffect, useMemo, useState, useCallback } from 'react';
+import { View, ScrollView, StyleSheet, TouchableOpacity, Platform, ActivityIndicator, RefreshControl } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '../../theme';
@@ -72,21 +73,19 @@ export default function OnlineOrderDetailScreen({ route, navigation }: any) {
 
   const s = makeStyles(colors);
 
-  if (!order && !notFound) {
-    return <OnlineOrderDetailSkeleton />;
-  }
+  // iOS-only — see InventoryScreen's header comment for why `headerTransparent`
+  // needs this: it no longer reserves layout space for the native header, so
+  // content needs to compensate (here, by the ScrollView below being the
+  // screen's own first native child, which lets react-native-screens'
+  // automatic content-inset adjustment handle it — no manual padding needed).
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      ...(Platform.OS === 'ios' ? { headerTransparent: true, headerStyle: { backgroundColor: 'transparent' } } : null),
+    });
+  }, [navigation]);
 
-  if (!order) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg }}>
-        <Text style={{ color: colors.textMuted, fontFamily: fonts.regular }}>Order not found.</Text>
-      </View>
-    );
-  }
-
-  const statusColor = STATUS_COLOR[order.status] ?? colors.textMuted;
-
-  const handleAction = async (action: 'accepted' | 'rejected' | 'ready' | 'completed') => {
+  const handleAction = useCallback(async (action: 'accepted' | 'rejected' | 'ready' | 'completed') => {
+    if (!order) return;
     const labels: Record<string, string> = {
       accepted: 'Accept Order',
       rejected: 'Reject Order',
@@ -121,15 +120,111 @@ export default function OnlineOrderDetailScreen({ route, navigation }: any) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [order, confirm, updateOrderStatus]);
+
+  // `bottomAccessory` (iOS 26+ only) — same conversion as DayCloseScreen/
+  // ExpensesScreen/BillingScreen. Scoped with `useFocusEffect` (set on
+  // focus, cleared on blur), not a plain mount effect — this screen sits
+  // inside the Online Orders stack alongside the list screen, and a stale
+  // closure would otherwise keep floating there after navigating away.
+  // Content varies with order status: a spinner while an action is in
+  // flight, Reject+Accept for a pending order, a single follow-up action for
+  // accepted/ready, or nothing at all for a terminal status.
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'ios') return;
+      const parent = navigation.getParent();
+
+      if (!order) {
+        parent?.setOptions({ bottomAccessory: undefined });
+      } else if (loading) {
+        parent?.setOptions({
+          bottomAccessory: () => (
+            <View style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+              <ActivityIndicator color={colors.primary} />
+            </View>
+          ),
+        });
+      } else if (order.status === 'pending') {
+        parent?.setOptions({
+          bottomAccessory: ({ placement }: { placement: 'regular' | 'inline' }) => (
+            <View style={{ flexDirection: 'row', width: '100%', height: '100%', gap: 10, paddingHorizontal: placement === 'inline' ? 10 : 16 }}>
+              <TouchableOpacity
+                onPress={() => handleAction('rejected')}
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 20 }}
+                accessibilityLabel="Reject order"
+                accessibilityRole="button"
+              >
+                <Ionicons name="close" size={placement === 'inline' ? 14 : 17} color={colors.danger} />
+                <Text style={{ color: colors.danger, fontFamily: fonts.bold, fontSize: placement === 'inline' ? 12 : 14 }}>Reject</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handleAction('accepted')}
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 20, backgroundColor: colors.primary }}
+                accessibilityLabel="Accept order"
+                accessibilityRole="button"
+              >
+                <Ionicons name="checkmark" size={placement === 'inline' ? 14 : 17} color="#fff" />
+                <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: placement === 'inline' ? 12 : 14 }}>Accept</Text>
+              </TouchableOpacity>
+            </View>
+          ),
+        });
+      } else if (order.status === 'accepted' || order.status === 'ready') {
+        const next = order.status === 'accepted' ? 'ready' : 'completed';
+        const label = order.status === 'accepted' ? 'Mark Ready' : 'Mark Completed';
+        const icon = order.status === 'accepted' ? 'bag' : 'checkmark-circle';
+        const tint = order.status === 'accepted' ? colors.primary : colors.success;
+        parent?.setOptions({
+          bottomAccessory: () => (
+            <TouchableOpacity
+              onPress={() => handleAction(next)}
+              style={{ width: '100%', height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 24, paddingHorizontal: 18, backgroundColor: tint }}
+              accessibilityLabel={label}
+              accessibilityRole="button"
+            >
+              <Ionicons name={icon as any} size={18} color="#fff" />
+              <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 14 }}>{label}</Text>
+            </TouchableOpacity>
+          ),
+        });
+      } else {
+        // Terminal status (completed/rejected/cancelled) — nothing to show.
+        parent?.setOptions({ bottomAccessory: undefined });
+      }
+
+      return () => { parent?.setOptions({ bottomAccessory: undefined }); };
+    }, [navigation, order, loading, colors, handleAction])
+  );
+
+  if (!order && !notFound) {
+    return <OnlineOrderDetailSkeleton />;
+  }
+
+  if (!order) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg }}>
+        <Text style={{ color: colors.textMuted, fontFamily: fonts.regular }}>Order not found.</Text>
+      </View>
+    );
+  }
+
+  const statusColor = STATUS_COLOR[order.status] ?? colors.textMuted;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView
-        contentContainerStyle={{ padding: 14, paddingBottom: 120 }}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
-      >
+    // `ScrollView` is the root here (no wrapping `View`) — same fix as
+    // InventoryScreen/DayCloseScreen: react-native-screens needs the scroll
+    // view reachable as the screen's first native child both for automatic
+    // header content-inset adjustment (so content isn't hidden under the now
+    // see-through `headerTransparent` header) and for the iOS 26 collapsing/
+    // minimizing tab+accessory bar to find the scroll view at all.
+    <>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.bg }}
+      contentContainerStyle={{ padding: 14, paddingBottom: 120 }}
+      showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
+    >
 
         {/* Status header */}
         <View style={[s.statusCard, { backgroundColor: colors.surface, borderColor: statusColor + '40' }]}>
@@ -199,28 +294,32 @@ export default function OnlineOrderDetailScreen({ route, navigation }: any) {
             <Text style={[s.totalValue, { color: colors.text }]}>{formatCurrency(order.total, settings.currency)}</Text>
           </View>
         </View>
-      </ScrollView>
-
-      {/* Action buttons */}
-      {loading ? (
-        <View style={s.actionBar}>
-          <ActivityIndicator color={colors.primary} />
-        </View>
-      ) : order.status === 'pending' ? (
-        <View style={[s.actionBar, { borderTopColor: colors.border }]}>
-          <LiquidButton title="Reject" icon="xmark" onPress={() => handleAction('rejected')} variant="glass" tintColor={colors.danger} style={{ flex: 1 }} />
-          <LiquidButton title="Accept" icon="checkmark" onPress={() => handleAction('accepted')} variant="glassProminent" style={{ flex: 1 }} />
-        </View>
-      ) : order.status === 'accepted' ? (
-        <View style={[s.actionBar, { borderTopColor: colors.border }]}>
-          <LiquidButton title="Mark Ready" icon="bag.fill" onPress={() => handleAction('ready')} variant="glassProminent" />
-        </View>
-      ) : order.status === 'ready' ? (
-        <View style={[s.actionBar, { borderTopColor: colors.border }]}>
-          <LiquidButton title="Mark Completed" icon="checkmark.circle.fill" onPress={() => handleAction('completed')} tintColor={colors.success} />
-        </View>
-      ) : null}
-    </View>
+        {/* iOS gets the native `bottomAccessory` (set up above via
+            `useFocusEffect` + `navigation.getParent()?.setOptions`) instead
+            — Android has no such API, so it keeps these in-flow buttons as
+            the last scrollable item. */}
+        {Platform.OS !== 'ios' && (
+          loading ? (
+            <View style={s.actionBar}>
+              <ActivityIndicator color={colors.primary} />
+            </View>
+          ) : order.status === 'pending' ? (
+            <View style={s.actionBar}>
+              <LiquidButton title="Reject" icon="xmark" onPress={() => handleAction('rejected')} variant="glass" tintColor={colors.danger} style={{ flex: 1 }} />
+              <LiquidButton title="Accept" icon="checkmark" onPress={() => handleAction('accepted')} variant="glassProminent" style={{ flex: 1 }} />
+            </View>
+          ) : order.status === 'accepted' ? (
+            <View style={s.actionBar}>
+              <LiquidButton title="Mark Ready" icon="bag.fill" onPress={() => handleAction('ready')} variant="glassProminent" />
+            </View>
+          ) : order.status === 'ready' ? (
+            <View style={s.actionBar}>
+              <LiquidButton title="Mark Completed" icon="checkmark.circle.fill" onPress={() => handleAction('completed')} tintColor={colors.success} />
+            </View>
+          ) : null
+        )}
+    </ScrollView>
+    </>
   );
 }
 
@@ -252,7 +351,10 @@ const makeStyles = (c: any) =>
     billValue: { fontFamily: fonts.regular, fontSize: 14 },
     totalValue: { fontFamily: fonts.extraBold, fontSize: 17 },
 
-    actionBar: { flexDirection: 'row', gap: 12, padding: 16, paddingBottom: 28, borderTopWidth: StyleSheet.hairlineWidth, marginBottom: 60 },
+    // Android-only now (iOS uses the native `bottomAccessory` instead) — this
+    // is just the last item inside the scroll content, not a fixed overlay
+    // anymore, so no more `marginBottom` clearance for a floating tab bar.
+    actionBar: { flexDirection: 'row', gap: 12, marginTop: 4, paddingTop: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
     actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 14 },
     actionBtnText: { fontFamily: fonts.bold, fontSize: 16 },
   });
