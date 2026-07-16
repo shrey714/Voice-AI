@@ -148,15 +148,15 @@ export default function OnlineOrderDetailScreen({ route, navigation }: any) {
       } else if (order.status === 'pending') {
         parent?.setOptions({
           bottomAccessory: ({ placement }: { placement: 'regular' | 'inline' }) => (
-            <View style={{ flexDirection: 'row', width: '100%', height: '100%', gap: 10, paddingHorizontal: placement === 'inline' ? 10 : 16 }}>
+            <View style={{ flexDirection: 'row', width: '100%', height: '100%', gap: 6, padding: 6 }}>
               <TouchableOpacity
                 onPress={() => handleAction('rejected')}
-                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 20 }}
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 20, backgroundColor: colors.danger }}
                 accessibilityLabel="Reject order"
                 accessibilityRole="button"
               >
-                <Ionicons name="close" size={placement === 'inline' ? 14 : 17} color={colors.danger} />
-                <Text style={{ color: colors.danger, fontFamily: fonts.bold, fontSize: placement === 'inline' ? 12 : 14 }}>Reject</Text>
+                <Ionicons name="close" size={placement === 'inline' ? 14 : 17} color={'#fff'} />
+                <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: placement === 'inline' ? 12 : 14 }}>Reject</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => handleAction('accepted')}
