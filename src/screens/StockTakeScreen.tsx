@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -72,8 +72,8 @@ export default function StockTakeScreen({ navigation }: any) {
 
   useEffect(() => {
     navigation.setOptions({
-      headerTransparent: true,
-      headerStyle: { backgroundColor: 'transparent' },
+      // iOS-only — see InventoryScreen's header comment for why.
+      ...(Platform.OS === 'ios' ? { headerTransparent: true, headerStyle: { backgroundColor: 'transparent' } } : null),
       headerRight: () => (
         <LiquidHeaderIconButton icon="clock" androidIcon="time-outline" onPress={() => navigation.navigate('StockTakeHistory')} />
       ),

@@ -122,8 +122,8 @@ export default function PurchasesScreen({ navigation }: any) {
 
   useEffect(() => {
     navigation.setOptions({
-      headerTransparent: true,
-      headerStyle: { backgroundColor: 'transparent' },
+      // iOS-only — see InventoryScreen's header comment for why.
+      ...(Platform.OS === 'ios' ? { headerTransparent: true, headerStyle: { backgroundColor: 'transparent' } } : null),
       headerRight: () => (
         <LiquidHeaderIconButton icon="magnifyingglass" androidIcon="search-outline" onPress={() => setSearchOpen(v => !v)} />
       ),

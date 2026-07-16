@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
-  View, FlatList, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, Alert,
+  View, FlatList, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Platform,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -124,8 +124,8 @@ export default function StockTakeHistoryScreen({ navigation }: any) {
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerTransparent: true,
-      headerStyle: { backgroundColor: 'transparent' },
+      // iOS-only — see InventoryScreen's header comment for why.
+      ...(Platform.OS === 'ios' ? { headerTransparent: true, headerStyle: { backgroundColor: 'transparent' } } : null),
       headerRight: sessions.length > 0 && !loading
         ? () => (
             <TouchableOpacity onPress={handleDeleteAll} hitSlop={12} accessibilityLabel="Delete all history" accessibilityRole="button">

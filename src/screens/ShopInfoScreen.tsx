@@ -84,8 +84,8 @@ function ShopInfoForm({ isOnline, loading, navigation }: { isOnline: boolean; lo
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerTransparent: true,
-      headerStyle: { backgroundColor: 'transparent' },
+      // iOS-only — see InventoryScreen's header comment for why.
+      ...(Platform.OS === 'ios' ? { headerTransparent: true, headerStyle: { backgroundColor: 'transparent' } } : null),
     });
   }, [navigation]);
   const { t } = useTranslation();

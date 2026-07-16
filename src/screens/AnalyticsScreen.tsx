@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useLayoutEffect } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Platform } from 'react-native';
 import { Text } from 'react-native-paper';
 import { LineChart } from 'react-native-chart-kit';
 import { Ionicons } from '@expo/vector-icons';
@@ -123,8 +123,12 @@ export default function AnalyticsScreen({ navigation }: any) {
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerTransparent: true,
-      headerStyle: { backgroundColor: 'transparent' },
+      // iOS-only: native-stack's `headerTransparent` gives a real see-through
+      // header for free. Android has no native counterpart — setting it there
+      // just pulls the opaque, in-flow `AppHeader` out of layout (position:
+      // absolute) while leaving it fully opaque, pushing content underneath
+      // it. Leaving it unset on Android keeps AppHeader normal/in-flow.
+      ...(Platform.OS === 'ios' ? { headerTransparent: true, headerStyle: { backgroundColor: 'transparent' } } : null),
     });
   }, [navigation]);
 

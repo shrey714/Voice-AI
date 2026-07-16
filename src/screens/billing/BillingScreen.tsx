@@ -499,8 +499,8 @@ export default function BillingScreen({ navigation }: any) {
 
   useEffect(() => {
     navigation.setOptions({
-      headerTransparent: true,
-      headerStyle: { backgroundColor: 'transparent' },
+      // iOS-only — see InventoryScreen's header comment for why.
+      ...(Platform.OS === 'ios' ? { headerTransparent: true, headerStyle: { backgroundColor: 'transparent' } } : null),
       headerRight: () => (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <BtStatusIcon active={btActive} />

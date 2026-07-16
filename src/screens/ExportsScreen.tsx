@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useLayoutEffect } from 'react';
 import {
-  View, ScrollView, StyleSheet, TouchableOpacity, Alert,
+  View, ScrollView, StyleSheet, TouchableOpacity, Alert, Platform,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -321,8 +321,8 @@ export default function ExportsScreen({ navigation }: any) {
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerTransparent: true,
-      headerStyle: { backgroundColor: 'transparent' },
+      // iOS-only — see InventoryScreen's header comment for why.
+      ...(Platform.OS === 'ios' ? { headerTransparent: true, headerStyle: { backgroundColor: 'transparent' } } : null),
     });
   }, [navigation]);
 

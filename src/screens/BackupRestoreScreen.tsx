@@ -1,5 +1,5 @@
 import React, { useState, useLayoutEffect } from 'react';
-import { View, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, ScrollView, StyleSheet, Alert, Platform } from 'react-native';
 import { Text } from 'react-native-paper';
 import LiquidButton from '../components/common/LiquidButton';
 import { exportBackup, importBackup } from '../services/backup';
@@ -18,8 +18,10 @@ export default function BackupRestoreScreen({ navigation }: any) {
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerTransparent: true,
-      headerStyle: { backgroundColor: 'transparent' },
+      // iOS-only — see InventoryScreen's header comment for why Android must
+      // not set this (it has no native transparent header; setting it just
+      // yanks the opaque `AppHeader` out of layout flow).
+      ...(Platform.OS === 'ios' ? { headerTransparent: true, headerStyle: { backgroundColor: 'transparent' } } : null),
     });
   }, [navigation]);
 

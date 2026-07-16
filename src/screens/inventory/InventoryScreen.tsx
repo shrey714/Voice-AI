@@ -31,12 +31,12 @@ export default function InventoryScreen({ route, navigation }: any) {
   const { confirm, confirmActions } = useConfirm();
   const insets = useSafeAreaInsets();
   // `headerTransparent` no longer reserves layout space for the native
-  // header on either platform, so content needs to compensate manually or
-  // it renders underneath the (now see-through) header instead of below it.
-  // 44 is UIKit's standard compact nav bar height on iOS; 56 is Material's
-  // standard app-bar height on Android. `insets.top` covers the status
-  // bar/notch on both.
-  const headerCompensation = insets.top + (Platform.OS === 'ios' ? 44 : 56);
+  // header on iOS, so content needs to compensate manually or it renders
+  // underneath the (now see-through) header instead of below it. 44 is
+  // UIKit's standard compact nav bar height; `insets.top` covers the status
+  // bar/notch. Android keeps the normal in-flow `AppHeader`, so it needs no
+  // compensation.
+  const headerCompensation = insets.top + 44;
   const { products, deleteProduct, updateProduct, settings } = useAppStore(
     useShallow(state => ({
       products: state.products,
@@ -197,8 +197,10 @@ export default function InventoryScreen({ route, navigation }: any) {
           ) : null}
         </View>
       ),
-      headerTransparent: true,
-      headerStyle: { backgroundColor: 'transparent' },
+      // iOS-only — see InventoryScreen's header comment for why Android must
+      // not set this (it has no native transparent header; setting it just
+      // yanks the opaque `AppHeader` out of layout flow).
+      ...(Platform.OS === 'ios' ? { headerTransparent: true, headerStyle: { backgroundColor: 'transparent' } } : null),
       // Plain flex row, not absolutely-positioned siblings — see this file's
       // header comment / AppNavigator's useHeaderOpts for why.
       headerRight: () => (
