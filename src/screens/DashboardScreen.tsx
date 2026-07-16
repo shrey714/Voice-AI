@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity, Linking, Alert, RefreshControl, Dimensions, Platform } from 'react-native';
 import { Text } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
-import Animated, { useSharedValue, useAnimatedProps, withTiming, Easing } from 'react-native-reanimated';
+import Animated, {
+  useSharedValue, useAnimatedProps, useAnimatedStyle, useAnimatedRef, useAnimatedScrollHandler,
+  scrollTo, runOnJS, interpolate, Extrapolation, withTiming, Easing, SharedValue,
+} from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/useAppStore';
@@ -33,47 +36,126 @@ function GoalRing({ progress, size = 96, stroke = 10, color, track }: { progress
   );
 }
 
-// iOS "widget stack" — a single square tile that auto-rotates *vertically*
-// through its pages (like flicking through a stacked-widget gallery), with its
-// own vertical dot column to the right, matching the reference screenshot where
-// each widget carries its own dot indicator beside it.
-function WidgetStack({ size, pages }: { size: number; pages: React.ReactNode[] }) {
-  const ref = useRef<ScrollView>(null);
-  const [idx, setIdx] = useState(0);
+// One page inside the widget's infinite strip — its scale is a pure function
+// of how far the shared scroll position currently is from this page's own
+// resting offset, so "current shrinks while leaving, next grows while
+// arriving" falls out automatically from a single continuous value instead
+// of two separately-animated, separately-timed states (that's what caused
+// the earlier flicker: idx and a transform value being reset by two
+// different, not-quite-synchronized code paths).
+function WidgetPage({ size, offset, scrollY, children }: { size: number; offset: number; scrollY: SharedValue<number>; children: React.ReactNode }) {
+  const style = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(scrollY.value, [offset - size, offset, offset + size], [0.68, 1, 0.68], Extrapolation.CLAMP) }],
+  }));
+  // Rounded + clipped per page (not just the outer container) so a scaled-down
+  // page reads as its own rounded card, not a rectangle cut off by the frame.
+  // No fixed padding here — the gap between slides should only exist while
+  // mid-scroll (falling out of the scale shrink centering the card in its
+  // slot); a persistent inset here would leave the *resting*/current card
+  // floating inside the frame instead of filling it edge-to-edge.
+  return <Animated.View style={[{ width: size, height: size, borderRadius: 24, overflow: 'hidden' }, style]}>{children}</Animated.View>;
+}
 
-  useEffect(() => {
-    if (pages.length < 2) return;
-    const t = setInterval(() => {
-      setIdx((prev) => {
-        const next = (prev + 1) % pages.length;
-        ref.current?.scrollTo({ y: next * size, animated: true });
-        return next;
-      });
-    }, 4500);
-    return () => clearInterval(t);
-  }, [pages.length, size]);
+// iOS "widget stack" — a square tile that loops infinitely in either
+// direction through its pages, matching the reference frames: the departing
+// page shrinks as it slides out while the arriving page grows in from the
+// same edge, driven continuously by real scroll position (see WidgetPage).
+// Looping is the standard "triple-copy strip + silent jump back to the
+// middle copy" trick — content is identical between copies so the jump is
+// invisible, and it only ever needs to fire after a single-page settle since
+// pagingEnabled prevents multi-page flings from skipping past a copy edge.
+// Copies of the page list laid end-to-end for the loop trick, and which copy
+// (0-indexed) is "home" — a wider buffer means the silent re-center jump
+// fires far less often (only once every REPEAT_COPIES/2 pages swiped past
+// home in one direction), instead of on almost every swipe when the list is
+// short (e.g. 2 pages, as it was with the previous 3-copy version).
+const REPEAT_COPIES = 7;
+const HOME_COPY = Math.floor(REPEAT_COPIES / 2);
+
+function WidgetStack({ size, pages, colors }: { size: number; pages: React.ReactNode[]; colors: any }) {
+  const n = pages.length;
+  const scrollRef = useAnimatedRef<Animated.ScrollView>();
+  const homeY = HOME_COPY * n * size;
+  const scrollY = useSharedValue(homeY);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const mounted = useRef(false);
+
+  useLayoutEffect(() => {
+    if (n < 2 || mounted.current) return;
+    mounted.current = true;
+    // Plain ref-based scrollTo (not reanimated's worklet-oriented `scrollTo`
+    // helper) — calling that helper from JS-thread code like this effect and
+    // the interval below turned out unreliable (auto-rotation silently not
+    // firing on some runs). The animated ref's `.current` is still just the
+    // underlying native ScrollView, so its own imperative `scrollTo` is the
+    // proven-reliable path for JS-thread-initiated scrolls; reanimated's
+    // helper is kept only inside the worklet (onMomentumEnd, UI thread) below.
+    scrollRef.current?.scrollTo({ y: homeY, animated: false });
+  }, [n, size]);
+
+  const onScroll = useAnimatedScrollHandler({
+    onScroll: (e) => { scrollY.value = e.contentOffset.y; },
+    onMomentumEnd: (e) => {
+      let pageIdx = Math.round(e.contentOffset.y / size);
+      const copyIdx = Math.floor(pageIdx / n);
+      if (copyIdx !== HOME_COPY) {
+        pageIdx += (HOME_COPY - copyIdx) * n;
+        scrollTo(scrollRef, 0, pageIdx * size, false);
+        scrollY.value = pageIdx * size;
+      }
+      runOnJS(setActiveIdx)(((pageIdx % n) + n) % n);
+    },
+  });
+
+  // Shadow only here (can't render on a view that also clips its content via
+  // overflow: 'hidden'). The border is deliberately NOT set here — a border
+  // on this sizing box would shrink its content box to `size - 2*borderWidth`,
+  // while every scroll/interpolation offset below is computed from the plain
+  // `size` prop. That tiny, constant mismatch is exactly what was causing the
+  // reported "always drifts a bit further at the top" gap: it compounds by a
+  // fixed amount on every page traversed. The border is instead drawn as an
+  // absolutely-positioned overlay sibling below, which doesn't participate in
+  // layout at all, so it can't affect the scroll math.
+  const frameStyle = { width: size, height: size, borderRadius: 24, elevation: 2, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } };
+  const borderOverlay = [StyleSheet.absoluteFill, { borderRadius: 24, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border }];
+
+  if (n < 2) {
+    return (
+      <View style={frameStyle}>
+        <View style={{ flex: 1, borderRadius: 24, overflow: 'hidden' }}>{pages[0]}</View>
+        <View pointerEvents="none" style={borderOverlay} />
+      </View>
+    );
+  }
 
   return (
-    <View style={{ width: size, height: size, borderRadius: 24, overflow: 'hidden' }}>
-      <ScrollView
-        ref={ref}
-        scrollEnabled={pages.length > 1}
-        pagingEnabled
-        nestedScrollEnabled
-        showsVerticalScrollIndicator={false}
-        onMomentumScrollEnd={(e) => setIdx(Math.round(e.nativeEvent.contentOffset.y / size))}
-      >
-        {pages.map((p, i) => (
-          <View key={i} style={{ width: size, height: size }}>{p}</View>
-        ))}
-      </ScrollView>
-      {pages.length > 1 && (
+    <View style={frameStyle}>
+      <View style={{ flex: 1, borderRadius: 24, overflow: 'hidden', backgroundColor: colors.bg }}>
+        <Animated.ScrollView
+          ref={scrollRef}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          pagingEnabled
+          nestedScrollEnabled
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          overScrollMode="never"
+          contentOffset={{ x: 0, y: homeY }}
+          style={{ flex: 1, backgroundColor: 'transparent' }}
+        >
+          {Array.from({ length: n * REPEAT_COPIES }).map((_, i) => (
+            <WidgetPage key={i} size={size} offset={i * size} scrollY={scrollY}>
+              {pages[i % n]}
+            </WidgetPage>
+          ))}
+        </Animated.ScrollView>
         <View style={isl.vdots} pointerEvents="none">
           {pages.map((_, i) => (
-            <View key={i} style={[isl.vdot, { height: i === idx ? 14 : 6, backgroundColor: i === idx ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.45)' }]} />
+            <View key={i} style={[isl.vdot, { backgroundColor: i === activeIdx ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.4)' }]} />
           ))}
         </View>
-      )}
+      </View>
+      <View pointerEvents="none" style={borderOverlay} />
     </View>
   );
 }
@@ -85,8 +167,8 @@ const isl = StyleSheet.create({
   widgetIcon: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
   widgetTitle: { fontFamily: fonts.extraBold, fontSize: 15, color: '#fff', marginTop: 8 },
   widgetText: { fontFamily: fonts.semiBold, fontSize: 12.5, lineHeight: 17, color: 'rgba(255,255,255,0.9)', marginTop: 4 },
-  vdots: { position: 'absolute', right: 9, top: 0, bottom: 0, justifyContent: 'center', gap: 5 },
-  vdot: { width: 6, borderRadius: 3 },
+  vdots: { position: 'absolute', right: 9, top: 0, bottom: 0, justifyContent: 'center', gap: 6 },
+  vdot: { width: 6, height: 6, borderRadius: 3 },
 });
 import { formatCurrency, startOfDay, endOfDay } from '../utils/helpers';
 import { useAppTheme } from '../theme';
@@ -302,8 +384,12 @@ export default function DashboardScreen({ navigation }: any) {
   // Square widget size for the side-by-side insight/alert stacks: full width minus
   // the 16px screen gutters and the gap between the two widgets, split evenly.
   // The dot indicator is overlaid inside each widget, so it doesn't need its own width.
+  // Rounded to a whole pixel — a fractional size here throws off the widget's
+  // scroll-offset math (n * size, pageIdx * size), which otherwise misaligns
+  // the "resting" scroll position by a sub-pixel amount and shows up as a
+  // sliver of empty space between the card and the frame's border/top edge.
   const { width: screenW } = Dimensions.get('window');
-  const widgetSize = (screenW - 16 * 2 - 12) / 2;
+  const widgetSize = Math.round((screenW - 16 * 2 - 12) / 2);
 
   const insets = useSafeAreaInsets();
 
@@ -500,6 +586,7 @@ export default function DashboardScreen({ navigation }: any) {
             {insights.length > 0 && (
               <WidgetStack
                 size={widgetSize}
+                colors={colors}
                 pages={insights.map((ins, i) => (
                   <View key={i} style={{ flex: 1 }}>
                     <LinearGradient colors={[colors.primary, colors.primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
@@ -517,6 +604,7 @@ export default function DashboardScreen({ navigation }: any) {
             {alertPages.length > 0 && (
               <WidgetStack
                 size={widgetSize}
+                colors={colors}
                 pages={alertPages.map((p) => (
                   <TouchableOpacity key={p.key} activeOpacity={0.9} onPress={p.onPress} style={{ flex: 1, backgroundColor: p.color }}>
                     <View style={isl.widget}>
