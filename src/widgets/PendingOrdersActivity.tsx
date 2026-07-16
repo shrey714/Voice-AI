@@ -21,8 +21,8 @@
 // TypeScript can type-check the JSX below before Babel replaces the function
 // with a string — it has no effect at runtime once stringified.
 import { Platform } from 'react-native';
-import { Text, HStack, VStack, Spacer, Image, Divider } from '@expo/ui/swift-ui';
-import { font, foregroundColor, padding } from '@expo/ui/swift-ui/modifiers';
+import { Text, HStack, VStack, Spacer, Image } from '@expo/ui/swift-ui';
+import { font, foregroundColor, padding, lineLimit } from '@expo/ui/swift-ui/modifiers';
 import { createLiveActivity, LiveActivityFactory } from 'expo-widgets';
 
 export type PendingOrdersActivityProps = {
@@ -55,6 +55,13 @@ function PendingOrdersLayout({ pendingCount, shopName, oldestMinutesAgo }: Pendi
   const waitColor = oldestMinutesAgo >= 15 ? DANGER : oldestMinutesAgo >= 5 ? WARNING : MUTED;
   const waitLabel = oldestMinutesAgo <= 0 ? 'just now' : oldestMinutesAgo === 1 ? '1 min ago' : `${oldestMinutesAgo} min ago`;
 
+  // Every Text below carries `lineLimit(1)` — the first version wrapped mid-
+  // word and overflowed past the pill's rounded bounds because nothing
+  // constrained line count; Dynamic Island's expanded regions have very
+  // little width/height budget, so anything that can wrap, will, and looks
+  // broken instead of just truncating cleanly.
+  const oneLine = lineLimit(1);
+
   return {
     // Lock Screen banner — the widest surface, most room for context.
     banner: (
@@ -62,50 +69,33 @@ function PendingOrdersLayout({ pendingCount, shopName, oldestMinutesAgo }: Pendi
         <Image systemName="bag.fill" color={ACCENT} size={22} />
         <Spacer minLength={10} />
         <VStack alignment="leading">
-          <Text modifiers={[font({ weight: 'bold', size: 15 })]}>{label}</Text>
-          <Text modifiers={[font({ size: 12 }), foregroundColor(MUTED)]}>{shopName}</Text>
-          <Text modifiers={[font({ size: 11 }), foregroundColor(waitColor)]}>{`Oldest waiting ${waitLabel}`}</Text>
+          <Text modifiers={[font({ weight: 'bold', size: 15 }), oneLine]}>{label}</Text>
+          <Text modifiers={[font({ size: 12 }), foregroundColor(MUTED), oneLine]}>{shopName}</Text>
+          <Text modifiers={[font({ size: 11 }), foregroundColor(waitColor), oneLine]}>{`Waiting ${waitLabel}`}</Text>
         </VStack>
       </HStack>
     ),
 
     // Compact Dynamic Island — small icon + count either side of the pill.
     compactLeading: <Image systemName="bag.fill" color={ACCENT} size={16} />,
-    compactTrailing: <Text modifiers={[font({ weight: 'bold', size: 14 })]}>{count}</Text>,
+    compactTrailing: <Text modifiers={[font({ weight: 'bold', size: 14 }), oneLine]}>{count}</Text>,
 
     // Smallest Dynamic Island form (when multiple activities are competing
     // for space) — just the count badge.
-    minimal: <Text modifiers={[font({ weight: 'bold', size: 13 })]}>{count}</Text>,
+    minimal: <Text modifiers={[font({ weight: 'bold', size: 13 }), oneLine]}>{count}</Text>,
 
-    // Expanded Dynamic Island (long-press) — richer 4-region layout instead
-    // of one plain line: icon on the left, the count as its own badge on the
-    // right, shop name + wait-time urgency as the hero content in the
-    // center, and a divider + "tap to open" hint anchoring the bottom.
+    // Expanded Dynamic Island (long-press). Kept deliberately minimal — the
+    // richer 4-region version (count + sub-label badge, two-line center,
+    // divider + hint row on the bottom) overflowed the available space and
+    // rendered broken. Just three single-line regions now: icon, count,
+    // shop name + wait time on one line each. No `expandedBottom` — that
+    // was the row actually running off the edge.
     expandedLeading: <Image systemName="bag.fill" color={ACCENT} size={22} />,
-    expandedTrailing: (
-      <VStack alignment="trailing">
-        <Text modifiers={[font({ weight: 'bold', size: 20 }), foregroundColor(ACCENT)]}>{count}</Text>
-        <Text modifiers={[font({ size: 10 }), foregroundColor(MUTED)]}>orders</Text>
-      </VStack>
-    ),
+    expandedTrailing: <Text modifiers={[font({ weight: 'bold', size: 18 }), foregroundColor(ACCENT), oneLine]}>{count}</Text>,
     expandedCenter: (
       <VStack alignment="leading">
-        <Text modifiers={[font({ weight: 'bold', size: 15 })]}>{shopName}</Text>
-        <HStack alignment="center">
-          <Image systemName="clock.fill" color={waitColor} size={11} />
-          <Spacer minLength={4} />
-          <Text modifiers={[font({ size: 12 }), foregroundColor(waitColor)]}>{`Oldest waiting ${waitLabel}`}</Text>
-        </HStack>
-      </VStack>
-    ),
-    expandedBottom: (
-      <VStack alignment="leading" modifiers={[padding({ top: 6 })]}>
-        <Divider />
-        <HStack alignment="center" modifiers={[padding({ top: 6 })]}>
-          <Image systemName="hand.tap.fill" color={MUTED} size={11} />
-          <Spacer minLength={4} />
-          <Text modifiers={[font({ size: 11 }), foregroundColor(MUTED)]}>Tap to open Shopkeeper AI</Text>
-        </HStack>
+        <Text modifiers={[font({ weight: 'bold', size: 14 }), oneLine]}>{shopName}</Text>
+        <Text modifiers={[font({ size: 11 }), foregroundColor(waitColor), oneLine]}>{`Waiting ${waitLabel}`}</Text>
       </VStack>
     ),
   };
