@@ -335,8 +335,9 @@ export default function ExportsScreen({ navigation }: any) {
     // these controls now scroll away with the content instead of staying
     // pinned, same as OnlineOrdersScreen's filter chips.
     <ScrollView
+      showsVerticalScrollIndicator={false}
       style={{ backgroundColor: colors.bg, flex: 1 }}
-      contentContainerStyle={{ paddingBottom: 120, flexGrow: 1, paddingHorizontal: 12 }}
+      contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: 12 }}
     >
       {/* Report type tabs */}
       <View style={[s.searchRow, { marginBottom: 12 }]}>
