@@ -83,7 +83,23 @@
           "backgroundColor": "#5B7567"
         }
       ],
-      "expo-image"
+      "expo-image",
+      [
+        "expo-widgets",
+        {
+          "groupIdentifier": "group.com.shopkeeperai.app",
+          "enablePushNotifications": false,
+          "widgets": [
+            {
+              "name": "PendingOrdersActivity",
+              "displayName": "Pending Orders",
+              "description": "Shows pending online orders on the Lock Screen and Dynamic Island.",
+              "supportedFamilies": ["accessoryCircular", "accessoryRectangular", "accessoryInline"],
+              "contentMarginsDisabled": false
+            }
+          ]
+        }
+      ]
     ],
     "extra": {
       "eas": {

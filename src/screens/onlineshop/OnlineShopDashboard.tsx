@@ -20,7 +20,6 @@ import { useIsFocused } from '@react-navigation/native';
 import { useAppTheme } from '../../theme';
 import { fonts } from '../../theme/typography';
 import { useOnlineShopStore } from '../../stores/useOnlineShopStore';
-import { useOrderRealtime } from '../../hooks/useOrderRealtime';
 import { OnlineShopDashboardSkeleton } from '../../components/common/Skeleton';
 import AnimatedNumber from '../../components/common/AnimatedNumber';
 import PressableScale from '../../components/common/PressableScale';
@@ -206,7 +205,9 @@ export default function OnlineShopDashboard({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  useOrderRealtime(config.shopId);
+  // Realtime order updates are now subscribed globally in AppNavigator (so
+  // the Dynamic Island Live Activity stays in sync regardless of which
+  // screen/tab is focused) — no longer duplicated here.
 
   // `fetchShopConfig` is already called once, globally, by usePushSetup at
   // app launch — calling it again here on mount was a pure duplicate network

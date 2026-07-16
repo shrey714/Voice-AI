@@ -44,6 +44,9 @@ import { Toaster } from 'sonner-native';
 import { useAppTheme } from '../theme';
 import { fonts } from '../theme/typography';
 import { useAppStore } from '../stores/useAppStore';
+import { useOnlineShopStore } from '../stores/useOnlineShopStore';
+import { useOrderRealtime } from '../hooks/useOrderRealtime';
+import { usePendingOrdersLiveActivity } from '../hooks/usePendingOrdersLiveActivity';
 
 const RootStack = createNativeStackNavigator();
 const HomeStack = createNativeStackNavigator();
@@ -389,6 +392,14 @@ export default function AppNavigator() {
       switchAppMode('local');
     }
   }, [onlineShopEnabled, mode]);
+
+  // Mounted here (not inside OnlineShopDashboard, where it used to live) so
+  // pending-order tracking — and the Dynamic Island Live Activity it drives —
+  // keeps working regardless of which tab/mode the shopkeeper is currently
+  // looking at, not just while the Online Shop Dashboard screen is focused.
+  const onlineShopId = useOnlineShopStore(s => s.config.shopId);
+  useOrderRealtime(onlineShopEnabled ? onlineShopId : null);
+  usePendingOrdersLiveActivity();
 
   const navTheme = {
     ...(isDark ? DarkTheme : DefaultTheme),
