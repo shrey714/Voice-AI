@@ -332,7 +332,7 @@ export default function BillingScreen({ navigation }: any) {
     }
 
     if (row.key === 'cartHeader') {
-      return (
+      return cart.length > 0 ? (
         <View style={[s.cartHeader, {
           backgroundColor: colors.surface, borderBottomColor: colors.border,
           marginHorizontal: 8, marginTop: 8,
@@ -350,7 +350,6 @@ export default function BillingScreen({ navigation }: any) {
               </MotiView>
             )}
           </View>
-          {cart.length > 0 && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
               <TouchableOpacity onPress={openSaveSheet} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                 <Ionicons name="bookmark-outline" size={14} color={colors.primary} />
@@ -361,9 +360,8 @@ export default function BillingScreen({ navigation }: any) {
                 <Text style={{ color: colors.danger, fontFamily: fonts.semiBold, fontSize: 12 }}>{t('clear')}</Text>
               </TouchableOpacity>
             </View>
-          )}
         </View>
-      );
+      ) : <></>;
     }
 
     if (row.key === 'cartEmpty') {
