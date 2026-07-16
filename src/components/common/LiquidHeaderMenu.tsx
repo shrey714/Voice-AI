@@ -87,14 +87,28 @@ export default function LiquidHeaderMenu({
   // gives back a flat id — this recovers which section's `onSelect` to call
   // (sections can otherwise share option values, e.g. two independent
   // filters both having a "none" choice).
+  //
+  // `displayInline`'s own `title` only renders as a section header on iOS —
+  // @expo/ui's Android `MenuView` has no title slot for inline groups at all
+  // (confirmed in its own source/docs: "with this action's title as the
+  // section header **on iOS**"), so "Sort by"/"Category" silently never
+  // showed up there. Faked on Android by prepending a disabled, muted row
+  // with the section title as the first "subaction" instead — it can't be
+  // pressed (`attributes.disabled`) and its id is never matched in
+  // `onPressAction` below, so it's purely a label.
   const actions: MenuAction[] = sections.map((section, i) => ({
     title: section.title,
     displayInline: true,
-    subactions: section.options.map(opt => ({
-      id: `${i}:${opt.value}`,
-      title: opt.label,
-      state: opt.selected ? 'on' : 'off',
-    })),
+    subactions: [
+      ...(Platform.OS === 'android'
+        ? [{ id: `${i}:__label__`, title: section.title.toUpperCase(), attributes: { disabled: true }, titleColor: colors.textMuted }]
+        : []),
+      ...section.options.map(opt => ({
+        id: `${i}:${opt.value}`,
+        title: opt.label,
+        state: opt.selected ? 'on' as const : 'off' as const,
+      })),
+    ],
   }));
 
   return (
@@ -102,6 +116,7 @@ export default function LiquidHeaderMenu({
       actions={actions}
       onPressAction={({ nativeEvent }) => {
         const [sectionIndex, value] = nativeEvent.event.split(/:(.*)/s);
+        if (value === '__label__') return;
         sections[Number(sectionIndex)]?.onSelect(value);
       }}
     >
