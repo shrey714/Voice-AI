@@ -171,8 +171,8 @@ export default function InventoryScreen({ route, navigation }: any) {
             accessibilityLabel="Add Product"
             accessibilityRole="button"
           >
-            <Ionicons name="add" size={20} color="#fff" />
-            <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 14 }}>Add Product</Text>
+            <Ionicons name="add" size={20} color={colors.text} />
+            <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 14 }}>Add Product</Text>
           </TouchableOpacity>
       });
       return () => { parent?.setOptions({ bottomAccessory: undefined }); };

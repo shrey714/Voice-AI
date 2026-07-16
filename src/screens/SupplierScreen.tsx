@@ -198,8 +198,8 @@ export default function SupplierScreen() {
                 accessibilityLabel={t('addSupplier')}
                 accessibilityRole="button"
               >
-                <Ionicons name="add" size={20} color="#fff" />
-                <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 14 }}>{t('addSupplier')}</Text>
+                <Ionicons name="add" size={20} color={c.text} />
+                <Text style={{ color: c.text, fontFamily: fonts.bold, fontSize: 14 }}>{t('addSupplier')}</Text>
               </TouchableOpacity>
       });
       return () => { parent?.setOptions({ bottomAccessory: undefined }); };

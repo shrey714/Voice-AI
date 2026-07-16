@@ -115,8 +115,8 @@ export default function DayCloseScreen({ navigation }: any) {
                 accessibilityLabel={closeLabel}
                 accessibilityRole="button"
               >
-                <Ionicons name="lock-closed" size={18} color="#fff" />
-                <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 14 }}>{closeLabel}</Text>
+                <Ionicons name="lock-closed" size={18} color={colors.text} />
+                <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 14 }}>{closeLabel}</Text>
               </TouchableOpacity>
       });
       return () => { parent?.setOptions({ bottomAccessory: undefined }); };

@@ -304,9 +304,9 @@ export default function OnlineInventoryScreen({ navigation }: any) {
               accessibilityLabel="Add Product"
               accessibilityRole="button"
             >
-              <Ionicons name="add" size={20} color="#fff" />
+              <Ionicons name="add" size={20} color={colors.text} />
               <Text
-                style={{ color: "#fff", fontFamily: fonts.bold, fontSize: 14 }}
+                style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 14 }}
               >
                 Add Product
               </Text>

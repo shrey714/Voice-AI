@@ -302,8 +302,8 @@ function ShopInfoForm({ isOnline, loading, navigation }: { isOnline: boolean; lo
                 accessibilityLabel={saveLabel}
                 accessibilityRole="button"
               >
-                {isSavingConfig ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name={saved ? 'checkmark' : 'save-outline'} size={18} color="#fff" />}
-                <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 14 }}>{saveLabel}</Text>
+                {isSavingConfig ? <ActivityIndicator size="small" color={colors.text} /> : <Ionicons name={saved ? 'checkmark' : 'save-outline'} size={18} color={colors.text} />}
+                <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 14 }}>{saveLabel}</Text>
               </TouchableOpacity>
       });
       return () => { parent?.setOptions({ bottomAccessory: undefined }); };

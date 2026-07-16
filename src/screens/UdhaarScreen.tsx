@@ -164,8 +164,8 @@ export default function UdhaarScreen({ navigation }: any) {
                 accessibilityLabel={t('addCustomer')}
                 accessibilityRole="button"
               >
-                <Ionicons name="add" size={20} color="#fff" />
-                <Text style={{ color: '#fff', fontFamily: fonts.bold, fontSize: 14 }}>{t('addCustomer')}</Text>
+                <Ionicons name="add" size={20} color={colors.text} />
+                <Text style={{ color: colors.text, fontFamily: fonts.bold, fontSize: 14 }}>{t('addCustomer')}</Text>
               </TouchableOpacity>
       });
       return () => { parent?.setOptions({ bottomAccessory: undefined }); };
