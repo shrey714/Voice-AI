@@ -33,69 +33,60 @@ function GoalRing({ progress, size = 96, stroke = 10, color, track }: { progress
   );
 }
 
-// Auto-rotating, swipeable carousel of insight cards with a dots indicator.
-function InsightSlider({ insights, colors }: { insights: { icon: any; text: string }[]; colors: any }) {
-  const { t: tSlider } = useTranslation();
-  const { width } = Dimensions.get('window');
-  // Page = full ScrollView width so pagingEnabled snaps correctly; the 16px side
-  // padding lives inside each page so the card lines up with the other cards.
-  const pageW = width;
+// iOS "widget stack" — a single square tile that auto-rotates *vertically*
+// through its pages (like flicking through a stacked-widget gallery), with its
+// own vertical dot column to the right, matching the reference screenshot where
+// each widget carries its own dot indicator beside it.
+function WidgetStack({ size, pages }: { size: number; pages: React.ReactNode[] }) {
   const ref = useRef<ScrollView>(null);
   const [idx, setIdx] = useState(0);
 
   useEffect(() => {
-    if (insights.length < 2) return;
+    if (pages.length < 2) return;
     const t = setInterval(() => {
       setIdx((prev) => {
-        const next = (prev + 1) % insights.length;
-        ref.current?.scrollTo({ x: next * pageW, animated: true });
+        const next = (prev + 1) % pages.length;
+        ref.current?.scrollTo({ y: next * size, animated: true });
         return next;
       });
     }, 4500);
     return () => clearInterval(t);
-  }, [insights.length, pageW]);
+  }, [pages.length, size]);
 
   return (
-    <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 400, delay: 280 }} style={{ marginTop: 14 }}>
+    <View style={{ width: size, height: size, borderRadius: 24, overflow: 'hidden' }}>
       <ScrollView
         ref={ref}
-        horizontal
+        scrollEnabled={pages.length > 1}
         pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={(e) => setIdx(Math.round(e.nativeEvent.contentOffset.x / pageW))}
+        nestedScrollEnabled
+        showsVerticalScrollIndicator={false}
+        onMomentumScrollEnd={(e) => setIdx(Math.round(e.nativeEvent.contentOffset.y / size))}
       >
-        {insights.map((ins, i) => (
-          <View key={i} style={{ width: pageW, paddingHorizontal: 16 }}>
-            <View style={[isl.card, { backgroundColor: colors.primaryLight }]}>
-              <View style={[isl.icon, { backgroundColor: colors.surface }]}>
-                <Ionicons name={ins.icon} size={18} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[isl.lbl, { color: colors.primary }]}>{tSlider('insight').toUpperCase()}</Text>
-                <Text style={[isl.text, { color: colors.text }]}>{ins.text}</Text>
-              </View>
-            </View>
-          </View>
+        {pages.map((p, i) => (
+          <View key={i} style={{ width: size, height: size }}>{p}</View>
         ))}
       </ScrollView>
-      {insights.length > 1 && (
-        <View style={isl.dots}>
-          {insights.map((_, i) => (
-            <View key={i} style={[isl.dot, { width: i === idx ? 16 : 6, backgroundColor: i === idx ? colors.primary : colors.border }]} />
+      {pages.length > 1 && (
+        <View style={isl.vdots} pointerEvents="none">
+          {pages.map((_, i) => (
+            <View key={i} style={[isl.vdot, { height: i === idx ? 14 : 6, backgroundColor: i === idx ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.45)' }]} />
           ))}
         </View>
       )}
-    </MotiView>
+    </View>
   );
 }
 
 const isl = StyleSheet.create({
-  card: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, paddingVertical: 15, paddingHorizontal: 16, minHeight: 74 },
-  icon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  lbl: { fontFamily: fonts.bold, fontSize: 10, letterSpacing: 1.2 },
-  text: { fontFamily: fonts.semiBold, fontSize: 13, lineHeight: 18, marginTop: 2 },
-  dots: { flexDirection: 'row', justifyContent: 'center', gap: 5, marginTop: 8 },
-  dot: { height: 6, borderRadius: 3 },
+  widget: { flex: 1, padding: 16, paddingRight: 22, justifyContent: 'space-between' },
+  widgetTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  widgetLbl: { fontFamily: fonts.bold, fontSize: 10.5, letterSpacing: 1.4, color: 'rgba(255,255,255,0.75)' },
+  widgetIcon: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
+  widgetTitle: { fontFamily: fonts.extraBold, fontSize: 15, color: '#fff', marginTop: 8 },
+  widgetText: { fontFamily: fonts.semiBold, fontSize: 12.5, lineHeight: 17, color: 'rgba(255,255,255,0.9)', marginTop: 4 },
+  vdots: { position: 'absolute', right: 9, top: 0, bottom: 0, justifyContent: 'center', gap: 5 },
+  vdot: { width: 6, borderRadius: 3 },
 });
 import { formatCurrency, startOfDay, endOfDay } from '../utils/helpers';
 import { useAppTheme } from '../theme';
@@ -244,6 +235,33 @@ export default function DashboardScreen({ navigation }: any) {
   if (weekTotal > 0 && bestDay.rev > 0 && !bestDay.isToday) insights.push({ icon: 'calendar-outline', text: `Your best day this week was ${bestDay.full}. Try to beat it!` });
   if (lowStockItems.length > 0) insights.push({ icon: 'cube-outline', text: `${lowStockItems.length} item${lowStockItems.length > 1 ? 's are' : ' is'} running low on stock.` });
 
+  // Alert widget pages — one per active alert type, fed into the auto-rotating AlertsSlider.
+  const alertPages: { key: string; color: string; icon: any; title: string; sub: string; onPress: () => void }[] = [];
+  if (lowStockItems.length > 0) {
+    alertPages.push({
+      key: 'lowStock',
+      color: colors.warning,
+      icon: 'warning',
+      title: t('itemsLowStock').replace('{count}', String(lowStockItems.length)),
+      sub: `${t('tapToReorder')} · ${lowStockItems.slice(0, 3).map(p => p.name).join(', ')}`,
+      onPress: () => navigation.navigate('More', { screen: 'Reorder', initial: false }),
+    });
+  }
+  if (expiringItems.length > 0) {
+    alertPages.push({
+      key: 'expiring',
+      color: colors.danger,
+      icon: 'calendar-outline',
+      title: expiredCount > 0 && expiringSoonCount > 0
+        ? `${expiredCount} ${t('expired')} · ${expiringSoonCount} ${t('expiringWithin30')}`
+        : expiredCount > 0
+          ? `${expiredCount} item${expiredCount > 1 ? 's' : ''} ${t('expired')}`
+          : `${expiringSoonCount} item${expiringSoonCount > 1 ? 's' : ''} ${t('expiringWithin30')}`,
+      sub: expiringItems.slice(0, 3).map(p => p.name).join(', '),
+      onPress: () => navigation.navigate('Inventory'),
+    });
+  }
+
   const onRefresh = async () => {
     setRefreshing(true);
     try {
@@ -280,6 +298,12 @@ export default function DashboardScreen({ navigation }: any) {
   };
 
   const s = makeStyles(colors);
+
+  // Square widget size for the side-by-side insight/alert stacks: full width minus
+  // the 16px screen gutters and the gap between the two widgets, split evenly.
+  // The dot indicator is overlaid inside each widget, so it doesn't need its own width.
+  const { width: screenW } = Dimensions.get('window');
+  const widgetSize = (screenW - 16 * 2 - 12) / 2;
 
   const insets = useSafeAreaInsets();
 
@@ -470,8 +494,47 @@ export default function DashboardScreen({ navigation }: any) {
           </MotiView>
         )}
 
-        {/* Smart insights — rotating slider */}
-        {insights.length > 0 && <InsightSlider insights={insights} colors={colors} />}
+        {/* Smart insights + alerts — two iOS-widget stacks side by side, each auto-rotating vertically */}
+        {(insights.length > 0 || alertPages.length > 0) && (
+          <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 400, delay: 280 }} style={s.widgetRow}>
+            {insights.length > 0 && (
+              <WidgetStack
+                size={widgetSize}
+                pages={insights.map((ins, i) => (
+                  <View key={i} style={{ flex: 1 }}>
+                    <LinearGradient colors={[colors.primary, colors.primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                    <View style={isl.widget}>
+                      <View style={isl.widgetTop}>
+                        <Text style={isl.widgetLbl}>{t('insight').toUpperCase()}</Text>
+                        <View style={isl.widgetIcon}><Ionicons name={ins.icon} size={15} color="#fff" /></View>
+                      </View>
+                      <Text style={isl.widgetText} numberOfLines={4}>{ins.text}</Text>
+                    </View>
+                  </View>
+                ))}
+              />
+            )}
+            {alertPages.length > 0 && (
+              <WidgetStack
+                size={widgetSize}
+                pages={alertPages.map((p) => (
+                  <TouchableOpacity key={p.key} activeOpacity={0.9} onPress={p.onPress} style={{ flex: 1, backgroundColor: p.color }}>
+                    <View style={isl.widget}>
+                      <View style={isl.widgetTop}>
+                        <View style={isl.widgetIcon}><Ionicons name={p.icon} size={15} color="#fff" /></View>
+                        <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.85)" />
+                      </View>
+                      <View>
+                        <Text style={isl.widgetTitle} numberOfLines={2}>{p.title}</Text>
+                        <Text style={isl.widgetText} numberOfLines={1}>{p.sub}</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              />
+            )}
+          </MotiView>
+        )}
 
         {/* 7-day revenue sparkline — tap to open Analytics */}
         {weekTotal > 0 && (
@@ -504,38 +567,6 @@ export default function DashboardScreen({ navigation }: any) {
                 ))}
               </View>
             </View>
-          </MotiView>
-        )}
-
-        {/* Alerts */}
-        {lowStockItems.length > 0 && (
-          <MotiView from={{ opacity: 0, translateX: -10 }} animate={{ opacity: 1, translateX: 0 }} transition={{ type: 'timing', duration: 350, delay: 220 }}>
-            <TouchableOpacity style={[s.alertCard, { backgroundColor: colors.warning + '14' }]} onPress={() => navigation.navigate('More', { screen: 'Reorder' })} activeOpacity={0.8}>
-              <View style={[s.alertIcon, { backgroundColor: colors.warning + '24' }]}><Ionicons name="warning" size={18} color={colors.warning} /></View>
-              <View style={{ flex: 1 }}>
-                <Text style={[s.alertTitle, { color: colors.warning }]}>{t('itemsLowStock').replace('{count}', String(lowStockItems.length))}</Text>
-                <Text style={[s.alertSub, { color: colors.textSub }]} numberOfLines={1}>{t('tapToReorder')} · {lowStockItems.slice(0, 3).map(p => p.name).join(', ')}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={colors.warning} />
-            </TouchableOpacity>
-          </MotiView>
-        )}
-        {expiringItems.length > 0 && (
-          <MotiView from={{ opacity: 0, translateX: -10 }} animate={{ opacity: 1, translateX: 0 }} transition={{ type: 'timing', duration: 350, delay: 280 }}>
-            <TouchableOpacity style={[s.alertCard, { backgroundColor: colors.danger + '14' }]} onPress={() => navigation.navigate('Inventory')} activeOpacity={0.8}>
-              <View style={[s.alertIcon, { backgroundColor: colors.danger + '24' }]}><Ionicons name="calendar-outline" size={18} color={colors.danger} /></View>
-              <View style={{ flex: 1 }}>
-                <Text style={[s.alertTitle, { color: colors.danger }]}>
-                  {expiredCount > 0 && expiringSoonCount > 0
-                    ? `${expiredCount} ${t('expired')} · ${expiringSoonCount} ${t('expiringWithin30')}`
-                    : expiredCount > 0
-                      ? `${expiredCount} item${expiredCount > 1 ? 's' : ''} ${t('expired')}`
-                      : `${expiringSoonCount} item${expiringSoonCount > 1 ? 's' : ''} ${t('expiringWithin30')}`}
-                </Text>
-                <Text style={[s.alertSub, { color: colors.textSub }]} numberOfLines={1}>{expiringItems.slice(0, 3).map(p => p.name).join(', ')}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={colors.danger} />
-            </TouchableOpacity>
           </MotiView>
         )}
 
@@ -715,11 +746,8 @@ const makeStyles = (c: any) => StyleSheet.create({
   weekBar: { width: '70%', borderRadius: 6, minHeight: 4, overflow: 'hidden' },
   weekDay: { fontSize: 11 },
 
-  // Alert card
-  alertCard: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 14, borderRadius: 16, padding: 13, gap: 12 },
-  alertIcon: { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  alertTitle: { fontFamily: fonts.bold, fontSize: 13 },
-  alertSub: { fontFamily: fonts.regular, fontSize: 12, marginTop: 2 },
+  // Insight/alert widget stacks row
+  widgetRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 14 },
 
   // Section titles
   sectionTitle: { fontFamily: fonts.extraBold, fontSize: 17, paddingHorizontal: 16, marginTop: 14, marginBottom: 14, letterSpacing: -0.3 },
