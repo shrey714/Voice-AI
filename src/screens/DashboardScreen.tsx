@@ -43,7 +43,11 @@ function GoalRing({ progress, size = 96, stroke = 10, color, track }: { progress
 // of two separately-animated, separately-timed states (that's what caused
 // the earlier flicker: idx and a transform value being reset by two
 // different, not-quite-synchronized code paths).
-function WidgetPage({ size, offset, scrollY, children }: { size: number; offset: number; scrollY: SharedValue<number>; children: React.ReactNode }) {
+// Memoized — with REPEAT_COPIES pages mounted per widget, an unmemoized
+// version would re-run this component (and rebuild its style object/worklet
+// closure) on every parent re-render even though `scrollY` (a stable shared
+// value ref) is the only thing actually driving its visuals frame-to-frame.
+const WidgetPage = React.memo(function WidgetPage({ size, offset, scrollY, children }: { size: number; offset: number; scrollY: SharedValue<number>; children: React.ReactNode }) {
   const style = useAnimatedStyle(() => ({
     transform: [{ scale: interpolate(scrollY.value, [offset - size, offset, offset + size], [0.68, 1, 0.68], Extrapolation.CLAMP) }],
   }));
@@ -53,8 +57,24 @@ function WidgetPage({ size, offset, scrollY, children }: { size: number; offset:
   // mid-scroll (falling out of the scale shrink centering the card in its
   // slot); a persistent inset here would leave the *resting*/current card
   // floating inside the frame instead of filling it edge-to-edge.
-  return <Animated.View style={[{ width: size, height: size, borderRadius: 24, overflow: 'hidden' }, style]}>{children}</Animated.View>;
-}
+  //
+  // renderToHardwareTextureAndroid / shouldRasterizeIOS: this view's content
+  // (gradient/text) is static — only its `scale` transform changes per
+  // frame. Without these, both platforms re-composite (and on Android,
+  // potentially re-rasterize) the full subtree on every animation frame;
+  // with them, the GPU caches one rasterized layer per page and the scroll
+  // just transforms that cached texture, which is what makes transform-only
+  // animations over static content cheap instead of a full repaint per frame.
+  return (
+    <Animated.View
+      style={[{ width: size, height: size, borderRadius: 24, overflow: 'hidden' }, style]}
+      renderToHardwareTextureAndroid
+      shouldRasterizeIOS
+    >
+      {children}
+    </Animated.View>
+  );
+});
 
 // iOS "widget stack" — a square tile that loops infinitely in either
 // direction through its pages, matching the reference frames: the departing
@@ -66,13 +86,15 @@ function WidgetPage({ size, offset, scrollY, children }: { size: number; offset:
 // pagingEnabled prevents multi-page flings from skipping past a copy edge.
 // Copies of the page list laid end-to-end for the loop trick, and which copy
 // (0-indexed) is "home" — a wider buffer means the silent re-center jump
-// fires far less often (only once every REPEAT_COPIES/2 pages swiped past
-// home in one direction), instead of on almost every swipe when the list is
-// short (e.g. 2 pages, as it was with the previous 3-copy version).
-const REPEAT_COPIES = 7;
+// fires less often, at the cost of more simultaneously-mounted pages (each
+// with its own worklet-driven style). 5 is a middle ground: for the 2-3 page
+// widgets this app actually shows, that's a comfortable buffer (still 1+
+// full lap before a jump is ever needed) without paying for pages that will
+// essentially never be scrolled to.
+const REPEAT_COPIES = 5;
 const HOME_COPY = Math.floor(REPEAT_COPIES / 2);
 
-function WidgetStack({ size, pages, colors }: { size: number; pages: React.ReactNode[]; colors: any }) {
+const WidgetStack = React.memo(function WidgetStack({ size, pages, colors }: { size: number; pages: React.ReactNode[]; colors: any }) {
   const n = pages.length;
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const homeY = HOME_COPY * n * size;
@@ -116,8 +138,11 @@ function WidgetStack({ size, pages, colors }: { size: number; pages: React.React
   // fixed amount on every page traversed. The border is instead drawn as an
   // absolutely-positioned overlay sibling below, which doesn't participate in
   // layout at all, so it can't affect the scroll math.
-  const frameStyle = { width: size, height: size, borderRadius: 24, elevation: 2, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } };
-  const borderOverlay = [StyleSheet.absoluteFill, { borderRadius: 24, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border }];
+  // Memoized so these two style objects/arrays aren't reallocated on every
+  // render this component IS asked to do (e.g. a genuine size/theme change)
+  // — cheap on its own, but free to avoid.
+  const frameStyle = useMemo(() => ({ width: size, height: size, borderRadius: 24, elevation: 2, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } }), [size]);
+  const borderOverlay = useMemo(() => [StyleSheet.absoluteFill, { borderRadius: 24, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border }], [colors.border]);
 
   if (n < 2) {
     return (
@@ -136,12 +161,14 @@ function WidgetStack({ size, pages, colors }: { size: number; pages: React.React
           onScroll={onScroll}
           scrollEventThrottle={16}
           pagingEnabled
+          decelerationRate="fast"
           nestedScrollEnabled
           showsVerticalScrollIndicator={false}
           bounces={false}
           overScrollMode="never"
           contentOffset={{ x: 0, y: homeY }}
           style={{ flex: 1, backgroundColor: 'transparent' }}
+          removeClippedSubviews={Platform.OS === 'android'}
         >
           {Array.from({ length: n * REPEAT_COPIES }).map((_, i) => (
             <WidgetPage key={i} size={size} offset={i * size} scrollY={scrollY}>
@@ -158,7 +185,7 @@ function WidgetStack({ size, pages, colors }: { size: number; pages: React.React
       <View pointerEvents="none" style={borderOverlay} />
     </View>
   );
-}
+});
 
 const isl = StyleSheet.create({
   widget: { flex: 1, padding: 16, paddingRight: 22, justifyContent: 'space-between' },
@@ -259,18 +286,28 @@ export default function DashboardScreen({ navigation }: any) {
   const todayRevenue = todayStats.revenue;
   const todayProfit = todayStats.profit;
   const todayExpenses = expenses.filter(e => e.createdAt >= startOfDay() && e.createdAt <= endOfDay()).reduce((s, e) => s + e.amount, 0);
-  const lowStockItems = products.filter(p => p.quantity <= p.lowStockThreshold);
-  const now = Date.now();
-  const expiringItems = products
-    .filter(p => p.expiryDate && p.expiryDate > 0)
-    .map(p => ({ ...p, daysLeft: Math.ceil((p.expiryDate! - now) / 86400000) }))
-    .filter(p => p.daysLeft <= 30)
-    .sort((a, b) => a.daysLeft - b.daysLeft);
-  const expiredCount = expiringItems.filter(p => p.daysLeft <= 0).length;
-  const expiringSoonCount = expiringItems.length - expiredCount;
+  // Memoized on `products` alone (stable reference from the useShallow store
+  // selector above, only changes when products actually change) — these feed
+  // the insight/alert widgets' `useMemo`s below, which would otherwise still
+  // recompute every render since these were plain re-filters of `products`
+  // producing a new array reference every time regardless of whether the
+  // underlying data changed.
+  const { lowStockItems, expiringItems, expiredCount, expiringSoonCount } = useMemo(() => {
+    const low = products.filter(p => p.quantity <= p.lowStockThreshold);
+    const now = Date.now();
+    const expiring = products
+      .filter(p => p.expiryDate && p.expiryDate > 0)
+      .map(p => ({ ...p, daysLeft: Math.ceil((p.expiryDate! - now) / 86400000) }))
+      .filter(p => p.daysLeft <= 30)
+      .sort((a, b) => a.daysLeft - b.daysLeft);
+    const expired = expiring.filter(p => p.daysLeft <= 0).length;
+    return { lowStockItems: low, expiringItems: expiring, expiredCount: expired, expiringSoonCount: expiring.length - expired };
+  }, [products]);
 
-  // Net top-sellers & units sold (returned quantities removed).
-  const topSelling: [string, number][] = todayStats.topItems.slice(0, 5).map(it => [it.name, it.qty]);
+  // Net top-sellers & units sold (returned quantities removed). Memoized —
+  // same reasoning as lowStockItems/expiringItems above (todayStats is
+  // already stable, but .slice().map() on it isn't).
+  const topSelling: [string, number][] = useMemo(() => todayStats.topItems.slice(0, 5).map(it => [it.name, it.qty] as [string, number]), [todayStats]);
   const itemsSold = todayStats.itemsSold;
   const hour = new Date().getHours();
   const greeting = hour < 12 ? t('goodMorning') : hour < 17 ? t('goodAfternoon') : t('goodEvening');
@@ -306,43 +343,90 @@ export default function DashboardScreen({ navigation }: any) {
     return () => { cancelled = true; };
   }, [goalReached, dailyGoal]);
 
-  // Smart insights — all applicable (shown in a rotating slider)
+  // Smart insights — all applicable (shown in a rotating slider). Memoized so
+  // the array reference stays stable across unrelated re-renders (it feeds
+  // WidgetStack below, whose own memoized `pages` would otherwise still
+  // recompute every time since this array was previously a fresh one each
+  // render regardless).
   const margin = todayRevenue > 0 ? (todayProfit / todayRevenue) * 100 : 0;
-  const bestDay = week.reduce((a, b) => (b.rev > a.rev ? b : a), week[0]);
-  const insights: { icon: any; text: string }[] = [];
-  if (goalReached) insights.push({ icon: 'trophy-outline', text: `You hit today's goal of ${formatCurrency(dailyGoal, settings.currency)} — great work!` });
-  if (topSelling.length > 0) insights.push({ icon: 'flame-outline', text: `${topSelling[0][0]} is your top seller today (${topSelling[0][1]} sold).` });
-  if (deltaPct !== null) insights.push({ icon: deltaPct >= 0 ? 'trending-up-outline' : 'trending-down-outline', text: deltaPct >= 0 ? `You're up ${Math.abs(deltaPct).toFixed(0)}% vs yesterday — keep it going!` : `You're down ${Math.abs(deltaPct).toFixed(0)}% vs yesterday.` });
-  if (todayRevenue > 0) insights.push({ icon: 'analytics-outline', text: `Today's profit margin is ${margin.toFixed(0)}%.` });
-  if (weekTotal > 0 && bestDay.rev > 0 && !bestDay.isToday) insights.push({ icon: 'calendar-outline', text: `Your best day this week was ${bestDay.full}. Try to beat it!` });
-  if (lowStockItems.length > 0) insights.push({ icon: 'cube-outline', text: `${lowStockItems.length} item${lowStockItems.length > 1 ? 's are' : ' is'} running low on stock.` });
+  const bestDay = useMemo(() => week.reduce((a, b) => (b.rev > a.rev ? b : a), week[0]), [week]);
+  const insights: { icon: any; text: string }[] = useMemo(() => {
+    const list: { icon: any; text: string }[] = [];
+    if (goalReached) list.push({ icon: 'trophy-outline', text: `You hit today's goal of ${formatCurrency(dailyGoal, settings.currency)} — great work!` });
+    if (topSelling.length > 0) list.push({ icon: 'flame-outline', text: `${topSelling[0][0]} is your top seller today (${topSelling[0][1]} sold).` });
+    if (deltaPct !== null) list.push({ icon: deltaPct >= 0 ? 'trending-up-outline' : 'trending-down-outline', text: deltaPct >= 0 ? `You're up ${Math.abs(deltaPct).toFixed(0)}% vs yesterday — keep it going!` : `You're down ${Math.abs(deltaPct).toFixed(0)}% vs yesterday.` });
+    if (todayRevenue > 0) list.push({ icon: 'analytics-outline', text: `Today's profit margin is ${margin.toFixed(0)}%.` });
+    if (weekTotal > 0 && bestDay.rev > 0 && !bestDay.isToday) list.push({ icon: 'calendar-outline', text: `Your best day this week was ${bestDay.full}. Try to beat it!` });
+    if (lowStockItems.length > 0) list.push({ icon: 'cube-outline', text: `${lowStockItems.length} item${lowStockItems.length > 1 ? 's are' : ' is'} running low on stock.` });
+    return list;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goalReached, dailyGoal, settings.currency, topSelling, deltaPct, todayRevenue, margin, weekTotal, bestDay, lowStockItems.length]);
 
-  // Alert widget pages — one per active alert type, fed into the auto-rotating AlertsSlider.
-  const alertPages: { key: string; color: string; icon: any; title: string; sub: string; onPress: () => void }[] = [];
-  if (lowStockItems.length > 0) {
-    alertPages.push({
-      key: 'lowStock',
-      color: colors.warning,
-      icon: 'warning',
-      title: t('itemsLowStock').replace('{count}', String(lowStockItems.length)),
-      sub: `${t('tapToReorder')} · ${lowStockItems.slice(0, 3).map(p => p.name).join(', ')}`,
-      onPress: () => navigation.navigate('More', { screen: 'Reorder', initial: false }),
-    });
-  }
-  if (expiringItems.length > 0) {
-    alertPages.push({
-      key: 'expiring',
-      color: colors.danger,
-      icon: 'calendar-outline',
-      title: expiredCount > 0 && expiringSoonCount > 0
-        ? `${expiredCount} ${t('expired')} · ${expiringSoonCount} ${t('expiringWithin30')}`
-        : expiredCount > 0
-          ? `${expiredCount} item${expiredCount > 1 ? 's' : ''} ${t('expired')}`
-          : `${expiringSoonCount} item${expiringSoonCount > 1 ? 's' : ''} ${t('expiringWithin30')}`,
-      sub: expiringItems.slice(0, 3).map(p => p.name).join(', '),
-      onPress: () => navigation.navigate('Inventory'),
-    });
-  }
+  // Alert widget pages — one per active alert type, fed into the auto-rotating AlertsSlider. Memoized for the same reason as `insights` above.
+  const alertPages: { key: string; color: string; icon: any; title: string; sub: string; onPress: () => void }[] = useMemo(() => {
+    const list: { key: string; color: string; icon: any; title: string; sub: string; onPress: () => void }[] = [];
+    if (lowStockItems.length > 0) {
+      list.push({
+        key: 'lowStock',
+        color: colors.warning,
+        icon: 'warning',
+        title: t('itemsLowStock').replace('{count}', String(lowStockItems.length)),
+        sub: `${t('tapToReorder')} · ${lowStockItems.slice(0, 3).map(p => p.name).join(', ')}`,
+        onPress: () => navigation.navigate('More', { screen: 'Reorder', initial: false }),
+      });
+    }
+    if (expiringItems.length > 0) {
+      list.push({
+        key: 'expiring',
+        color: colors.danger,
+        icon: 'calendar-outline',
+        title: expiredCount > 0 && expiringSoonCount > 0
+          ? `${expiredCount} ${t('expired')} · ${expiringSoonCount} ${t('expiringWithin30')}`
+          : expiredCount > 0
+            ? `${expiredCount} item${expiredCount > 1 ? 's' : ''} ${t('expired')}`
+            : `${expiringSoonCount} item${expiringSoonCount > 1 ? 's' : ''} ${t('expiringWithin30')}`,
+        sub: expiringItems.slice(0, 3).map(p => p.name).join(', '),
+        onPress: () => navigation.navigate('Inventory'),
+      });
+    }
+    return list;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lowStockItems, expiringItems, expiredCount, expiringSoonCount, colors]);
+
+  // Memoized so WidgetStack (and every WidgetPage inside its 5-copy strip)
+  // doesn't get a brand-new `pages` array — and therefore doesn't remount its
+  // whole render tree — on every unrelated Dashboard re-render (refresh,
+  // theme, store updates elsewhere). Only rebuilds when the underlying
+  // insight/alert content actually changes.
+  const insightPages = useMemo(() => insights.map((ins, i) => (
+    <View key={i} style={{ flex: 1 }}>
+      <LinearGradient colors={[colors.primary, colors.primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <View style={isl.widget}>
+        <View style={isl.widgetTop}>
+          <Text style={isl.widgetLbl}>{t('insight').toUpperCase()}</Text>
+          <View style={isl.widgetIcon}><Ionicons name={ins.icon} size={15} color="#fff" /></View>
+        </View>
+        <Text style={isl.widgetText} numberOfLines={4}>{ins.text}</Text>
+      </View>
+    </View>
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  )), [insights, colors]);
+
+  const alertWidgetPages = useMemo(() => alertPages.map((p) => (
+    <TouchableOpacity key={p.key} activeOpacity={0.9} onPress={p.onPress} style={{ flex: 1, backgroundColor: p.color }}>
+      <View style={isl.widget}>
+        <View style={isl.widgetTop}>
+          <View style={isl.widgetIcon}><Ionicons name={p.icon} size={15} color="#fff" /></View>
+          <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.85)" />
+        </View>
+        <View>
+          <Text style={isl.widgetTitle} numberOfLines={2}>{p.title}</Text>
+          <Text style={isl.widgetText} numberOfLines={1}>{p.sub}</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  )), [alertPages, colors]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -587,38 +671,14 @@ export default function DashboardScreen({ navigation }: any) {
               <WidgetStack
                 size={widgetSize}
                 colors={colors}
-                pages={insights.map((ins, i) => (
-                  <View key={i} style={{ flex: 1 }}>
-                    <LinearGradient colors={[colors.primary, colors.primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-                    <View style={isl.widget}>
-                      <View style={isl.widgetTop}>
-                        <Text style={isl.widgetLbl}>{t('insight').toUpperCase()}</Text>
-                        <View style={isl.widgetIcon}><Ionicons name={ins.icon} size={15} color="#fff" /></View>
-                      </View>
-                      <Text style={isl.widgetText} numberOfLines={4}>{ins.text}</Text>
-                    </View>
-                  </View>
-                ))}
+                pages={insightPages}
               />
             )}
             {alertPages.length > 0 && (
               <WidgetStack
                 size={widgetSize}
                 colors={colors}
-                pages={alertPages.map((p) => (
-                  <TouchableOpacity key={p.key} activeOpacity={0.9} onPress={p.onPress} style={{ flex: 1, backgroundColor: p.color }}>
-                    <View style={isl.widget}>
-                      <View style={isl.widgetTop}>
-                        <View style={isl.widgetIcon}><Ionicons name={p.icon} size={15} color="#fff" /></View>
-                        <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.85)" />
-                      </View>
-                      <View>
-                        <Text style={isl.widgetTitle} numberOfLines={2}>{p.title}</Text>
-                        <Text style={isl.widgetText} numberOfLines={1}>{p.sub}</Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                ))}
+                pages={alertWidgetPages}
               />
             )}
           </MotiView>
