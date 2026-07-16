@@ -1,58 +1,59 @@
 // Dynamic Island / Lock Screen Live Activity showing pending online orders.
+// Confirmed working on-device (iOS Simulator, iPhone 17 Pro) as of 2026-07-16.
 //
-// IMPORTANT — this file cannot be fully verified from this (Windows) machine,
-// but the runtime crash from the first Mac build attempt WAS diagnosed by
-// reading the actual installed source (not guessed):
-//
-//   node_modules/expo-widgets/src/Widgets.ts casts `layout as unknown as
-//   string` when constructing the native LiveActivityFactory — a no-op at
-//   runtime. The native side (WidgetsDynamicView.swift, via
-//   WidgetsStorage.getString(forKey: "__expo_widgets_<name>_layout")) expects
-//   a real STRING: the function's *source code*, to be evaluated later inside
-//   an isolated JS context (see node_modules/expo-widgets/bundle/index.ts,
-//   which assigns `@expo/ui/swift-ui`'s exports onto `globalThis` for that
-//   evaluation). That stringification is done by a dedicated Babel plugin —
-//   node_modules/babel-preset-expo/build/plugins/widgets-plugin.js — which
-//   only fires on a function whose body's FIRST statement is the literal
-//   directive `'widget';` (exactly like Reanimated's `'worklet';` directive).
-//   That directive was missing below, so the raw function reached the native
-//   constructor unstringified and crashed
-//   (ArgumentCastException: "the 2nd argument cannot be cast to type String").
-//
-// Two consequences of "the function becomes a standalone string, evaluated in
-// an isolated global scope" that shape everything below:
-//   1. Only `@expo/ui/swift-ui` (NOT the universal `@expo/ui` layer used
-//      elsewhere in this app, e.g. LiquidButton) is available as globals in
-//      that scope — so this imports from `@expo/ui/swift-ui` /
-//      `@expo/ui/swift-ui/modifiers` specifically. No `Icon` component exists
-//      there; SF Symbols render via `Image({ systemName, size, color })`.
-//   2. The stringified function can't close over anything from this file's
-//      outer module scope (imports aside — see note below) — so ALL constants
-//      (colors, etc.) must be declared *inside* `PendingOrdersLayout`, not at
-//      module level.
+// How this actually works, since it's not obvious from the JSX alone:
+// `babel-preset-expo`'s widgets-plugin (node_modules/babel-preset-expo/build/
+// plugins/widgets-plugin.js) detects the `'widget';` directive as the first
+// statement of a function and replaces the ENTIRE function with a string of
+// its own source code — exactly like Reanimated's `'worklet';` directive.
+// That string is what the native side stores and later re-evaluates (with
+// fresh props) inside an isolated JS context each time the activity updates
+// (node_modules/expo-widgets/bundle/index.ts assigns `@expo/ui/swift-ui`'s
+// exports onto `globalThis` for that evaluation). Two consequences:
+//   1. Only `@expo/ui/swift-ui` is available as globals in that scope — NOT
+//      the universal `@expo/ui` layer used elsewhere in this app (e.g.
+//      LiquidButton). No `Icon` component exists there; SF Symbols render
+//      via `Image({ systemName, size, color })`.
+//   2. The stringified function can't close over this file's outer module
+//      scope — so ALL constants (colors, etc.) must be declared *inside*
+//      `PendingOrdersLayout`, not at module level.
 // The `@expo/ui/swift-ui` import itself stays at module scope purely so
 // TypeScript can type-check the JSX below before Babel replaces the function
 // with a string — it has no effect at runtime once stringified.
-import { Text, HStack, VStack, Spacer, Image } from '@expo/ui/swift-ui';
+import { Platform } from 'react-native';
+import { Text, HStack, VStack, Spacer, Image, Divider } from '@expo/ui/swift-ui';
 import { font, foregroundColor, padding } from '@expo/ui/swift-ui/modifiers';
-import { createLiveActivity } from 'expo-widgets';
+import { createLiveActivity, LiveActivityFactory } from 'expo-widgets';
 
 export type PendingOrdersActivityProps = {
   pendingCount: number;
   shopName: string;
+  // Minutes since the oldest still-pending order arrived — drives the
+  // urgency color (fine → amber → clay) in the expanded view, so the
+  // shopkeeper can tell "just got one" apart from "these have been sitting
+  // for 20 minutes" without opening the app. 0 when there's nothing pending.
+  oldestMinutesAgo: number;
 };
 
 // Must match the `"name"` field of the matching entry in app.json's
 // `expo-widgets` plugin config (`widgets: [{ name: "PendingOrdersActivity", ... }]`).
 const ACTIVITY_NAME = 'PendingOrdersActivity';
 
-function PendingOrdersLayout({ pendingCount, shopName }: PendingOrdersActivityProps) {
+function PendingOrdersLayout({ pendingCount, shopName, oldestMinutesAgo }: PendingOrdersActivityProps) {
   'widget';
 
   const ACCENT = '#5B7567'; // sage primary — matches theme/colors.ts LIGHT.primary
   const MUTED = '#8E8E93'; // iOS secondary-label gray
+  const WARNING = '#A98545'; // theme/colors.ts LIGHT.warning (muted ochre)
+  const DANGER = '#A65A4D'; // theme/colors.ts LIGHT.danger (muted clay)
   const label = pendingCount === 1 ? '1 pending order' : `${pendingCount} pending orders`;
-  const count = String(pendingCount);
+  // Capped for the compact/minimal Dynamic Island badges — a 3+ digit count
+  // has no room to render cleanly in that tiny pill.
+  const count = pendingCount > 99 ? '99+' : String(pendingCount);
+  // Urgency escalates the longer the oldest order has sat unactioned — same
+  // idea as the low-stock/expiry alert coloring elsewhere in this app.
+  const waitColor = oldestMinutesAgo >= 15 ? DANGER : oldestMinutesAgo >= 5 ? WARNING : MUTED;
+  const waitLabel = oldestMinutesAgo <= 0 ? 'just now' : oldestMinutesAgo === 1 ? '1 min ago' : `${oldestMinutesAgo} min ago`;
 
   return {
     // Lock Screen banner — the widest surface, most room for context.
@@ -63,6 +64,7 @@ function PendingOrdersLayout({ pendingCount, shopName }: PendingOrdersActivityPr
         <VStack alignment="leading">
           <Text modifiers={[font({ weight: 'bold', size: 15 })]}>{label}</Text>
           <Text modifiers={[font({ size: 12 }), foregroundColor(MUTED)]}>{shopName}</Text>
+          <Text modifiers={[font({ size: 11 }), foregroundColor(waitColor)]}>{`Oldest waiting ${waitLabel}`}</Text>
         </VStack>
       </HStack>
     ),
@@ -75,17 +77,48 @@ function PendingOrdersLayout({ pendingCount, shopName }: PendingOrdersActivityPr
     // for space) — just the count badge.
     minimal: <Text modifiers={[font({ weight: 'bold', size: 13 })]}>{count}</Text>,
 
-    // Expanded Dynamic Island (long-press) — full context, same shape as
-    // the banner but tuned for the expanded region's layout slots.
-    expandedLeading: <Image systemName="bag.fill" color={ACCENT} size={20} />,
-    expandedTrailing: <Text modifiers={[font({ weight: 'bold', size: 16 })]}>{count}</Text>,
+    // Expanded Dynamic Island (long-press) — richer 4-region layout instead
+    // of one plain line: icon on the left, the count as its own badge on the
+    // right, shop name + wait-time urgency as the hero content in the
+    // center, and a divider + "tap to open" hint anchoring the bottom.
+    expandedLeading: <Image systemName="bag.fill" color={ACCENT} size={22} />,
+    expandedTrailing: (
+      <VStack alignment="trailing">
+        <Text modifiers={[font({ weight: 'bold', size: 20 }), foregroundColor(ACCENT)]}>{count}</Text>
+        <Text modifiers={[font({ size: 10 }), foregroundColor(MUTED)]}>orders</Text>
+      </VStack>
+    ),
+    expandedCenter: (
+      <VStack alignment="leading">
+        <Text modifiers={[font({ weight: 'bold', size: 15 })]}>{shopName}</Text>
+        <HStack alignment="center">
+          <Image systemName="clock.fill" color={waitColor} size={11} />
+          <Spacer minLength={4} />
+          <Text modifiers={[font({ size: 12 }), foregroundColor(waitColor)]}>{`Oldest waiting ${waitLabel}`}</Text>
+        </HStack>
+      </VStack>
+    ),
     expandedBottom: (
-      <Text modifiers={[font({ size: 13 }), foregroundColor(MUTED)]}>{`${label} · ${shopName}`}</Text>
+      <VStack alignment="leading" modifiers={[padding({ top: 6 })]}>
+        <Divider />
+        <HStack alignment="center" modifiers={[padding({ top: 6 })]}>
+          <Image systemName="hand.tap.fill" color={MUTED} size={11} />
+          <Spacer minLength={4} />
+          <Text modifiers={[font({ size: 11 }), foregroundColor(MUTED)]}>Tap to open Shopkeeper AI</Text>
+        </HStack>
+      </VStack>
     ),
   };
 }
 
-export const PendingOrdersActivity = createLiveActivity<PendingOrdersActivityProps>(
-  ACTIVITY_NAME,
-  PendingOrdersLayout
-);
+// `expo-widgets` has no Android implementation of LiveActivityFactory at all
+// (no matching native module class) — `createLiveActivity(...)` runs at
+// MODULE LOAD TIME (this is a top-level `export const`, evaluated on import
+// for both platforms, since Metro bundles the same JS unless a platform-
+// specific file extension is used), so calling it unconditionally would very
+// likely crash the whole app on Android at startup, not just fail to work.
+// Guarded here rather than relying on call-site `Platform.OS` checks alone
+// (usePendingOrdersLiveActivity.ts also guards, but that only protects
+// *usage* — this protects *construction*).
+export const PendingOrdersActivity: LiveActivityFactory<PendingOrdersActivityProps> | null =
+  Platform.OS === 'ios' ? createLiveActivity<PendingOrdersActivityProps>(ACTIVITY_NAME, PendingOrdersLayout) : null;
