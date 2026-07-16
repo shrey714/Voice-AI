@@ -337,7 +337,7 @@ export default function ExportsScreen({ navigation }: any) {
     <ScrollView
       showsVerticalScrollIndicator={false}
       style={{ backgroundColor: colors.bg, flex: 1 }}
-      contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: 12 }}
+      contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: 12, paddingTop: 12 }}
     >
       {/* Report type tabs */}
       <View style={[s.searchRow, { marginBottom: 12 }]}>

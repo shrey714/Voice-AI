@@ -366,7 +366,7 @@ export default function SupplierScreen() {
         maxToRenderPerBatch={10}
         windowSize={7}
         removeClippedSubviews
-        contentContainerStyle={{ paddingHorizontal: 8, paddingTop: searchOpen ? 8 : 0, paddingBottom: 120, flexGrow: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 8, paddingTop: 8, paddingBottom: 120, flexGrow: 1 }}
         renderItem={renderSupplierItem}
         ListEmptyComponent={
           search.trim()

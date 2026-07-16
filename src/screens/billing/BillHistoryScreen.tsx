@@ -502,7 +502,7 @@ ${isGst ? `<p style="font-size:11px;color:#555;margin-top:8px">Amount in words: 
         removeClippedSubviews
         contentContainerStyle={{
           paddingHorizontal: 8,
-          paddingTop: searchOpen ? 8 : 0,
+          paddingTop: 8,
           paddingBottom: 120,
           flexGrow: 1,
         }}

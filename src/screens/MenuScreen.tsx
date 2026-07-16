@@ -95,7 +95,7 @@ export default function MenuScreen({ navigation }: any) {
     <ScrollView
       style={{ backgroundColor: colors.bg, flex: 1 }}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingBottom: 120 }}
+      contentContainerStyle={{ paddingBottom: 120, paddingTop: 16 }}
     >
         {/* Stats card */}
         <View

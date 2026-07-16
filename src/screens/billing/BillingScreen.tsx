@@ -1042,7 +1042,7 @@ export default function BillingScreen({ navigation }: any) {
 
 const makeStyles = (c: any) => StyleSheet.create({
   container: { flex: 1 },
-  topBar: { flexDirection: 'row', paddingHorizontal: 8, paddingBottom: 4, gap: 10, alignItems: 'center' },
+  topBar: { flexDirection: 'row', paddingHorizontal: 8, paddingBottom: 4, paddingTop: 8, gap: 10, alignItems: 'center' },
   searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1 },
   searchInput: { flex: 1, fontSize: 14, padding: 0, fontFamily: fonts.regular },
   sectionLabel: { fontFamily: fonts.bold, fontSize: 12, paddingHorizontal: 8, marginBottom: 4, marginTop: 2 },
