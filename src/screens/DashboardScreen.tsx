@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, Linking, Alert, RefreshControl, Dimensions, Platform } from 'react-native';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
+import { View, ScrollView, FlatList, StyleSheet, TouchableOpacity, Linking, Alert, RefreshControl, Dimensions, Platform, LayoutAnimation, UIManager } from 'react-native';
 import { Text } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import Animated, {
   useSharedValue, useAnimatedProps, useAnimatedStyle, useAnimatedRef, useAnimatedScrollHandler,
   scrollTo, runOnJS, interpolate, Extrapolation, withTiming, Easing, SharedValue,
 } from 'react-native-reanimated';
+import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
 import Svg, { Circle } from 'react-native-svg';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../stores/useAppStore';
@@ -16,6 +17,11 @@ import { useTranslation } from '../hooks/useTranslation';
 import { useIsOnline } from '../hooks/useIsOnline';
 import { switchAppMode } from '../navigation/navigationRef';
 import { isShopOpenNow } from '../utils/shopStatus';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -35,6 +41,80 @@ function GoalRing({ progress, size = 96, stroke = 10, color, track }: { progress
     </Svg>
   );
 }
+
+// Quick Actions row item — memoized (see AGENTS.md's FlatList-row convention):
+// `gradientColors`/`labelColor`/`styles` are stable references from the
+// parent (useMemo'd), and `onPress` is a single stable top-level callback,
+// so this never re-renders when unrelated Dashboard state changes (e.g. the
+// widget-stack auto-rotation interval ticking every few seconds).
+const QuickActionButton = React.memo(function QuickActionButton({
+  action, gradientColors, labelColor, onPress, styles,
+}: {
+  action: QuickActionDef;
+  gradientColors: readonly [string, string];
+  labelColor: string;
+  onPress: (action: QuickActionDef) => void;
+  styles: any;
+}) {
+  return (
+    <PressableScale style={styles.qaItem} onPress={() => onPress(action)}>
+      <LinearGradient colors={gradientColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.qaCircle}>
+        <Ionicons name={action.icon} size={24} color="#fff" />
+      </LinearGradient>
+      <Text style={[styles.qaLabel, { color: labelColor }]} numberOfLines={1}>{action.label}</Text>
+    </PressableScale>
+  );
+});
+
+// One row inside the Quick Actions editor sheet, rendered by
+// `react-native-draggable-flatlist` (genuine drag-and-drop — reanimated +
+// gesture-handler under the hood, both already app dependencies; no
+// hand-rolled translateY/threshold math). `drag` (call on the handle's
+// onPressIn/onLongPress) hands control to the library, which live-shifts
+// every other row out of the way as the dragged row moves — the "other
+// items make space automatically" behavior a manual up/down or single-row
+// pan gesture can't give you for free.
+const DraggableQuickActionRow = React.memo(function DraggableQuickActionRow({
+  pref, def, drag, isActive, colors, styles, onToggle,
+}: {
+  pref: QuickActionPref;
+  def: QuickActionDef;
+  drag: () => void;
+  isActive: boolean;
+  colors: any;
+  styles: any;
+  onToggle: (key: string) => void;
+}) {
+  return (
+    <View style={[styles.qaEditRow, { borderBottomColor: colors.border }, isActive && styles.qaEditRowActive]}>
+      <TouchableOpacity
+        style={styles.qaEditCheck}
+        onPress={() => onToggle(pref.key)}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        <Ionicons
+          name={pref.enabled ? 'checkmark-circle' : 'ellipse-outline'}
+          size={22}
+          color={pref.enabled ? colors.primary : colors.textMuted}
+        />
+      </TouchableOpacity>
+      <View style={[styles.qaEditIcon, { backgroundColor: colors.primaryLight }]}>
+        <Ionicons name={def.icon} size={17} color={colors.primary} />
+      </View>
+      <Text style={[styles.qaEditLabel, { color: colors.text, opacity: pref.enabled ? 1 : 0.5 }]} numberOfLines={1}>
+        {def.label}
+      </Text>
+      <TouchableOpacity
+        style={styles.qaEditHandle}
+        onPressIn={drag}
+        disabled={isActive}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <Ionicons name="reorder-three-outline" size={22} color={colors.textMuted} />
+      </TouchableOpacity>
+    </View>
+  );
+});
 
 // One page inside the widget's infinite strip — its scale is a pure function
 // of how far the shared scroll position currently is from this page's own
@@ -203,7 +283,13 @@ import { fonts } from '../theme/typography';
 import AnimatedNumber from '../components/common/AnimatedNumber';
 import PressableScale from '../components/common/PressableScale';
 import LiquidButton from '../components/common/LiquidButton';
+import LiquidBottomSheet, { LiquidBottomSheetRef } from '../components/common/LiquidBottomSheet';
+import SheetHeader, { SHEET_PADDING } from '../components/common/SheetHeader';
 import { DashboardSkeleton } from '../components/common/Skeleton';
+import {
+  getQuickActionCatalog, defaultQuickActionPrefs, reconcileQuickActionPrefs, navigateToQuickAction,
+  MIN_ENABLED_QUICK_ACTIONS, QuickActionDef, QuickActionPref,
+} from '../config/quickActions';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { computeSalesStats, makeCostOf } from '../utils/stats';
 import { whatsappUrl } from '../utils/reminder';
@@ -260,6 +346,46 @@ export default function DashboardScreen({ navigation }: any) {
   const onlineShopConfig = useOnlineShopStore(state => state.config);
   const isOnlineShopLive = settings.onlineShopEnabled && isShopOpenNow(onlineShopConfig);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Quick Actions — user-customizable pin/reorder list, same persisted-setting
+  // pattern as MenuScreen's `menuLayoutMode` (db.getSetting/setSetting, loaded
+  // once on mount, written back on every edit).
+  const quickActionCatalog = useMemo(() => getQuickActionCatalog(t), [t]);
+  const [quickActionPrefs, setQuickActionPrefs] = useState<QuickActionPref[]>(() => defaultQuickActionPrefs(quickActionCatalog));
+  useEffect(() => {
+    db.getSetting('quickActionsConfig').then(raw => {
+      if (!raw) return;
+      try {
+        const saved: QuickActionPref[] = JSON.parse(raw);
+        setQuickActionPrefs(reconcileQuickActionPrefs(saved, quickActionCatalog));
+      } catch { /* corrupt/old value — keep default */ }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const persistQuickActionPrefs = (prefs: QuickActionPref[]) => {
+    setQuickActionPrefs(prefs);
+    db.setSetting('quickActionsConfig', JSON.stringify(prefs));
+  };
+  const toggleQuickAction = (key: string) => {
+    const pref = quickActionPrefs.find(p => p.key === key);
+    if (!pref) return;
+    if (pref.enabled && quickActionPrefs.filter(p => p.enabled).length <= MIN_ENABLED_QUICK_ACTIONS) {
+      toast.error(`Keep at least ${MIN_ENABLED_QUICK_ACTIONS} quick actions pinned`);
+      return;
+    }
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    persistQuickActionPrefs(quickActionPrefs.map(p => (p.key === key ? { ...p, enabled: !p.enabled } : p)));
+  };
+  const activeQuickActions = useMemo(
+    () => quickActionPrefs
+      .filter(p => p.enabled)
+      .map(p => quickActionCatalog.find(c => c.key === p.key))
+      .filter((c): c is QuickActionDef => !!c),
+    [quickActionPrefs, quickActionCatalog]
+  );
+  const quickActionGradient = useMemo(() => [colors.primary, colors.primaryDark] as const, [colors.primary, colors.primaryDark]);
+  const handleQuickActionPress = useCallback((action: QuickActionDef) => navigateToQuickAction(navigation, action.target), [navigation]);
+  const quickActionsSheetRef = useRef<LiquidBottomSheetRef>(null);
 
   // All sales numbers are netted of returns via the shared stats helper. Memoized
   // so the 9 computeSalesStats passes (today + yesterday + 7 days) don't re-run on
@@ -463,7 +589,7 @@ export default function DashboardScreen({ navigation }: any) {
     Linking.openURL(whatsappUrl(settings.phone, msg)).catch(() => Alert.alert('WhatsApp not found'));
   };
 
-  const s = makeStyles(colors);
+  const s = useMemo(() => makeStyles(colors), [colors]);
 
   // Square widget size for the side-by-side insight/alert stacks: full width minus
   // the 16px screen gutters and the gap between the two widgets, split evenly.
@@ -557,33 +683,31 @@ export default function DashboardScreen({ navigation }: any) {
           ))}
         </View>
 
-        {/* Quick Actions — horizontal scroll, gradient icon tile (no card background) */}
+        {/* Quick Actions — horizontal scroll, gradient icon tile (no card background),
+            user-pinned/reordered via the trailing Edit tile's sheet. FlatList
+            (not ScrollView+map) + a memoized row component + stable
+            gradient/callback references keep this from re-rendering every
+            item on unrelated Dashboard re-renders (e.g. the widget-stack
+            auto-rotation interval ticking every few seconds). */}
         <Text style={[s.groupLabel, { color: colors.textMuted }]}>{t('quickActions').toUpperCase()}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}>
-          {[
-            { label: t('newBill'),     icon: 'cart-outline' as const,        onPress: () => navigation.navigate('Billing') },
-            { label: t('addProduct'),  icon: 'add-circle-outline' as const,  onPress: () => navigation.navigate('Inventory') },
-            { label: t('analytics'),   icon: 'bar-chart-outline' as const,   onPress: () => navigation.navigate('More', { screen: 'Analytics' }) },
-            { label: t('expenses'),    icon: 'wallet-outline' as const,      onPress: () => navigation.navigate('More', { screen: 'Expenses' }) },
-            { label: 'Udhaar',         icon: 'book-outline' as const,        onPress: () => navigation.navigate('More', { screen: 'Udhaar' }) },
-            { label: t('dayClose'),    icon: 'lock-closed-outline' as const, onPress: () => navigation.navigate('More', { screen: 'DayClose' }) },
-            { label: t('suppliers'),   icon: 'business-outline' as const,    onPress: () => navigation.navigate('More', { screen: 'Supplier' }) },
-          ].map((action, i) => (
-            <MotiView key={action.label} from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'timing', duration: 280, delay: 150 + i * 45 }}>
-              <PressableScale style={s.qaItem} onPress={action.onPress}>
-                <LinearGradient
-                  colors={[colors.primary, colors.primaryDark]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={s.qaCircle}
-                >
-                  <Ionicons name={action.icon} size={24} color="#fff" />
-                </LinearGradient>
-                <Text style={[s.qaLabel, { color: colors.textSub }]}>{action.label}</Text>
-              </PressableScale>
-            </MotiView>
-          ))}
-        </ScrollView>
+        <FlatList
+          data={activeQuickActions}
+          keyExtractor={(action) => action.key}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+          renderItem={({ item }) => (
+            <QuickActionButton action={item} gradientColors={quickActionGradient} labelColor={colors.textSub} onPress={handleQuickActionPress} styles={s} />
+          )}
+          ListFooterComponent={
+            <PressableScale style={s.qaItem} onPress={() => quickActionsSheetRef.current?.expand()}>
+              <View style={[s.qaCircle, { backgroundColor: colors.surfaceHigh, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border }]}>
+                <Ionicons name="pencil-outline" size={22} color={colors.primary} />
+              </View>
+              <Text style={[s.qaLabel, { color: colors.textSub }]} numberOfLines={1}>{t('edit')}</Text>
+            </PressableScale>
+          }
+        />
 
         {/* Ask AI bar */}
         <MotiView from={{ opacity: 0, translateY: 14 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 380, delay: 200 }}>
@@ -826,6 +950,47 @@ export default function DashboardScreen({ navigation }: any) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Quick Actions editor — toggle which screens show + drag the handle
+          to reorder. Kept as a sibling of the outer ScrollView (not a
+          descendant) — nesting a vertical VirtualizedList (DraggableFlatList)
+          inside a same-orientation ScrollView triggers RN's "VirtualizedLists
+          should never be nested" warning even though the sheet itself renders
+          in a separate native overlay, since that warning is driven by
+          React context propagation through the component tree, not the
+          native view hierarchy. `react-native-draggable-flatlist`
+          (reanimated + gesture-handler, both already app deps) — other rows
+          live-shift out of the way as the dragged row moves, instead of only
+          resolving on release. */}
+      <LiquidBottomSheet ref={quickActionsSheetRef} heightFraction={0.85}>
+        <View style={{ flex: 1 }}>
+          <SheetHeader title={t('quickActions')} onClose={() => quickActionsSheetRef.current?.close()} />
+          <DraggableFlatList
+            data={quickActionPrefs}
+            keyExtractor={(pref) => pref.key}
+            contentContainerStyle={s.qaEditContent}
+            containerStyle={{ flex: 1 }}
+            showsVerticalScrollIndicator={false}
+            activationDistance={0}
+            renderItem={({ item: pref, drag, isActive }: RenderItemParams<QuickActionPref>) => {
+              const def = quickActionCatalog.find(c => c.key === pref.key);
+              if (!def) return null;
+              return (
+                <DraggableQuickActionRow
+                  pref={pref}
+                  def={def}
+                  drag={drag}
+                  isActive={isActive}
+                  colors={colors}
+                  styles={s}
+                  onToggle={toggleQuickAction}
+                />
+              );
+            }}
+            onDragEnd={({ data }) => persistQuickActionPrefs(data)}
+          />
+        </View>
+      </LiquidBottomSheet>
     </SafeAreaView>
   );
 }
@@ -912,6 +1077,27 @@ const makeStyles = (c: any) => StyleSheet.create({
   qaItem: { alignItems: 'center', width: 70 },
   qaCircle: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
   qaLabel: { fontFamily: fonts.semiBold, fontSize: 11.5, textAlign: 'center' },
+
+  // Quick Actions editor sheet — toggle + drag-to-reorder row.
+  // Horizontal padding lives on `qaEditRow` itself (not just the list's
+  // `qaEditContent`) — the row being dragged renders in
+  // react-native-draggable-flatlist's own overlay layer, which sits outside
+  // contentContainerStyle, so a container-level-only inset left the dragged
+  // row's highlighted background spanning edge-to-edge instead of matching
+  // the resting rows' inset.
+  qaEditContent: { paddingBottom: 24 },
+  qaEditRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, paddingHorizontal: SHEET_PADDING,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  qaEditRowActive: {
+    backgroundColor: c.surface, borderRadius: 12, elevation: 6,
+    shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
+  },
+  qaEditCheck: { width: 22, height: 22 },
+  qaEditIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  qaEditLabel: { flex: 1, fontFamily: fonts.semiBold, fontSize: 14.5 },
+  qaEditHandle: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
 
   // Sections — top selling, recent bills
   section: { marginHorizontal: 16, marginTop: 14, borderRadius: 18, padding: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, marginBottom: 0 },
