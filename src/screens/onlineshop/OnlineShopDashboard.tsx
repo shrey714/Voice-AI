@@ -29,11 +29,11 @@ import { isShopOpenNow } from '../../utils/shopStatus';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/useAppStore';
 import { toast } from '../../utils/toast';
+import { useTranslation } from '../../hooks/useTranslation';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
 const STORE_HOST = 'shop.app';
-
 
 const THUMB = 56;
 const TRACK_PAD = 6;
@@ -186,6 +186,7 @@ function OrderTicker({ items, colors }: { items: string[]; colors: any }) {
 
 export default function OnlineShopDashboard({ navigation }: any) {
   const { colors } = useAppTheme();
+  const { t } = useTranslation();
   const { settings } = useAppStore(
     useShallow(state => ({
       settings: state.settings,
@@ -427,32 +428,30 @@ export default function OnlineShopDashboard({ navigation }: any) {
           </MotiView>
         )}
 
-        {/* Manage — same section-card list style as Home's */}
-        <Text style={[s2.sectionTitle, { color: colors.text }]}>Manage</Text>
-        <View style={[s2.manageCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        {/* Quick Actions — horizontal scroll, gradient icon tile (no card background) */}
+        <Text style={[s2.groupLabel, { color: colors.textMuted }]}>{t('quickActions').toUpperCase()}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}>
           {ACTIONS.map((action, i) => (
-            <TouchableOpacity
-              key={action.label}
-              style={[s2.manageRow, i < ACTIONS.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}
-              onPress={() => navigation.navigate(action.screen)}
-              activeOpacity={0.7}
-            >
-              <View style={[s2.manageIcon, { backgroundColor: colors.primaryLight }]}>
-                <Ionicons name={action.icon} size={19} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[s2.manageLabel, { color: colors.text }]}>{action.label}</Text>
-                <Text style={[s2.manageSub, { color: colors.textMuted }]}>{action.sub}</Text>
-              </View>
-              {action.badge != null && action.badge > 0 && (
-                <View style={[s2.manageBadge, { backgroundColor: colors.warning }]}>
-                  <Text style={s2.manageBadgeText}>{action.badge}</Text>
-                </View>
-              )}
-              <Ionicons name="chevron-forward" size={17} color={colors.textMuted} />
-            </TouchableOpacity>
+            <MotiView key={action.label} from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'timing', duration: 280, delay: 150 + i * 45 }}>
+              <PressableScale style={s2.qaItem} onPress={() => navigation.navigate(action.screen)}>
+                {action.badge != null && action.badge > 0 && (
+                  <View style={[s2.qaBadge, { backgroundColor: colors.warning }]}>
+                    <Text style={s2.qaBadgeText}>{action.badge}</Text>
+                  </View>
+                )}
+                <LinearGradient
+                  colors={[colors.primary, colors.primaryDark]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={s2.qaCircle}
+                >
+                  <Ionicons name={action.icon} size={24} color="#fff" />
+                </LinearGradient>
+                <Text style={[s2.qaLabel, { color: colors.textSub }]}>{action.label}</Text>
+              </PressableScale>
+            </MotiView>
           ))}
-        </View>
+        </ScrollView>
       </ScrollView>
     </SafeAreaView>
   );
@@ -533,11 +532,14 @@ const s2 = StyleSheet.create({
   weekDay: { fontSize: 11 },
 
   sectionTitle: { fontFamily: fonts.extraBold, fontSize: 17, paddingHorizontal: 16, marginTop: 14, marginBottom: 14, letterSpacing: -0.3 },
-  manageCard: { marginHorizontal: 16, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
-  manageRow: { flexDirection: 'row', alignItems: 'center', gap: 13, padding: 14 },
-  manageIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  manageLabel: { fontFamily: fonts.bold, fontSize: 15 },
-  manageSub: { fontFamily: fonts.regular, fontSize: 12, marginTop: 1 },
-  manageBadge: { minWidth: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
-  manageBadgeText: { fontFamily: fonts.extraBold, fontSize: 11, color: '#fff' },
+
+  // Group label — same small-caps eyebrow style as MenuScreen's section headers
+  groupLabel: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 0.8, marginLeft: 24, marginTop: 22, marginBottom: 8 },
+
+  // Quick actions — circular gradient icon, no card background
+  qaItem: { alignItems: 'center', width: 70 },
+  qaCircle: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
+  qaLabel: { fontFamily: fonts.semiBold, fontSize: 11.5, textAlign: 'center' },
+  qaBadge: { position: 'absolute', top: 0, right: 4, minWidth: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5, zIndex: 1 },
+  qaBadgeText: { fontFamily: fonts.extraBold, fontSize: 10.5, color: '#fff' },
 });

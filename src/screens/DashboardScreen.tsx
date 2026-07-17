@@ -557,6 +557,34 @@ export default function DashboardScreen({ navigation }: any) {
           ))}
         </View>
 
+        {/* Quick Actions — horizontal scroll, gradient icon tile (no card background) */}
+        <Text style={[s.groupLabel, { color: colors.textMuted }]}>{t('quickActions').toUpperCase()}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}>
+          {[
+            { label: t('newBill'),     icon: 'cart-outline' as const,        onPress: () => navigation.navigate('Billing') },
+            { label: t('addProduct'),  icon: 'add-circle-outline' as const,  onPress: () => navigation.navigate('Inventory') },
+            { label: t('analytics'),   icon: 'bar-chart-outline' as const,   onPress: () => navigation.navigate('More', { screen: 'Analytics' }) },
+            { label: t('expenses'),    icon: 'wallet-outline' as const,      onPress: () => navigation.navigate('More', { screen: 'Expenses' }) },
+            { label: 'Udhaar',         icon: 'book-outline' as const,        onPress: () => navigation.navigate('More', { screen: 'Udhaar' }) },
+            { label: t('dayClose'),    icon: 'lock-closed-outline' as const, onPress: () => navigation.navigate('More', { screen: 'DayClose' }) },
+            { label: t('suppliers'),   icon: 'business-outline' as const,    onPress: () => navigation.navigate('More', { screen: 'Supplier' }) },
+          ].map((action, i) => (
+            <MotiView key={action.label} from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'timing', duration: 280, delay: 150 + i * 45 }}>
+              <PressableScale style={s.qaItem} onPress={action.onPress}>
+                <LinearGradient
+                  colors={[colors.primary, colors.primaryDark]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={s.qaCircle}
+                >
+                  <Ionicons name={action.icon} size={24} color="#fff" />
+                </LinearGradient>
+                <Text style={[s.qaLabel, { color: colors.textSub }]}>{action.label}</Text>
+              </PressableScale>
+            </MotiView>
+          ))}
+        </ScrollView>
+
         {/* Ask AI bar */}
         <MotiView from={{ opacity: 0, translateY: 14 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 380, delay: 200 }}>
           <PressableScale style={[s.askBar, { backgroundColor: colors.surface, borderColor: colors.primary + '40' }]} onPress={() => navigation.navigate('AskAi')}>
@@ -718,29 +746,6 @@ export default function DashboardScreen({ navigation }: any) {
           </MotiView>
         )}
 
-        {/* Quick Actions — horizontal scroll */}
-        <Text style={[s.sectionTitle, { color: colors.text }]}>{t('quickActions')}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}>
-          {[
-            { label: t('newBill'),     icon: 'cart-outline' as const,        onPress: () => navigation.navigate('Billing') },
-            { label: t('addProduct'),  icon: 'add-circle-outline' as const,  onPress: () => navigation.navigate('Inventory') },
-            { label: t('analytics'),   icon: 'bar-chart-outline' as const,   onPress: () => navigation.navigate('More', { screen: 'Analytics' }) },
-            { label: t('expenses'),    icon: 'wallet-outline' as const,      onPress: () => navigation.navigate('More', { screen: 'Expenses' }) },
-            { label: 'Udhaar',         icon: 'book-outline' as const,        onPress: () => navigation.navigate('More', { screen: 'Udhaar' }) },
-            { label: t('dayClose'),    icon: 'lock-closed-outline' as const, onPress: () => navigation.navigate('More', { screen: 'DayClose' }) },
-            { label: t('suppliers'),   icon: 'business-outline' as const,    onPress: () => navigation.navigate('More', { screen: 'Supplier' }) },
-          ].map((action, i) => (
-            <MotiView key={action.label} from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'timing', duration: 280, delay: 150 + i * 45 }}>
-              <PressableScale style={s.qaItem} onPress={action.onPress}>
-                <View style={[s.qaCircle, { backgroundColor: colors.primaryLight }]}>
-                  <Ionicons name={action.icon} size={24} color={colors.primary} />
-                </View>
-                <Text style={[s.qaLabel, { color: colors.textSub }]}>{action.label}</Text>
-              </PressableScale>
-            </MotiView>
-          ))}
-        </ScrollView>
-
         {/* Top Selling */}
         {topSelling.length > 0 && (
           <View style={[s.section, { backgroundColor: colors.surface }]}>
@@ -900,9 +905,12 @@ const makeStyles = (c: any) => StyleSheet.create({
   // Section titles
   sectionTitle: { fontFamily: fonts.extraBold, fontSize: 17, paddingHorizontal: 16, marginTop: 14, marginBottom: 14, letterSpacing: -0.3 },
 
-  // Quick actions — circular
+  // Group label — same small-caps eyebrow style as MenuScreen's section headers
+  groupLabel: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 0.8, marginLeft: 24, marginTop: 14, marginBottom: 8 },
+
+  // Quick actions — circular gradient icon, no card background
   qaItem: { alignItems: 'center', width: 70 },
-  qaCircle: { width: 60, height: 60, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  qaCircle: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
   qaLabel: { fontFamily: fonts.semiBold, fontSize: 11.5, textAlign: 'center' },
 
   // Sections — top selling, recent bills

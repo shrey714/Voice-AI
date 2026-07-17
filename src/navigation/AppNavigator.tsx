@@ -98,6 +98,7 @@ function useHeaderOpts() {
       headerTintColor: colors.primary,
       headerTitleStyle: { fontFamily: fonts.extraBold, fontSize: 17, color: colors.text },
       headerStyle: { backgroundColor: colors.surface },
+      headerBackButtonDisplayMode: 'minimal' as const,
     };
   }
   return { header: (props: any) => <AppHeader {...props} /> };
