@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
-import { View, ScrollView, FlatList, StyleSheet, TouchableOpacity, Linking, Alert, RefreshControl, Dimensions, Platform, LayoutAnimation, UIManager } from 'react-native';
+import { View, FlatList, StyleSheet, TouchableOpacity, Linking, Alert, RefreshControl, Dimensions, Platform, LayoutAnimation, UIManager } from 'react-native';
 import { Text } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import Animated, {
-  useSharedValue, useAnimatedProps, useAnimatedStyle, useAnimatedRef, useAnimatedScrollHandler,
-  scrollTo, runOnJS, interpolate, Extrapolation, withTiming, Easing, SharedValue,
+  useSharedValue, useAnimatedProps, useAnimatedStyle, useAnimatedRef, useAnimatedScrollHandler, useDerivedValue,
+  scrollTo, runOnJS, interpolate, Extrapolation, withTiming, Easing, SharedValue, measure,
 } from 'react-native-reanimated';
 import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
 import Svg, { Circle } from 'react-native-svg';
@@ -42,26 +42,109 @@ function GoalRing({ progress, size = 96, stroke = 10, color, track }: { progress
   );
 }
 
-// Quick Actions row item — memoized (see AGENTS.md's FlatList-row convention):
-// `gradientColors`/`labelColor`/`styles` are stable references from the
-// parent (useMemo'd), and `onPress` is a single stable top-level callback,
-// so this never re-renders when unrelated Dashboard state changes (e.g. the
-// widget-stack auto-rotation interval ticking every few seconds).
+const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
+
+// Quick Action tile dimensions, full (resting) vs. stuck (pinned/compact).
+// The circle animates its REAL width/height (not a scale transform) — a
+// scale only shrinks visually while the layout box stays full-size, which
+// the collapsed item then clipped (the "button bottom cut off" bug). The
+// tile also narrows so the shrunk circles pack tighter instead of leaving
+// big gaps.
+const QA_ITEM_FULL_H = 76;
+const QA_ITEM_STUCK_H = 42;
+const QA_ITEM_FULL_W = 70;
+const QA_ITEM_STUCK_W = 50;
+const QA_CIRCLE_FULL = 50;
+const QA_CIRCLE_STUCK = 39;
+// Label has fully faded by the time the tile is 60% collapsed, so it's gone
+// before the row is visibly compact rather than lingering half-visible.
+const QA_LABEL_FADE_END = 0.6;
+
+// Sticky-pin tuning (px). FADE_RANGE = how much scroll before the pin point
+// the collapse animates over; STICK_SNAP = end the collapse a hair before
+// the exact stick point so progress reaches a clean 1; GROUP_LABEL_H = the
+// resting height of the "QUICK ACTIONS" label (collapses to 0 when pinned);
+// the STUCK_PAD_* give the pinned strip its breathing room.
+const QA_FADE_RANGE = 44;
+const QA_STICK_SNAP = 3;
+const QA_GROUP_LABEL_H = 34;
+const QA_STUCK_PAD_TOP = 2;
+const QA_STUCK_PAD_BOTTOM = 12;
+// Initial off-screen Y for the header measurement, so progress reads 0
+// (fully expanded) before the first scroll frame measures the real position.
+const QA_OFFSCREEN_Y = 9999;
+// Total height the Quick Actions bar occupies once fully pinned — the online
+// status bar stacks directly below it, so it pins at insets.top + this.
+const QA_STUCK_TOTAL_H = QA_STUCK_PAD_TOP + QA_ITEM_STUCK_H + QA_STUCK_PAD_BOTTOM;
+// Height of the pinned (thin) online-shop status bar.
+const ONLINE_STUCK_H = 36;
+
+// Shared per-tile animated styles, driven by the row's 0→1 pin `progress`
+// (read directly on the UI thread). Both the action tiles and the Edit tile
+// shrink identically, so this lives in one place — the REAL tiles shrink in
+// place, no separate compact clone swaps in.
+function useQaTileStyles(progress: SharedValue<number>) {
+  const itemStyle = useAnimatedStyle(() => ({
+    height: interpolate(progress.value, [0, 1], [QA_ITEM_FULL_H, QA_ITEM_STUCK_H], Extrapolation.CLAMP),
+    width: interpolate(progress.value, [0, 1], [QA_ITEM_FULL_W, QA_ITEM_STUCK_W], Extrapolation.CLAMP),
+  }));
+  const circleStyle = useAnimatedStyle(() => {
+    const size = interpolate(progress.value, [0, 1], [QA_CIRCLE_FULL, QA_CIRCLE_STUCK], Extrapolation.CLAMP);
+    return { width: size, height: size, borderRadius: size / 2 };
+  });
+  const labelStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, QA_LABEL_FADE_END], [1, 0], Extrapolation.CLAMP),
+  }));
+  return { itemStyle, circleStyle, labelStyle };
+}
+
+// One Quick Action tile — memoized (see AGENTS.md's FlatList-row convention):
+// `gradientColors`/`labelColor`/`styles`/`stickyProgress` are all stable
+// references from the parent, and `onPress` is a single stable top-level
+// callback, so this never re-renders on unrelated Dashboard state changes.
 const QuickActionButton = React.memo(function QuickActionButton({
-  action, gradientColors, labelColor, onPress, styles,
+  action, gradientColors, labelColor, onPress, styles, stickyProgress,
 }: {
   action: QuickActionDef;
   gradientColors: readonly [string, string];
   labelColor: string;
   onPress: (action: QuickActionDef) => void;
   styles: any;
+  stickyProgress: SharedValue<number>;
 }) {
+  const { itemStyle, circleStyle, labelStyle } = useQaTileStyles(stickyProgress);
   return (
-    <PressableScale style={styles.qaItem} onPress={() => onPress(action)}>
-      <LinearGradient colors={gradientColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.qaCircle}>
-        <Ionicons name={action.icon} size={24} color="#fff" />
-      </LinearGradient>
-      <Text style={[styles.qaLabel, { color: labelColor }]} numberOfLines={1}>{action.label}</Text>
+    <PressableScale onPress={() => onPress(action)}>
+      <Animated.View style={[styles.qaItem, itemStyle]}>
+        <AnimatedLinearGradient colors={gradientColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.qaCircle, circleStyle]}>
+          <Ionicons name={action.icon} size={24} color="#fff" />
+        </AnimatedLinearGradient>
+        <Animated.Text style={[styles.qaLabelAbs, { color: labelColor }, labelStyle]} numberOfLines={1}>{action.label}</Animated.Text>
+      </Animated.View>
+    </PressableScale>
+  );
+});
+
+// The trailing "Edit" tile — same shrink/label-fade as the action tiles so
+// it stays visually consistent when the row pins (previously it kept its
+// label while the others faded, which read as a bug).
+const QuickActionEditButton = React.memo(function QuickActionEditButton({
+  onPress, colors, styles, stickyProgress,
+}: {
+  onPress: () => void;
+  colors: any;
+  styles: any;
+  stickyProgress: SharedValue<number>;
+}) {
+  const { itemStyle, circleStyle, labelStyle } = useQaTileStyles(stickyProgress);
+  return (
+    <PressableScale onPress={onPress}>
+      <Animated.View style={[styles.qaItem, itemStyle]}>
+        <Animated.View style={[styles.qaCircle, { backgroundColor: colors.surfaceHigh, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border }, circleStyle]}>
+          <Ionicons name="pencil-outline" size={22} color={colors.primary} />
+        </Animated.View>
+        <Animated.Text style={[styles.qaLabelAbs, { color: colors.textSub }, labelStyle]} numberOfLines={1}>Edit</Animated.Text>
+      </Animated.View>
     </PressableScale>
   );
 });
@@ -386,6 +469,9 @@ export default function DashboardScreen({ navigation }: any) {
   const quickActionGradient = useMemo(() => [colors.primary, colors.primaryDark] as const, [colors.primary, colors.primaryDark]);
   const handleQuickActionPress = useCallback((action: QuickActionDef) => navigateToQuickAction(navigation, action.target), [navigation]);
   const quickActionsSheetRef = useRef<LiquidBottomSheetRef>(null);
+  // Stable so the memoized Edit tile isn't re-rendered by a fresh inline
+  // arrow on every Dashboard render.
+  const openQuickActionsEditor = useCallback(() => quickActionsSheetRef.current?.expand(), []);
 
   // All sales numbers are netted of returns via the shared stats helper. Memoized
   // so the 9 computeSalesStats passes (today + yesterday + 7 days) don't re-run on
@@ -603,16 +689,97 @@ export default function DashboardScreen({ navigation }: any) {
 
   const insets = useSafeAreaInsets();
 
+  // Sticky Quick Actions — pinned via the ScrollView's own native
+  // `stickyHeaderIndices={[1]}` (see below). The shrink/collapse "progress"
+  // (0 = full, 1 = fully compact) is derived by MEASURING the header's real
+  // on-screen Y every scroll frame with reanimated's `measure()`, instead
+  // of computing it from scroll offset + guessed `contentInset` transforms
+  // (which never lined up on device). As the header's top approaches its
+  // stuck position (`stickTop`), progress ramps 0→1; once RN freezes it
+  // there, `measure` keeps returning `stickTop`, so progress stays at 1.
+  const qaRef = useAnimatedRef<Animated.View>();
+  const qaHeaderY = useSharedValue(QA_OFFSCREEN_Y);
+  // Where the sticky header freezes = the ScrollView's contentInset.top on
+  // iOS. Kept == the contentInset/contentOffset/hero-margin value below so
+  // the measured stick point matches reality. Uses plain `insets.top` (no
+  // extra offset) so the pinned icons sit right at the safe-area boundary,
+  // just under the Dynamic Island — an earlier `+8` pushed them into a
+  // visible dark band below the island.
+  const stickTop = insets.top;
+  // Online-shop status — a SECOND pinned bar that stacks directly under the
+  // Quick Actions bar. RN's native sticky headers can't stack (a later one
+  // pushes the earlier off), so this one is a custom measure-driven overlay:
+  // its in-flow card is measured each frame, and as it reaches the point just
+  // below the pinned Quick Actions bar it morphs into a thin status strip.
+  const onlineRef = useAnimatedRef<Animated.View>();
+  const onlineHeaderY = useSharedValue(QA_OFFSCREEN_Y);
+  const onlineStickTop = insets.top + QA_STUCK_TOTAL_H;
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: () => {
+      const m = measure(qaRef);
+      if (m) qaHeaderY.value = m.pageY;
+      const qa = measure(qaRef);
+      if (qa) qaHeaderY.value = qa.pageY;
+      const online = measure(onlineRef);
+      if (online) onlineHeaderY.value = online.pageY;
+    },
+  });
+  // The measured wrapper's own top edge lands right at `stickTop` when fully
+  // stuck (its animated padding is internal, so it doesn't offset the top),
+  // so the range ends a hair above (`+ QA_STICK_SNAP`) to guarantee a clean
+  // 1 (fully compact) rather than stalling just short.
+  const qaProgress = useDerivedValue(() =>
+    interpolate(qaHeaderY.value, [stickTop + QA_FADE_RANGE, stickTop + QA_STICK_SNAP], [0, 1], Extrapolation.CLAMP)
+  );
+  // Background fades in AND extends its top edge upward by `stickTop` as the
+  // row pins — so once stuck it fills the whole notch/status-bar gap above
+  // the row (which the sticky header itself doesn't occupy), instead of
+  // leaving the hero bleeding through there.
+  const quickActionsBgStyle = useAnimatedStyle(() => ({
+    opacity: qaProgress.value,
+    top: interpolate(qaProgress.value, [0, 1], [0, -stickTop], Extrapolation.CLAMP),
+  }));
+  // Applied to a wrapping Animated.VIEW (not the Text) — animating `height`
+  // on a Text doesn't reliably drop its layout space, which left a ~30px
+  // gap above the pinned icons; a view with overflow:hidden collapses cleanly.
+  const quickActionsLabelStyle = useAnimatedStyle(() => ({
+    height: interpolate(qaProgress.value, [0, 1], [QA_GROUP_LABEL_H, 0], Extrapolation.CLAMP),
+    opacity: interpolate(qaProgress.value, [0, 0.5], [1, 0], Extrapolation.CLAMP),
+  }));
+  const quickActionsPadStyle = useAnimatedStyle(() => ({
+    paddingTop: interpolate(qaProgress.value, [0, 1], [0, QA_STUCK_PAD_TOP], Extrapolation.CLAMP),
+    paddingBottom: interpolate(qaProgress.value, [0, 1], [0, QA_STUCK_PAD_BOTTOM], Extrapolation.CLAMP),
+  }));
+
+  // 0→1 as the in-flow online card reaches its pin point below the Quick
+  // Actions bar; drives the thin pinned status strip's reveal + morph.
+  const onlineProgress = useDerivedValue(() =>
+    interpolate(onlineHeaderY.value, [onlineStickTop + QA_FADE_RANGE, onlineStickTop + QA_STICK_SNAP], [0, 1], Extrapolation.CLAMP)
+  );
+  // The pinned strip grows its height in from 0 (so it holds no hit area and
+  // takes no space until it's actually pinning) while its content fades +
+  // slides up into place — a compact morph from the full card.
+  const onlineBarStyle = useAnimatedStyle(() => ({
+    height: interpolate(onlineProgress.value, [0, 1], [0, ONLINE_STUCK_H], Extrapolation.CLAMP),
+    opacity: interpolate(onlineProgress.value, [0, 0.4], [0, 1], Extrapolation.CLAMP),
+  }));
+  const onlineBarContentStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: interpolate(onlineProgress.value, [0, 1], [8, 0], Extrapolation.CLAMP) }],
+  }));
+
   if (!dataReady) return <DashboardSkeleton />;
 
   return (
     <SafeAreaView style={{ flex: 1 }} edges={[]}>
-      <ScrollView
+      <Animated.ScrollView
         showsVerticalScrollIndicator={false}
         scrollIndicatorInsets={{ top: 0, bottom: 0, left: 0, right: 0 }}
-        contentInset={Platform.OS === 'ios' ? { top: insets.top + 8 } : undefined}
-        contentOffset={Platform.OS === 'ios' ? { y: -(insets.top + 8), x: 0 } : undefined}
+        contentInset={Platform.OS === 'ios' ? { top: insets.top } : undefined}
+        contentOffset={Platform.OS === 'ios' ? { y: -insets.top, x: 0 } : undefined}
         scrollEnabled={true}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        stickyHeaderIndices={[1]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -623,8 +790,14 @@ export default function DashboardScreen({ navigation }: any) {
           />
         }
       >
+        {/* Wrapped so Quick Actions below can be the ScrollView's index-1
+            direct child — `stickyHeaderIndices={[1]}` needs a literal,
+            reliable index, and this 3-way split (before / Quick Actions /
+            after) makes that index trivial instead of hand-counting every
+            sibling (including conditionally-rendered ones). */}
+        <View>
         {/* HERO — greeting + headline earnings */}
-        <LinearGradient colors={[colors.primary, colors.primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[s.hero, { paddingTop: insets.top + 16, marginTop: Platform.OS === 'ios' ? -(insets.top + 8) : 0 }]}>
+        <LinearGradient colors={[colors.primary, colors.primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[s.hero, { paddingTop: insets.top + 16, marginTop: Platform.OS === 'ios' ? -insets.top : 0 }]}>
           <MotiView from={{ opacity: 0, translateY: -8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 450 }}>
             <View style={s.heroTop}>
               <View style={{ flex: 1 }}>
@@ -683,32 +856,49 @@ export default function DashboardScreen({ navigation }: any) {
           ))}
         </View>
 
-        {/* Quick Actions — horizontal scroll, gradient icon tile (no card background),
-            user-pinned/reordered via the trailing Edit tile's sheet. FlatList
-            (not ScrollView+map) + a memoized row component + stable
-            gradient/callback references keep this from re-rendering every
-            item on unrelated Dashboard re-renders (e.g. the widget-stack
-            auto-rotation interval ticking every few seconds). */}
-        <Text style={[s.groupLabel, { color: colors.textMuted }]}>{t('quickActions').toUpperCase()}</Text>
-        <FlatList
-          data={activeQuickActions}
-          keyExtractor={(action) => action.key}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
-          renderItem={({ item }) => (
-            <QuickActionButton action={item} gradientColors={quickActionGradient} labelColor={colors.textSub} onPress={handleQuickActionPress} styles={s} />
-          )}
-          ListFooterComponent={
-            <PressableScale style={s.qaItem} onPress={() => quickActionsSheetRef.current?.expand()}>
-              <View style={[s.qaCircle, { backgroundColor: colors.surfaceHigh, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border }]}>
-                <Ionicons name="pencil-outline" size={22} color={colors.primary} />
-              </View>
-              <Text style={[s.qaLabel, { color: colors.textSub }]} numberOfLines={1}>{t('edit')}</Text>
-            </PressableScale>
-          }
-        />
+        </View>
 
+        {/* Quick Actions — the ScrollView's index-1 direct child, pinned via
+            the native `stickyHeaderIndices={[1]}` below (RN's own built-in
+            mechanism — no hand-rolled translateY/position math). This is the
+            REAL row, not a duplicate: `qaRef` + reanimated `measure()` reads
+            its live on-screen Y every scroll frame to drive `qaProgress`
+            (0→1 as it approaches its stuck position), and each tile reads
+            that to collapse its own height, shrink its circle, and fade its
+            label — so the whole row shrinks into a thin strip in place. */}
+        <Animated.View style={{ backgroundColor: colors.bg }}>
+          <Animated.View style={[StyleSheet.absoluteFill, s.qaStickyBg, { backgroundColor: colors.bg, borderBottomColor: colors.border }, quickActionsBgStyle]} />
+          {/* Inner wrapper holds `qaRef` for measurement AND the animated
+              padding — NOT the outer sticky-header child itself. RN's sticky
+              mechanism injects its own animated transform onto that outer
+              child, which clobbers reanimated animated styles set directly
+              there (that's why the padding/collapse didn't apply before);
+              nested children like this one are untouched, so their animated
+              styles work. It also moves with the sticky transform, so
+              measuring it still gives the correct on-screen position. */}
+          <Animated.View ref={qaRef} style={quickActionsPadStyle}>
+            <Animated.View style={[s.groupLabelWrap, quickActionsLabelStyle]}>
+              <Text style={[s.groupLabel, { color: colors.textMuted }]} numberOfLines={1}>
+                {t('quickActions').toUpperCase()}
+              </Text>
+            </Animated.View>
+            <FlatList
+              data={activeQuickActions}
+              keyExtractor={(action) => action.key}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 16, gap: 8, alignItems: 'center' }}
+              renderItem={({ item }) => (
+                <QuickActionButton action={item} gradientColors={quickActionGradient} labelColor={colors.textSub} onPress={handleQuickActionPress} styles={s} stickyProgress={qaProgress} />
+              )}
+              ListFooterComponent={
+                <QuickActionEditButton onPress={openQuickActionsEditor} colors={colors} styles={s} stickyProgress={qaProgress} />
+              }
+            />
+          </Animated.View>
+        </Animated.View>
+
+        <View>
         {/* Ask AI bar */}
         <MotiView from={{ opacity: 0, translateY: 14 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 380, delay: 200 }}>
           <PressableScale style={[s.askBar, { backgroundColor: colors.surface, borderColor: colors.primary + '40' }]} onPress={() => navigation.navigate('AskAi')}>
@@ -720,8 +910,11 @@ export default function DashboardScreen({ navigation }: any) {
           </PressableScale>
         </MotiView>
 
-        {/* Online Shop — live CTA if enabled, otherwise an invite to start one */}
+             {/* Online Shop — live CTA if enabled, otherwise an invite to start one.
+            The enabled card is wrapped in an `onlineRef` anchor so its live
+            scroll position drives the thin pinned status strip below. */}
         {settings.onlineShopEnabled ? (
+          <Animated.View ref={onlineRef}>
           <MotiView from={{ opacity: 0, translateY: 14 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 400, delay: 210 }}>
             <PressableScale onPress={() => switchAppMode('online')}>
               {/* Keyed remount cross-fades the whole card (gradient, dot, copy)
@@ -760,6 +953,7 @@ export default function DashboardScreen({ navigation }: any) {
               </MotiView>
             </PressableScale>
           </MotiView>
+          </Animated.View>
         ) : (
           <MotiView from={{ opacity: 0, translateY: 14 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 400, delay: 210 }}>
             <PressableScale style={[s.onlineShopPrompt, { backgroundColor: colors.surface, borderColor: colors.primary + '40' }]} onPress={() => navigation.navigate('More', { screen: 'ShopInfo' })}>
@@ -949,7 +1143,26 @@ export default function DashboardScreen({ navigation }: any) {
         </MotiView>
 
         <View style={{ height: 100 }} />
-      </ScrollView>
+        </View>
+      </Animated.ScrollView>
+
+      {/* Pinned online-shop status strip — stacks directly under the Quick
+          Actions bar (`top: onlineStickTop`). Grows in from height 0 as the
+          in-flow card reaches this point, so it occupies no space and blocks
+          no taps until it's actually pinning. */}
+      {settings.onlineShopEnabled && (
+        <Animated.View style={[s.onlineStickyBar, { top: onlineStickTop, backgroundColor: colors.bg, borderBottomColor: colors.border }, onlineBarStyle]}>
+          <Animated.View style={[s.onlineStickyInner, onlineBarContentStyle]}>
+            <TouchableOpacity style={s.onlineStickyTouchable} onPress={() => switchAppMode('online')} activeOpacity={0.7}>
+              <View style={[s.onlineShopDot, { backgroundColor: isOnlineShopLive ? colors.success : colors.textMuted }]} />
+              <Text style={[s.onlineStickyText, { color: colors.text }]} numberOfLines={1}>
+                Online Shop is {isOnlineShopLive ? 'LIVE' : 'CLOSED'}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+          </Animated.View>
+        </Animated.View>
+      )}
 
       {/* Quick Actions editor — toggle which screens show + drag the handle
           to reorder. Kept as a sibling of the outer ScrollView (not a
@@ -1071,12 +1284,34 @@ const makeStyles = (c: any) => StyleSheet.create({
   sectionTitle: { fontFamily: fonts.extraBold, fontSize: 17, paddingHorizontal: 16, marginTop: 14, marginBottom: 14, letterSpacing: -0.3 },
 
   // Group label — same small-caps eyebrow style as MenuScreen's section headers
-  groupLabel: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 0.8, marginLeft: 24, marginTop: 14, marginBottom: 8 },
+  groupLabel: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 0.8, marginLeft: 24 },
+  // Collapsing wrapper for the "QUICK ACTIONS" label — owns the vertical
+  // spacing (as an animated height) so the whole thing folds to 0 when the
+  // row pins. justifyContent centers the label within its full-state height.
+  groupLabelWrap: { overflow: 'hidden', justifyContent: 'center' },
 
-  // Quick actions — circular gradient icon, no card background
-  qaItem: { alignItems: 'center', width: 70 },
-  qaCircle: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
-  qaLabel: { fontFamily: fonts.semiBold, fontSize: 11.5, textAlign: 'center' },
+  // Quick actions — circular gradient icon, no card background. `qaItem` has
+  // an animated height (full → stuck) driven per-tile; the circle sits at
+  // the top and the label is absolutely positioned at the bottom so it holds
+  // NO layout height — that's what lets the tile collapse cleanly to a thin
+  // icon-only strip when the row pins, instead of leaving empty label space.
+  qaItem: { alignItems: 'center', width: QA_ITEM_FULL_W, paddingTop: 2, overflow: 'hidden' },
+  qaCircle: { width: QA_CIRCLE_FULL, height: QA_CIRCLE_FULL, borderRadius: QA_CIRCLE_FULL / 2, justifyContent: 'center', alignItems: 'center' },
+  qaLabelAbs: { position: 'absolute', bottom: 0, width: QA_ITEM_FULL_W, fontFamily: fonts.semiBold, fontSize: 11.5, textAlign: 'center' },
+  // Solid fill + hairline bottom border behind the pinned row — opacity
+  // fades in with `qaProgress`, so it's invisible (hero shows through) until
+  // the row is actually pinning.
+  qaStickyBg: { borderBottomWidth: StyleSheet.hairlineWidth },
+
+    // Pinned online-shop status strip — thin bar stacked under the Quick
+  // Actions bar. Absolute (sibling of the ScrollView), animated height in.
+  onlineStickyBar: {
+    position: 'absolute', left: 0, right: 0, zIndex: 40, elevation: 10,
+    overflow: 'hidden', borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  onlineStickyInner: { flex: 1, justifyContent: 'center' },
+  onlineStickyTouchable: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, height: ONLINE_STUCK_H },
+  onlineStickyText: { flex: 1, fontFamily: fonts.semiBold, fontSize: 13 },
 
   // Quick Actions editor sheet — toggle + drag-to-reorder row.
   // Horizontal padding lives on `qaEditRow` itself (not just the list's
