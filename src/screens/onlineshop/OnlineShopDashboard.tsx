@@ -341,13 +341,20 @@ export default function OnlineShopDashboard({ navigation }: any) {
     <SafeAreaView style={{ flex: 1 }} edges={[]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentInset={Platform.OS === 'ios' ? { top: insets.top + 8 } : undefined}
-        contentOffset={Platform.OS === 'ios' ? { y: -(insets.top + 8), x: 0 } : undefined}
+        // MUST be "never". The explicit contentInset + negative contentOffset
+        // below is what lets the hero bleed under the notch, but with iOS's
+        // default "automatic" behavior the system ADDS its own safe-area inset
+        // on top whenever the view is re-added to the hierarchy (i.e. on
+        // navigation) — doubling the offset and pushing all content down by
+        // insets.top, which showed up as a solid strip above the hero.
+        contentInsetAdjustmentBehavior="never"
+        contentInset={Platform.OS === 'ios' ? { top: insets.top } : undefined}
+        contentOffset={Platform.OS === 'ios' ? { y: -insets.top, x: 0 } : undefined}
         contentContainerStyle={{ paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
       >
         {/* HERO — identity + the power switch, same treatment as Home's hero */}
-        <LinearGradient colors={[colors.primary, colors.primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.hero, { paddingTop: insets.top + 16, marginTop: Platform.OS === 'ios' ? -(insets.top + 8) : 0 }]}>
+        <LinearGradient colors={[colors.primary, colors.primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.hero, { paddingTop: insets.top + 16, marginTop: Platform.OS === 'ios' ? -insets.top : 0 }]}>
           <MotiView from={{ opacity: 0, translateY: -8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 450 }}>
             <Text style={styles.heroShopName} numberOfLines={1}>{config.shopName || settings.shopName}</Text>
             <View style={styles.linkRow}>

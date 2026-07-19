@@ -6,8 +6,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import Animated, {
   useSharedValue, useAnimatedProps, useAnimatedStyle, useAnimatedRef, useAnimatedScrollHandler, useDerivedValue,
-  scrollTo, runOnJS, interpolate, Extrapolation, withTiming, Easing, SharedValue, measure,
+  scrollTo, runOnJS, runOnUI, interpolate, Extrapolation, withTiming, Easing, SharedValue, measure,
 } from 'react-native-reanimated';
+import { useIsFocused } from '@react-navigation/native';
 import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
 import Svg, { Circle } from 'react-native-svg';
 import { useShallow } from 'zustand/react/shallow';
@@ -73,9 +74,6 @@ const QA_STUCK_PAD_BOTTOM = 12;
 // Initial off-screen Y for the header measurement, so progress reads 0
 // (fully expanded) before the first scroll frame measures the real position.
 const QA_OFFSCREEN_Y = 9999;
-// Total height the Quick Actions bar occupies once fully pinned — the online
-// status bar stacks directly below it, so it pins at insets.top + this.
-const QA_STUCK_TOTAL_H = QA_STUCK_PAD_TOP + QA_ITEM_STUCK_H + QA_STUCK_PAD_BOTTOM;
 // Height of the pinned (thin) online-shop status bar.
 const ONLINE_STUCK_H = 36;
 
@@ -699,13 +697,23 @@ export default function DashboardScreen({ navigation }: any) {
   // there, `measure` keeps returning `stickTop`, so progress stays at 1.
   const qaRef = useAnimatedRef<Animated.View>();
   const qaHeaderY = useSharedValue(QA_OFFSCREEN_Y);
-  // Where the sticky header freezes = the ScrollView's contentInset.top on
-  // iOS. Kept == the contentInset/contentOffset/hero-margin value below so
-  // the measured stick point matches reality. Uses plain `insets.top` (no
-  // extra offset) so the pinned icons sit right at the safe-area boundary,
-  // just under the Dynamic Island — an earlier `+8` pushed them into a
-  // visible dark band below the island.
-  const stickTop = insets.top;
+  // Where the sticky header actually freezes, which differs per platform:
+  //  • iOS   — at the ScrollView's `contentInset.top` (= insets.top below), so
+  //            it lands right at the safe-area boundary, under the Dynamic
+  //            Island. The status-bar gap ABOVE it is filled by extending the
+  //            bar's background upward (see `qaBgExtendUp`).
+  //  • Android — `contentInset` is iOS-only, so the header freezes at the
+  //            ScrollView frame top (y=0). Under edge-to-edge (enforced on
+  //            Android 15+, which SDK 56 targets) that's UNDER the status bar,
+  //            so instead of extending the background up, the bar pads its own
+  //            content down by insets.top to clear the status bar.
+  // Both paths end up visually identical: an opaque bar from y=0 with its
+  // icons sitting just below the status bar.
+  const isIOS = Platform.OS === 'ios';
+  const stickTop = isIOS ? insets.top : 0;
+  const qaBgExtendUp = isIOS ? insets.top : 0;
+  const qaStuckPadTop = QA_STUCK_PAD_TOP + (isIOS ? 0 : insets.top);
+  const qaStuckTotalH = qaStuckPadTop + QA_ITEM_STUCK_H + QA_STUCK_PAD_BOTTOM;
   // Online-shop status — a SECOND pinned bar that stacks directly under the
   // Quick Actions bar. RN's native sticky headers can't stack (a later one
   // pushes the earlier off), so this one is a custom measure-driven overlay:
@@ -713,17 +721,38 @@ export default function DashboardScreen({ navigation }: any) {
   // below the pinned Quick Actions bar it morphs into a thin status strip.
   const onlineRef = useAnimatedRef<Animated.View>();
   const onlineHeaderY = useSharedValue(QA_OFFSCREEN_Y);
-  const onlineStickTop = insets.top + QA_STUCK_TOTAL_H;
+  // Sits directly under the pinned Quick Actions bar. Derived from the
+  // platform-correct stick point + that bar's real stuck height, so it lands
+  // at the same absolute Y on both platforms.
+  const onlineStickTop = stickTop + qaStuckTotalH;
+  // Shared measuring worklet. The `height > 0` guard is essential: when this
+  // screen is navigated away from (e.g. switching to the online shop tabs), a
+  // scroll/layout event can still fire while its views are detached or
+  // hidden, and `measure` then reports a 0-sized node at pageY 0 — which
+  // reads as "fully pinned" and leaves the bar stuck solid on return.
+  // Ignoring degenerate measurements keeps the last VALID position instead.
+  const measureStickyHeaders = useCallback(() => {
+    'worklet';
+    const qa = measure(qaRef);
+    if (qa && qa.height > 0) qaHeaderY.value = qa.pageY;
+    const online = measure(onlineRef);
+    if (online && online.height > 0) onlineHeaderY.value = online.pageY;
+  }, []);
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: () => {
-      const m = measure(qaRef);
-      if (m) qaHeaderY.value = m.pageY;
-      const qa = measure(qaRef);
-      if (qa) qaHeaderY.value = qa.pageY;
-      const online = measure(onlineRef);
-      if (online) onlineHeaderY.value = online.pageY;
+      measureStickyHeaders();
     },
   });
+  // Re-measure whenever the screen regains focus. Coming back from another
+  // tab tree fires no scroll event, so without this the bar keeps whatever
+  // state it had when last scrolled — this re-derives it from the real
+  // on-screen position (the ScrollView keeps its scroll offset).
+  const isFocused = useIsFocused();
+  useEffect(() => {
+    if (!isFocused) return;
+    const id = setTimeout(() => runOnUI(measureStickyHeaders)(), 250);
+    return () => clearTimeout(id);
+  }, [isFocused, measureStickyHeaders]);
   // The measured wrapper's own top edge lands right at `stickTop` when fully
   // stuck (its animated padding is internal, so it doesn't offset the top),
   // so the range ends a hair above (`+ QA_STICK_SNAP`) to guarantee a clean
@@ -737,7 +766,7 @@ export default function DashboardScreen({ navigation }: any) {
   // leaving the hero bleeding through there.
   const quickActionsBgStyle = useAnimatedStyle(() => ({
     opacity: qaProgress.value,
-    top: interpolate(qaProgress.value, [0, 1], [0, -stickTop], Extrapolation.CLAMP),
+    top: interpolate(qaProgress.value, [0, 1], [0, -qaBgExtendUp], Extrapolation.CLAMP),
   }));
   // Applied to a wrapping Animated.VIEW (not the Text) — animating `height`
   // on a Text doesn't reliably drop its layout space, which left a ~30px
@@ -747,7 +776,7 @@ export default function DashboardScreen({ navigation }: any) {
     opacity: interpolate(qaProgress.value, [0, 0.5], [1, 0], Extrapolation.CLAMP),
   }));
   const quickActionsPadStyle = useAnimatedStyle(() => ({
-    paddingTop: interpolate(qaProgress.value, [0, 1], [0, QA_STUCK_PAD_TOP], Extrapolation.CLAMP),
+    paddingTop: interpolate(qaProgress.value, [0, 1], [0, qaStuckPadTop], Extrapolation.CLAMP),
     paddingBottom: interpolate(qaProgress.value, [0, 1], [0, QA_STUCK_PAD_BOTTOM], Extrapolation.CLAMP),
   }));
 
@@ -774,6 +803,12 @@ export default function DashboardScreen({ navigation }: any) {
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
         scrollIndicatorInsets={{ top: 0, bottom: 0, left: 0, right: 0 }}
+        // MUST be "never" — with iOS's default "automatic" behavior the system
+        // ADDS its own safe-area inset on top of the explicit contentInset
+        // below whenever this view is re-added to the hierarchy (returning
+        // from the online tabs), doubling the offset and pushing all content
+        // down by insets.top — the solid strip above the hero.
+        contentInsetAdjustmentBehavior="never"
         contentInset={Platform.OS === 'ios' ? { top: insets.top } : undefined}
         contentOffset={Platform.OS === 'ios' ? { y: -insets.top, x: 0 } : undefined}
         scrollEnabled={true}
